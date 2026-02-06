@@ -934,3 +934,38 @@
 - Category groups default expanded with useState(true), toggle for UX
 - Pre-existing TypeScript errors in demo files don't affect actual functionality
 - useMemo for filtering and grouping prevents recalculation on every render
+
+## 2026-02-06 - UI-014
+**Title:** Skill detail en edit
+
+**Implemented:**
+- Updated SkillDetailModal component with CodeMirror code editor
+- Added edit mode toggle (Edit/Save/Cancel buttons) conditional on isWritable prop
+- Integrated @uiw/react-codemirror with markdown highlighting and oneDark theme
+- Added updateCentral endpoint to skills router for saving central skill changes
+- Save validates frontmatter format and checks write permissions via FORBIDDEN error
+- Cancel button reverts to original content and exits edit mode
+- Unsaved changes indicator with confirmation dialog on close/escape
+- Cache invalidation on successful save via trpc.useUtils()
+- 23 unit tests for modal component, 5 tests for updateCentral endpoint
+- Updated prompts.tsx to pass isWritable prop to modal
+
+**Files changed:**
+- src/components/SkillDetailModal.tsx (major rewrite - 341 lines, +CodeMirror integration)
+- src/components/SkillDetailModal.test.tsx (new - 23 tests)
+- src/lib/trpc/routers/skills.ts (added updateCentral endpoint)
+- src/lib/trpc/routers/skills.test.ts (added 5 updateCentral tests)
+- src/routes/prompts.tsx (pass isWritable prop to modal)
+- package.json (added @uiw/react-codemirror, @codemirror/lang-markdown, @codemirror/theme-one-dark)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- @uiw/react-codemirror provides simple React integration for CodeMirror 6
+- CodeMirror extensions like markdown() and oneDark theme are separate packages
+- Mock CodeMirror in tests with simple textarea for easier testing
+- TRPCError code: 'FORBIDDEN' for permission denied scenarios
+- Dynamic import of node:fs/promises access() allows checking write permissions at runtime
+- useCallback prevents recreation of handlers on every render for stable deps
+- Unsaved changes tracking: compare editedContent !== skill.content in useEffect
+- Modal close with confirmation: window.confirm() for simple blocking dialog
+- Reset editing state when skill prop changes (different skill selected)
