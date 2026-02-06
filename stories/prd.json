@@ -282,7 +282,7 @@
       "title": "Skills API routes",
       "description": "API voor het beheren van skills (centraal en project-specifiek) via filesystem",
       "priority": 12,
-      "status": "pending",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-001"],
       "recommendedSkills": ["backend-development:api-design-principles"],

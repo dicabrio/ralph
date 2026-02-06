@@ -367,3 +367,31 @@
 - Use writeFile with JSON.stringify(data, null, 2) + '\n' for pretty-printed JSON with trailing newline
 - Unit tests with SQLite must run with --no-file-parallelism to avoid concurrent access issues
 - Mock both node:fs (existsSync) and node:fs/promises (readFile, writeFile) separately
+
+## 2026-02-06 - API-005
+**Title:** Skills API routes
+
+**Implemented:**
+- Created tRPC router at src/lib/trpc/routers/skills.ts for skills management
+- Procedures: listCentral, listByProject, getById, createOverride, updateOverride, deleteOverride, diff
+- Central skills loaded from SKILLS_PATH env var (./skills by default)
+- Project overrides stored in {projectPath}/.ralph/skills/
+- Skills are folders with SKILL.md file containing YAML frontmatter (name, description)
+- Diff endpoint compares override content with central skill
+- Integrated skills router into app router
+- Unit tests with mocked filesystem (29 tests passing)
+
+**Files changed:**
+- src/lib/trpc/routers/skills.ts (new - skills tRPC router)
+- src/lib/trpc/routers/skills.test.ts (new - 29 unit tests)
+- src/lib/trpc/routers/index.ts (added skills router to appRouter)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Claude Code skills are folders with a SKILL.md file containing YAML frontmatter (name, description)
+- Frontmatter is parsed with simple regex: /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/
+- Simple YAML parsing works for key: value pairs without complex nesting
+- When mocking existsSync with custom logic, be careful with substring matches (e.g., "invalid-skill" contains "valid-skill")
+- Use PathLike type for fs mocks to avoid TypeScript errors, then convert to string inside mock
+- Test isolation issues can occur when running multiple test files with shared database - each file passes individually
+- Skills directory structure: {SKILLS_PATH}/{skill-id}/SKILL.md for central, {projectPath}/.ralph/skills/{skill-id}/SKILL.md for overrides
