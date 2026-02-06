@@ -640,7 +640,7 @@
       "title": "Runner process manager",
       "description": "Service voor het beheren van Claude Docker containers",
       "priority": 32,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["SETUP-003", "DB-004"],
       "recommendedSkills": [],

@@ -1040,3 +1040,30 @@
 - vi.mock hoisting issue: mock functions must be defined before vi.mock() call to be accessible
 - window.confirm() mock: use vi.spyOn() with mockImplementation() in beforeEach
 - Multiple elements with same text: use getAllByText() instead of getByText() to avoid strict mode error
+
+## 2026-02-06 - RUNNER-001
+**Title:** Runner process manager
+
+**Implemented:**
+- Verified all acceptance criteria already met from API-006 implementation
+- RunnerManager service at src/lib/services/runnerManager.ts
+- Container lifecycle: start (spawn), stop (graceful/force), getStatus, getAllStatus
+- Container tracking via in-memory Map<projectId, ContainerProcess>
+- Prevention of multiple runners per project via containers Map and stoppingContainers Set
+- cleanupOrphanedContainers() for orphan cleanup at app start
+- Docker CLI commands via promisify(exec) pattern
+- Environment vars: HOST_PROJECTS_ROOT, HOST_SKILLS_PATH, ANTHROPIC_API_KEY
+- Full unit test coverage: 13 service tests + 19 router tests = 32 total
+
+**Files verified:**
+- src/lib/services/runnerManager.ts (pre-existing from API-006)
+- src/lib/services/runnerManager.test.ts (pre-existing from API-006)
+- src/lib/trpc/routers/runner.ts (pre-existing from API-006)
+- src/lib/trpc/routers/runner.test.ts (pre-existing from API-006)
+
+**Learnings:**
+- RUNNER-001 was functionally complete after API-006 but marked as separate story in PRD
+- API-006 implemented both the tRPC router AND the underlying service in one effort
+- Story verification confirms Docker-out-of-Docker pattern works correctly
+- Container name pattern: claude-runner-{projectId} for easy identification
+- All 466 unit tests pass with --no-file-parallelism (required for SQLite test isolation)
