@@ -795,3 +795,32 @@
 - Test pattern: store hook callbacks in globalThis to invoke them in tests
 - Pre-existing TypeScript errors in demo files don't block the build if they're not in src/
 
+## 2026-02-06 - UI-011
+**Title:** Brainstorm pagina
+
+**Implemented:**
+- Created Brainstorm page at src/routes/brainstorm.tsx with chat interface
+- Project selector component with dropdown list of available projects
+- Chat message history with MessageBubble component for user and assistant messages
+- Input textarea with auto-resize and Send button
+- Typing indicator with animated bouncing dots
+- Auto-scroll to bottom on new messages with "Jump to latest" button when scrolled up
+- Empty state when no messages or no project selected
+- Keyboard support: Enter to send, Shift+Enter for new line, Escape closes dropdowns
+- Placeholder AI responses until API-008 is implemented
+
+**Files changed:**
+- src/routes/brainstorm.tsx (new - 500+ lines)
+- src/routeTree.gen.ts (auto-generated with new /brainstorm route)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- TanStack Router file-based routing: create file at src/routes/brainstorm.tsx for /brainstorm route
+- Route tree auto-generated when dev server runs or build is executed
+- Chat interface pattern: messages array with unique IDs, role (user/assistant), content, timestamp
+- Auto-scroll pattern: track isAtBottom state, only auto-scroll when user is at bottom
+- Textarea auto-resize: set height to 'auto' then to scrollHeight on change
+- Dropdown close on click outside: use mousedown event listener on document
+- Typing indicator: bouncing dots with staggered animation-delay for visual effect
+- Pre-existing TypeScript errors in demo files don't affect build (confirmed)
+

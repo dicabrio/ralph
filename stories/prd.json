@@ -515,7 +515,7 @@
       "title": "Brainstorm pagina",
       "description": "Chat interface voor het aanmaken van stories via AI",
       "priority": 25,
-      "status": "pending",
+      "status": "done",
       "epic": "Brainstorm",
       "dependencies": ["UI-001"],
       "recommendedSkills": ["frontend-design"],
