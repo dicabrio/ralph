@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PRD Voortgang - SIPS</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f0f2f5;
+        min-height: 100vh;
+      }
+
+      .header {
+        background: white;
+        padding: 20px 30px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .header h1 {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 6px;
+      }
+      .header .description {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 15px;
+      }
+      .stats {
+        display: flex;
+        gap: 30px;
+        font-size: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .stat {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .stat-num {
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .stat-num.done {
+        color: #22c55e;
+      }
+      .stat-num.inprogress {
+        color: #f59e0b;
+      }
+      .stat-num.failed {
+        color: #ef4444;
+      }
+      .stat-num.todo {
+        color: #6b7280;
+      }
+      .stat-num.backlog {
+        color: #94a3b8;
+      }
+      .progress-bar {
+        height: 6px;
+        background: #e5e5e5;
+        border-radius: 3px;
+        flex: 1;
+        max-width: 300px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: #22c55e;
+        transition: width 0.3s;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        padding: 20px;
+        min-height: calc(100vh - 120px);
+      }
+
+      .swimlane {
+        background: #e5e7eb;
+        border-radius: 12px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+      }
+      .swimlane-header {
+        font-weight: 600;
+        font-size: 14px;
+        color: #374151;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .swimlane-count {
+        background: #9ca3af;
+        color: white;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+      .swimlane.backlog .swimlane-count {
+        background: #94a3b8;
+      }
+      .swimlane.todo .swimlane-count {
+        background: #6b7280;
+      }
+      .swimlane.in-progress .swimlane-count {
+        background: #f59e0b;
+      }
+      .swimlane.done .swimlane-count {
+        background: #22c55e;
+      }
+
+      .swimlane-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 14px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition:
+          box-shadow 0.15s,
+          transform 0.15s;
+        border: 3px solid transparent;
+      }
+      .card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
+      .card.updated {
+        animation: blink 0.5s ease-in-out 6;
+        border-color: #22c55e;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          background: white;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        50% {
+          background: #bbf7d0;
+          box-shadow:
+            0 0 20px rgba(34, 197, 94, 0.8),
+            0 0 40px rgba(34, 197, 94, 0.4);
+        }
+      }
+      .card-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+      }
+      .card-priority {
+        font-size: 11px;
+        font-weight: 600;
+        color: white;
+        background: #6b7280;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      .card-priority.p0 {
+        background: #ef4444;
+      }
+      .card-priority.p1 {
+        background: #f59e0b;
+      }
+      .card-priority.p2 {
+        background: #3b82f6;
+      }
+      .card-priority.p3 {
+        background: #8b5cf6;
+      }
+      .card-priority.p99 {
+        background: #9ca3af;
+      }
+      .card-id {
+        font-size: 11px;
+        color: #9ca3af;
+        font-weight: 500;
+      }
+      .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2937;
+        line-height: 1.4;
+      }
+      .card-deps {
+        margin-top: 8px;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .card-dep {
+        font-size: 10px;
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+
+      /* Modal styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: white;
+        border-radius: 12px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 85vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      .modal-header-content {
+        flex: 1;
+      }
+      .modal-id {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-bottom: 4px;
+      }
+      .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        color: #9ca3af;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+      }
+      .modal-close:hover {
+        color: #374151;
+      }
+      .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+      }
+      .modal-section {
+        margin-bottom: 24px;
+      }
+      .modal-section:last-child {
+        margin-bottom: 0;
+      }
+      .modal-section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+      }
+      .modal-description {
+        font-size: 14px;
+        color: #4b5563;
+        line-height: 1.6;
+      }
+      .modal-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .modal-status.done {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .modal-status.inprogress {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .modal-status.pending {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      .modal-status.backlog {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .modal-status.failed {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .card.failed {
+        border-left: 4px solid #ef4444;
+      }
+      .card-failed-badge {
+        font-size: 10px;
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 500;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .tag.dependency {
+        background: #e0e7ff;
+        color: #3730a3;
+      }
+      .tag.skill {
+        background: #f3e8ff;
+        color: #7c3aed;
+      }
+
+      .criteria-list {
+        list-style: none;
+      }
+      .criteria-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 13px;
+        color: #4b5563;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .criteria-item:last-child {
+        border-bottom: none;
+      }
+      .criteria-bullet {
+        color: #3b82f6;
+      }
+
+      @media (max-width: 1024px) {
+        .board {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>PRD Voortgang</h1>
+      <p class="description" id="description"></p>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-num backlog" id="backlog-count">-</span> Backlog
+        </div>
+        <div class="stat">
+          <span class="stat-num todo" id="todo-count">-</span> Te doen
+        </div>
+        <div class="stat">
+          <span class="stat-num failed" id="failed-count">-</span> Gefaald
+        </div>
+        <div class="stat">
+          <span class="stat-num inprogress" id="inprogress-count">-</span> In
+          Progress
+        </div>
+        <div class="stat">
+          <span class="stat-num done" id="done-count">-</span> Voltooid
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="board">
+      <div class="swimlane backlog">
+        <div class="swimlane-header">
+          Backlog <span class="swimlane-count" id="lane-backlog-count">0</span>
+        </div>
+        <div class="swimlane-cards" id="lane-backlog"></div>
+      </div>
+      <div class="swimlane todo">
+        <div class="swimlane-header">
+          Te doen <span class="swimlane-count" id="lane-todo-count">0</span>
+        </div>
+        <div class="swimlane-cards" id="lane-todo"></div>
+      </div>
+      <div class="swimlane in-progress">
+        <div class="swimlane-header">
+          In Progress
+          <span class="swimlane-count" id="lane-inprogress-count">0</span>
+        </div>
+        <div class="swimlane-cards" id="lane-inprogress"></div>
+      </div>
+      <div class="swimlane done">
+        <div class="swimlane-header">
+          Voltooid <span class="swimlane-count" id="lane-done-count">0</span>
+        </div>
+        <div class="swimlane-cards" id="lane-done"></div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <div class="modal-id" id="modal-id"></div>
+            <div class="modal-title" id="modal-title"></div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+      </div>
+    </div>
+
+    <script>
+      let prdData = null;
+      let changedStories = new Set();
+
+      async function loadPRD(options = {}) {
+        try {
+          const response = await fetch("prd.json?t=" + Date.now());
+          const newData = await response.json();
+          applyPrdUpdate(newData, options);
+        } catch (error) {
+          document.getElementById("lane-todo").innerHTML =
+            '<p style="color: red; padding: 10px;">Fout bij laden: ' +
+            error.message +
+            "</p>";
+        }
+      }
+
+      function applyPrdUpdate(newData, options = {}) {
+        const highlight = options.highlight !== false;
+        changedStories = new Set();
+
+        if (highlight && prdData) {
+          const newStories = newData.userStories || [];
+          const oldStories = prdData.userStories || [];
+          const oldStoryMap = new Map(
+            oldStories.map((story) => [story.id, story]),
+          );
+          newStories.forEach((newStory) => {
+            const oldStory = oldStoryMap.get(newStory.id);
+            if (storyChanged(oldStory, newStory)) {
+              changedStories.add(newStory.id);
+            }
+          });
+        }
+
+        prdData = newData;
+        renderPRD(prdData);
+
+        if (changedStories.size > 0) {
+          setTimeout(() => {
+            changedStories = new Set();
+            document.querySelectorAll(".card.updated").forEach((el) => {
+              el.classList.remove("updated");
+            });
+          }, 3000);
+        }
+      }
+
+      function renderPRD(data) {
+        document.getElementById("description").textContent =
+          data.projectDescription || "";
+
+        // Use userStories from prd.json
+        const stories = data.userStories || [];
+
+        // Sort stories by priority
+        const sortedStories = [...stories].sort(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+
+        const lanes = { backlog: [], pending: [], failed: [], inprogress: [], done: [] };
+
+        sortedStories.forEach((story) => {
+          // Use status field: backlog, pending, in_progress, done, failed
+          let status = story.status || "pending";
+          // Normalize in_progress to inprogress for lane key
+          if (status === "in_progress") status = "inprogress";
+          if (!lanes[status]) status = "pending";
+          lanes[status].push(story);
+        });
+
+        // Update counts
+        document.getElementById("backlog-count").textContent =
+          lanes.backlog.length;
+        document.getElementById("todo-count").textContent =
+          lanes.pending.length;
+        document.getElementById("failed-count").textContent =
+          lanes.failed.length;
+        document.getElementById("inprogress-count").textContent =
+          lanes.inprogress.length;
+        document.getElementById("done-count").textContent = lanes.done.length;
+        // Lane counts
+        document.getElementById("lane-backlog-count").textContent =
+          lanes.backlog.length;
+        document.getElementById("lane-todo-count").textContent =
+          lanes.pending.length + lanes.failed.length;
+        document.getElementById("lane-inprogress-count").textContent =
+          lanes.inprogress.length;
+        document.getElementById("lane-done-count").textContent =
+          lanes.done.length;
+
+        // Calculate progress bar (excluding backlog items)
+        const total = sortedStories.length - lanes.backlog.length;
+        const donePercent = total > 0 ? (lanes.done.length / total) * 100 : 0;
+        document.getElementById("progress-fill").style.width =
+          donePercent + "%";
+
+        // Render lanes
+        // Backlog lane
+        const backlogContainer = document.getElementById("lane-backlog");
+        backlogContainer.innerHTML = "";
+        const sortedBacklog = lanes.backlog.toSorted(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+        sortedBacklog.forEach((story) => {
+          backlogContainer.appendChild(createCard(story, false));
+        });
+
+        // Todo lane: show failed first (they need attention), then pending
+        const todoContainer = document.getElementById("lane-todo");
+        todoContainer.innerHTML = "";
+
+        // Failed stories first (sorted by priority)
+        const sortedFailed = lanes.failed.toSorted(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+        sortedFailed.forEach((story) => {
+          todoContainer.appendChild(createCard(story, true));
+        });
+
+        // Then pending stories (sorted by priority)
+        const sortedPending = lanes.pending.toSorted(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+        sortedPending.forEach((story) => {
+          todoContainer.appendChild(createCard(story, false));
+        });
+
+        // In Progress lane
+        const inprogressContainer = document.getElementById("lane-inprogress");
+        inprogressContainer.innerHTML = "";
+        const sortedInProgress = lanes.inprogress.toSorted(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+        sortedInProgress.forEach((story) => {
+          inprogressContainer.appendChild(createCard(story, false));
+        });
+
+        // Done lane
+        const doneContainer = document.getElementById("lane-done");
+        doneContainer.innerHTML = "";
+        const sortedDone = lanes.done.toSorted(
+          (a, b) => (a.priority || 99) - (b.priority || 99),
+        );
+        sortedDone.forEach((story) => {
+          doneContainer.appendChild(createCard(story, false));
+        });
+      }
+
+      function createCard(story, isFailed = false) {
+        const card = document.createElement("div");
+        let cardClass = "card";
+        if (changedStories.has(story.id)) cardClass += " updated";
+        if (isFailed || story.status === "failed") cardClass += " failed";
+        card.className = cardClass;
+        card.onclick = () => openStoryModal(story.id);
+
+        const p = story.priority;
+        const priorityClass =
+          p === 0
+            ? "p0"
+            : p === 1
+              ? "p1"
+              : p <= 5
+                ? "p2"
+                : p >= 99
+                  ? "p99"
+                  : "p3";
+
+        let depsHtml = "";
+        if (story.dependencies && story.dependencies.length > 0) {
+          depsHtml = `<div class="card-deps">${story.dependencies.map((d) => `<span class="card-dep">${d}</span>`).join("")}</div>`;
+        }
+
+        const failedBadge =
+          isFailed || story.status === "failed"
+            ? '<span class="card-failed-badge">Gefaald</span>'
+            : "";
+
+        card.innerHTML = `
+                <div class="card-header">
+                    <span class="card-priority ${priorityClass}">P${story.priority}</span>
+                    <span class="card-id">${story.id}</span>
+                    ${failedBadge}
+                </div>
+                <div class="card-title">${story.title}</div>
+                ${depsHtml}
+            `;
+
+        return card;
+      }
+
+      function openStoryModal(storyId) {
+        const stories = prdData.userStories || [];
+        const story = stories.find((s) => s.id === storyId);
+        if (!story) return;
+
+        document.getElementById("modal-id").textContent = story.id;
+        document.getElementById("modal-title").textContent = story.title;
+
+        const statusLabels = {
+          backlog: "Backlog",
+          pending: "Te doen",
+          inprogress: "In Progress",
+          done: "Voltooid",
+          failed: "Gefaald",
+        };
+        const statusIcons = {
+          backlog: "☰ ",
+          pending: "○ ",
+          inprogress: "◐ ",
+          done: "✓ ",
+          failed: "✗ ",
+        };
+        let status = story.status || "pending";
+        // Normalize in_progress to inprogress for display
+        if (status === "in_progress") status = "inprogress";
+
+        let bodyHtml = "";
+
+        // Status & Priority
+        bodyHtml += `
+                <div class="modal-section">
+                    <div class="modal-section-title">Status</div>
+                    <div class="modal-status ${status}">${statusIcons[status] || "○ "}${statusLabels[status] || status}</div>
+                </div>
+            `;
+
+        // Description
+        if (story.description) {
+          bodyHtml += `
+                    <div class="modal-section">
+                        <div class="modal-section-title">Beschrijving</div>
+                        <div class="modal-description">${story.description}</div>
+                    </div>
+                `;
+        }
+
+        // Notes
+        if (story.notes) {
+          bodyHtml += `
+                    <div class="modal-section">
+                        <div class="modal-section-title">Notities</div>
+                        <div class="modal-description">${story.notes}</div>
+                    </div>
+                `;
+        }
+
+        // Acceptance Criteria
+        if (story.acceptanceCriteria && story.acceptanceCriteria.length > 0) {
+          bodyHtml += `
+                    <div class="modal-section">
+                        <div class="modal-section-title">Acceptatiecriteria</div>
+                        <ul class="criteria-list">
+                            ${story.acceptanceCriteria
+                              .map(
+                                (c) => `
+                                <li class="criteria-item">
+                                    <span class="criteria-bullet">•</span>
+                                    <span>${c}</span>
+                                </li>
+                            `,
+                              )
+                              .join("")}
+                        </ul>
+                    </div>
+                `;
+        }
+
+        // Dependencies
+        if (story.dependencies && story.dependencies.length > 0) {
+          bodyHtml += `
+                    <div class="modal-section">
+                        <div class="modal-section-title">Afhankelijkheden</div>
+                        <div class="tags">
+                            ${story.dependencies.map((d) => `<span class="tag dependency">${d}</span>`).join("")}
+                        </div>
+                    </div>
+                `;
+        }
+
+        // Recommended Skills
+        if (story.recommendedSkills && story.recommendedSkills.length > 0) {
+          bodyHtml += `
+                    <div class="modal-section">
+                        <div class="modal-section-title">Aanbevolen Skills</div>
+                        <div class="tags">
+                            ${story.recommendedSkills.map((s) => `<span class="tag skill">${s}</span>`).join("")}
+                        </div>
+                    </div>
+                `;
+        }
+
+        document.getElementById("modal-body").innerHTML = bodyHtml;
+        document.getElementById("modal-overlay").classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeModal(event) {
+        if (event && event.target !== event.currentTarget) return;
+        document.getElementById("modal-overlay").classList.remove("open");
+        document.body.style.overflow = "";
+      }
+
+      // Close on Escape key
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeModal();
+        }
+      });
+
+      async function loadPRDWithDiff() {
+        return loadPRD({ highlight: true });
+      }
+
+      function normalizeArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
+      function storyChanged(oldStory, newStory) {
+        if (!oldStory) return true;
+
+        const oldPriority =
+          typeof oldStory.priority === "number" ? oldStory.priority : 99;
+        const newPriority =
+          typeof newStory.priority === "number" ? newStory.priority : 99;
+        if (oldPriority !== newPriority) return true;
+
+        if ((oldStory.status || "pending") !== (newStory.status || "pending"))
+          return true;
+        if ((oldStory.title || "") !== (newStory.title || "")) return true;
+        if ((oldStory.description || "") !== (newStory.description || ""))
+          return true;
+        if ((oldStory.notes || "") !== (newStory.notes || "")) return true;
+
+        const fields = [
+          "dependencies",
+          "acceptanceCriteria",
+          "recommendedSkills",
+        ];
+        return fields.some((field) => {
+          const oldValue = JSON.stringify(normalizeArray(oldStory[field]));
+          const newValue = JSON.stringify(normalizeArray(newStory[field]));
+          return oldValue !== newValue;
+        });
+      }
+
+      loadPRD();
+
+      // WebSocket for live reload
+      function connectWebSocket() {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === "prd-update") {
+              if (message.data) {
+                console.log("prd.json updated, applying...");
+                applyPrdUpdate(message.data, { highlight: true });
+              } else {
+                loadPRDWithDiff();
+              }
+            } else if (message.type === "reload") {
+              console.log("prd.json changed, reloading...");
+              loadPRDWithDiff();
+            }
+          } catch (e) {
+            console.log("WebSocket message:", event.data);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log("WebSocket disconnected, reconnecting in 3s...");
+          setTimeout(connectWebSocket, 3000);
+        };
+
+        ws.onerror = (err) => {
+          console.log("WebSocket error, will reconnect...");
+          ws.close();
+        };
+      }
+
+      // Only connect WebSocket if served from server (not file://)
+      if (window.location.protocol !== "file:") {
+        connectWebSocket();
+      }
+    </script>
+  </body>
+</html>

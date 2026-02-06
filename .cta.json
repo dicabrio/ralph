@@ -1,0 +1,25 @@
+{
+  "projectName": "ralph",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "pnpm",
+  "tailwind": true,
+  "addOnOptions": {
+    "drizzle": {
+      "database": "sqlite"
+    }
+  },
+  "git": true,
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": [
+    "biome",
+    "nitro",
+    "start",
+    "db",
+    "drizzle",
+    "better-auth",
+    "shadcn",
+    "tanstack-query"
+  ]
+}

@@ -1,0 +1,30 @@
+## Codebase Patterns (Updated by Agents)
+- TanStack Start with file-based routing in src/routes/
+- Component files use PascalCase (e.g., Header.tsx)
+- TailwindCSS v4 via @tailwindcss/vite plugin
+- Path alias @ configured for src/ folder in vite.config.ts
+- Lucide React for icons
+- Root layout in src/routes/__root.tsx with RootDocument shell component
+- Header component contains sidebar navigation with slide-out menu
+- Dev server runs on port 9000
+
+## 2026-02-06 - SETUP-001
+**Title:** TanStack Start project initialisatie
+
+**Implemented:**
+- Verified TanStack Start project with TypeScript is already configured
+- Verified TailwindCSS v4 is working via @tailwindcss/vite plugin
+- Verified folder structure exists: src/routes, src/components, src/lib, src/db
+- Updated dev server port from 3000 to 9000 in package.json
+- Verified Header.tsx component provides navigation (slide-out sidebar menu)
+
+**Files changed:**
+- package.json (dev script port changed to 9000)
+
+**Learnings:**
+- Project was mostly set up already via TanStack Start template
+- TailwindCSS v4 uses @tailwindcss/vite plugin instead of postcss config
+- The Header component already contains a comprehensive navigation sidebar
+- TanStack Router devtools and Query devtools are integrated
+- Better-auth is already configured for authentication
+- Drizzle ORM is set up for database operations

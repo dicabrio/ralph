@@ -1,0 +1,788 @@
+{
+  "projectName": "Ralph Dashboard",
+  "branchName": "feature/ralph-dashboard",
+  "projectDescription": "Een Docker-based dashboard voor het beheren van AI-gestuurde development met Ralph loops. Centrale plek voor projecten, stories, skills en runners.",
+  "implementationGuides": [
+    {
+      "name": "React Best Practices 2025",
+      "path": "docs/react-best-practices.md",
+      "description": "Performance optimalisatie, state management (Zustand, TanStack Query), hooks patterns, en component design",
+      "topics": ["React Compiler", "Zustand", "TanStack Query", "Custom Hooks", "Code Splitting"]
+    },
+    {
+      "name": "TanStack Start Best Practices",
+      "path": "docs/tanstack-start-best-practices.md",
+      "description": "Routing, data loading, SSR modes, authenticatie, en preloading strategieën",
+      "topics": ["File-based Routing", "Loaders", "SSR", "beforeLoad", "Type-safe Navigation"]
+    },
+    {
+      "name": "Drizzle ORM Best Practices",
+      "path": "docs/drizzle-orm-best-practices.md",
+      "description": "Schema design, queries, migrations, performance, relaties, en Zod validatie",
+      "topics": ["Schema Design", "Prepared Statements", "Migrations", "Relations", "drizzle-zod"]
+    },
+    {
+      "name": "WebSocket Best Practices",
+      "path": "docs/websocket-best-practices.md",
+      "description": "Client/server implementatie, reconnection, security, en scalability met Redis",
+      "topics": ["Connection Management", "Heartbeat", "Exponential Backoff", "Rate Limiting", "Redis Pub/Sub"]
+    },
+    {
+      "name": "Docker Best Practices",
+      "path": "docs/docker-best-practices.md",
+      "description": "Multi-stage builds, security, image optimalisatie, en production deployment",
+      "topics": ["Multi-stage Builds", "Non-root User", "Health Checks", "Docker Compose", "Security Scanning"]
+    }
+  ],
+  "availableSkills": [
+    "frontend-design",
+    "database-design:postgresql",
+    "backend-development:api-design-principles"
+  ],
+  "epics": [
+    {
+      "name": "Project Setup",
+      "description": "Basis project structuur met TanStack Start en Docker configuratie"
+    },
+    {
+      "name": "Database",
+      "description": "SQLite database schema en migrations"
+    },
+    {
+      "name": "Core API",
+      "description": "tRPC API routes en websocket server"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Hoofdpagina met projecten overzicht"
+    },
+    {
+      "name": "Project",
+      "description": "Project detail pagina met settings en stats"
+    },
+    {
+      "name": "Kanban",
+      "description": "Story board met drag & drop en status management"
+    },
+    {
+      "name": "Brainstorm",
+      "description": "Chat interface voor het aanmaken van stories"
+    },
+    {
+      "name": "Skills",
+      "description": "Centrale skills bibliotheek en project overrides"
+    },
+    {
+      "name": "Runner",
+      "description": "Claude Docker integratie en story executie"
+    },
+    {
+      "name": "Testing",
+      "description": "Unit tests, integratie tests en E2E tests"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "SETUP-001",
+      "title": "TanStack Start project initialisatie",
+      "description": "Initialiseer een nieuw TanStack Start project met TypeScript, TailwindCSS en basis folder structuur",
+      "priority": 1,
+      "status": "done",
+      "epic": "Project Setup",
+      "dependencies": [],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "TanStack Start project opgezet met TypeScript",
+        "TailwindCSS geconfigureerd en werkend",
+        "Basis folder structuur: src/routes, src/components, src/lib, src/db",
+        "Dev server start succesvol op localhost:9000",
+        "Basis layout component met navigatie placeholder"
+      ]
+    },
+    {
+      "id": "SETUP-002",
+      "title": "Docker configuratie",
+      "description": "Maak Dockerfile en docker-compose.yml voor het draaien van de Ralph applicatie",
+      "priority": 2,
+      "status": "pending",
+      "epic": "Project Setup",
+      "dependencies": ["SETUP-001"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Dockerfile voor Ralph applicatie (Node.js based)",
+        "docker-compose.yml met services: ralph-app",
+        "Volume mount configuratie voor projecten folder (PROJECTS_ROOT)",
+        "Volume mount configuratie voor skills folder (SKILLS_PATH)",
+        "Volume mount configuratie voor database folder (DATA_PATH voor SQLite)",
+        "Environment variables: ANTHROPIC_API_KEY, PROJECTS_ROOT, SKILLS_PATH, DATA_PATH",
+        "Container start succesvol en UI bereikbaar op localhost:9000"
+      ]
+    },
+    {
+      "id": "SETUP-003",
+      "title": "Claude Docker integratie voorbereiden",
+      "description": "Configureer docker-compose om Claude Code container te kunnen starten met juiste mounts",
+      "priority": 3,
+      "status": "pending",
+      "epic": "Project Setup",
+      "dependencies": ["SETUP-002"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Docker-in-Docker of Docker socket mount geconfigureerd",
+        "Claude container definitie in docker-compose (voor reference)",
+        "Script/helper om Claude container te starten met project mount",
+        "ANTHROPIC_API_KEY wordt doorgegeven aan Claude container",
+        "Test: handmatig Claude container starten via ralph container werkt"
+      ]
+    },
+    {
+      "id": "SETUP-004",
+      "title": "Test setup (Vitest, RTL, Playwright)",
+      "description": "Configureer test tooling: Vitest voor unit tests, React Testing Library voor component tests, Playwright voor E2E tests",
+      "priority": 4,
+      "status": "pending",
+      "epic": "Testing",
+      "dependencies": ["SETUP-001"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Vitest geïnstalleerd en geconfigureerd",
+        "React Testing Library geïnstalleerd voor component tests",
+        "Playwright geïnstalleerd en geconfigureerd voor E2E tests",
+        "Test scripts in package.json: test, test:unit, test:e2e",
+        "Vitest config met coverage reporting",
+        "Playwright config met basis setup (chromium)",
+        "Voorbeeld unit test passeert",
+        "Voorbeeld E2E test passeert",
+        "CI-ready: tests kunnen headless draaien"
+      ]
+    },
+    {
+      "id": "DB-001",
+      "title": "SQLite database setup met Drizzle ORM",
+      "description": "Configureer SQLite database met Drizzle ORM voor type-safe database operaties",
+      "priority": 4,
+      "status": "pending",
+      "epic": "Database",
+      "dependencies": ["SETUP-001"],
+      "recommendedSkills": ["database-design:postgresql"],
+      "acceptanceCriteria": [
+        "Drizzle ORM geïnstalleerd en geconfigureerd voor SQLite",
+        "Database file locatie via DATA_PATH env var (gemounte folder)",
+        "Database file: {DATA_PATH}/ralph.db",
+        "Drizzle-kit setup voor migrations",
+        "db/index.ts met database connectie export",
+        "Test query uitvoerbaar"
+      ]
+    },
+    {
+      "id": "DB-002",
+      "title": "Schema: projects tabel",
+      "description": "Maak projects tabel voor het opslaan van gekoppelde projecten",
+      "priority": 5,
+      "status": "pending",
+      "epic": "Database",
+      "dependencies": ["DB-001"],
+      "recommendedSkills": ["database-design:postgresql"],
+      "acceptanceCriteria": [
+        "src/db/schema/projects.ts met tabel definitie",
+        "Velden: id, name, path, description, branch_name, created_at, updated_at",
+        "Unique constraint op path",
+        "Migratie runt succesvol"
+      ]
+    },
+    {
+      "id": "DB-004",
+      "title": "Schema: runner_logs tabel",
+      "description": "Maak tabel voor het opslaan van runner terminal output",
+      "priority": 7,
+      "status": "pending",
+      "epic": "Database",
+      "dependencies": ["DB-002"],
+      "recommendedSkills": ["database-design:postgresql"],
+      "acceptanceCriteria": [
+        "src/db/schema/runner_logs.ts met tabel definitie",
+        "Velden: id, project_id, story_id, log_content, log_type (stdout/stderr), timestamp",
+        "Foreign key naar projects",
+        "Index op project_id en timestamp",
+        "Migratie runt succesvol"
+      ]
+    },
+    {
+      "id": "API-001",
+      "title": "tRPC setup met TanStack Start",
+      "description": "Configureer tRPC voor type-safe API communicatie",
+      "priority": 8,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["SETUP-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC server geconfigureerd in TanStack Start",
+        "tRPC client setup met TanStack Query integratie",
+        "Basis router structuur: src/lib/trpc/routers/",
+        "Test endpoint werkend (health check)",
+        "Type inference werkt in frontend"
+      ]
+    },
+    {
+      "id": "API-002",
+      "title": "Websocket server voor live logs",
+      "description": "Implementeer websocket server voor het streamen van runner logs",
+      "priority": 9,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Websocket server draait naast HTTP server",
+        "Endpoint: ws://localhost:9000/ws",
+        "Client kan subscriben op project logs: { type: 'subscribe', projectId: '...' }",
+        "Server broadcast log updates naar gesubscribede clients",
+        "Reconnection handling in client"
+      ]
+    },
+    {
+      "id": "API-003",
+      "title": "Projects API routes",
+      "description": "CRUD operaties voor projecten",
+      "priority": 10,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-001", "DB-002"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC router: src/lib/trpc/routers/projects.ts",
+        "Procedures: list, getById, create, update, delete",
+        "create/update valideert dat path bestaat op filesystem",
+        "Sync met prd.json bij ophalen project (description, branch uit file)",
+        "Input validatie met Zod",
+        "Unit tests voor alle procedures met mocked filesystem"
+      ]
+    },
+    {
+      "id": "API-004",
+      "title": "Stories API routes",
+      "description": "API voor het ophalen en updaten van stories uit prd.json",
+      "priority": 11,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-003"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC router: src/lib/trpc/routers/stories.ts",
+        "Procedures: listByProject, getById, updateStatus, updateSkills",
+        "Leest stories uit prd.json van project path",
+        "Schrijft status updates terug naar prd.json",
+        "Valideert story status transitions",
+        "Unit tests voor CRUD operaties en status transitions"
+      ]
+    },
+    {
+      "id": "API-005",
+      "title": "Skills API routes",
+      "description": "API voor het beheren van skills (centraal en project-specifiek) via filesystem",
+      "priority": 12,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC router: src/lib/trpc/routers/skills.ts",
+        "Procedures: listCentral, listByProject, getById, createOverride, updateOverride, deleteOverride",
+        "Centrale skills laden uit SKILLS_PATH folder (gemount)",
+        "Project overrides uit project folder: {projectPath}/.ralph/skills/",
+        "Schrijft overrides naar filesystem, niet database",
+        "Diff endpoint: vergelijk override met origineel",
+        "Unit tests voor skill loading, override CRUD, en diff logic"
+      ]
+    },
+    {
+      "id": "API-006",
+      "title": "Runner API routes",
+      "description": "API voor het starten en stoppen van de runner",
+      "priority": 13,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-003", "SETUP-003"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC router: src/lib/trpc/routers/runner.ts",
+        "Procedures: start, stop, getStatus",
+        "Start procedure spawnt Claude Docker container",
+        "Stop procedure stopt running container gracefully",
+        "Status geeft terug: idle, running, stopping + huidige story indien running",
+        "Unit tests met mocked Docker API"
+      ]
+    },
+    {
+      "id": "API-007",
+      "title": "Project discovery service",
+      "description": "Service voor het automatisch ontdekken van projecten in PROJECTS_ROOT",
+      "priority": 14,
+      "status": "pending",
+      "epic": "Core API",
+      "dependencies": ["API-003"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "src/lib/services/projectDiscovery.ts",
+        "Scant PROJECTS_ROOT voor folders met prd.json",
+        "Retourneert lijst van gevonden projecten met basis info",
+        "tRPC procedure: projects.discover",
+        "UI kan discovered projects toevoegen aan database",
+        "Unit tests met mocked filesystem"
+      ]
+    },
+    {
+      "id": "UI-001",
+      "title": "Layout en navigatie",
+      "description": "Basis layout met sidebar navigatie",
+      "priority": 15,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["SETUP-001"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Layout component met sidebar en main content area",
+        "Navigatie items: Dashboard, Brainstorm, Prompts",
+        "Active state styling voor huidige route",
+        "Responsive: sidebar collapsed op mobile",
+        "Dark mode support (system preference)",
+        "Component tests voor navigatie state en responsive gedrag"
+      ]
+    },
+    {
+      "id": "UI-002",
+      "title": "Dashboard pagina",
+      "description": "Hoofdpagina met overzicht van alle projecten",
+      "priority": 16,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["UI-001", "API-003"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: / (index)",
+        "Project cards met: naam, beschrijving, runner status, progress bar, failed count, laatste activiteit",
+        "Klikbaar naar project detail pagina",
+        "Knop om nieuw project toe te voegen",
+        "Discover button om projecten te scannen",
+        "Empty state wanneer geen projecten"
+      ]
+    },
+    {
+      "id": "UI-003",
+      "title": "Project toevoegen modal",
+      "description": "Modal voor handmatig toevoegen van een project",
+      "priority": 17,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["UI-002"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Modal component met form",
+        "Velden: project path (met folder picker indien mogelijk), naam (optioneel, default uit prd.json)",
+        "Validatie: path moet bestaan en prd.json bevatten",
+        "Submit voegt project toe en sluit modal",
+        "Error handling met duidelijke feedback"
+      ]
+    },
+    {
+      "id": "UI-004",
+      "title": "Project discovery modal",
+      "description": "Modal die gevonden projecten toont om toe te voegen",
+      "priority": 18,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["UI-002", "API-007"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Modal toont lijst van discovered projecten",
+        "Checkbox per project om te selecteren",
+        "Toont welke al toegevoegd zijn (disabled)",
+        "Bulk add geselecteerde projecten",
+        "Loading state tijdens discovery"
+      ]
+    },
+    {
+      "id": "UI-005",
+      "title": "Project pagina",
+      "description": "Detail pagina voor een specifiek project",
+      "priority": 19,
+      "status": "pending",
+      "epic": "Project",
+      "dependencies": ["UI-001", "API-003"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: /project/:id",
+        "Project header met naam en beschrijving",
+        "Settings sectie: branch name (editable), path (read-only)",
+        "Stats: totaal stories, per status, progress percentage",
+        "Quick links naar Kanban en Project Prompts",
+        "Runner controls: start/stop knop met status indicator"
+      ]
+    },
+    {
+      "id": "UI-006",
+      "title": "Kanban board pagina",
+      "description": "Story board met drag & drop functionaliteit",
+      "priority": 20,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-005", "API-004"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: /project/:id/kanban",
+        "5 kolommen: Backlog, Te doen, Gefaald (conditioneel), In Progress, Voltooid",
+        "Gefaald kolom alleen zichtbaar als er failed stories zijn",
+        "Header met project naam, stats en runner controls",
+        "Kolom headers tonen count"
+      ]
+    },
+    {
+      "id": "UI-007",
+      "title": "Kanban story cards",
+      "description": "Story cards met alle relevante informatie",
+      "priority": 21,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-006"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Card toont: priority badge, story ID, titel",
+        "Dependencies getoond als kleine badges onderaan",
+        "Gefaald badge indien status=failed",
+        "Epic label zichtbaar",
+        "Hover state met subtle highlight",
+        "Klikbaar voor detail view",
+        "Component tests voor card rendering met verschillende story states"
+      ]
+    },
+    {
+      "id": "UI-008",
+      "title": "Kanban drag & drop",
+      "description": "Drag & drop functionaliteit voor story cards",
+      "priority": 22,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-007"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Drag & drop met @dnd-kit of vergelijkbare library",
+        "Alleen toegestane transitions: Backlog -> Te doen, Te doen -> Backlog",
+        "Visual feedback tijdens drag (placeholder, drop zones)",
+        "Blocked stories (unmet dependencies) kunnen niet naar Te doen",
+        "Status update naar API bij drop",
+        "Optimistic UI update",
+        "Component tests voor drag validation en state updates"
+      ]
+    },
+    {
+      "id": "UI-009",
+      "title": "Story detail modal",
+      "description": "Modal met volledige story details en edit mogelijkheden",
+      "priority": 23,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-007"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Modal opent bij klik op story card",
+        "Toont alle story velden: titel, beschrijving, epic, priority, status, dependencies, acceptanceCriteria",
+        "Skills sectie: gekoppelde skills tonen, toevoegen/verwijderen mogelijk",
+        "Dependencies sectie: toont linked stories met status",
+        "Sluit met Escape of klik buiten modal"
+      ]
+    },
+    {
+      "id": "UI-010",
+      "title": "Runner log modal",
+      "description": "Modal met live terminal output van de runner",
+      "priority": 24,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-006", "API-002"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Modal opent bij klik op In Progress story",
+        "Terminal-style output (monospace, dark background)",
+        "Live streaming via websocket",
+        "Auto-scroll naar bottom (toggleable)",
+        "Toont story info in header",
+        "Copy log button"
+      ]
+    },
+    {
+      "id": "UI-011",
+      "title": "Brainstorm pagina",
+      "description": "Chat interface voor het aanmaken van stories via AI",
+      "priority": 25,
+      "status": "pending",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-001"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: /brainstorm",
+        "Project selector bovenaan",
+        "Chat interface met message history",
+        "Input veld met send button",
+        "AI responses met typing indicator",
+        "Scroll to bottom bij nieuwe messages"
+      ]
+    },
+    {
+      "id": "UI-012",
+      "title": "Brainstorm story preview",
+      "description": "Preview van gegenereerde stories met approve actie",
+      "priority": 26,
+      "status": "pending",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-011"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Wanneer AI stories genereert, toon preview cards",
+        "Elke story card toont: titel, beschrijving, criteria (collapsed), skills",
+        "Edit button per story voor aanpassingen",
+        "Approve button om stories toe te voegen aan prd.json",
+        "Bulk approve voor alle stories"
+      ]
+    },
+    {
+      "id": "API-008",
+      "title": "Brainstorm API via Claude container",
+      "description": "API endpoint voor brainstorm chat via Claude Docker container met project toegang",
+      "priority": 27,
+      "status": "pending",
+      "epic": "Brainstorm",
+      "dependencies": ["API-001", "API-005", "SETUP-003"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC router: src/lib/trpc/routers/brainstorm.ts",
+        "Procedure: chat (streaming response via websocket)",
+        "Start Claude container met project folder gemount",
+        "Claude heeft toegang tot codebase voor context en aanbevelingen",
+        "System prompt voor story generatie (JSON output format)",
+        "Beschikbare skills en bestaande stories als context",
+        "Claude kan code analyseren voor betere acceptatiecriteria",
+        "Parsed JSON stories in response"
+      ]
+    },
+    {
+      "id": "UI-013",
+      "title": "Centrale Prompts pagina",
+      "description": "Overzicht van alle centrale skills/prompts",
+      "priority": 28,
+      "status": "pending",
+      "epic": "Skills",
+      "dependencies": ["UI-001", "API-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: /prompts",
+        "Lijst van skills gegroepeerd per category",
+        "Zoek/filter functionaliteit",
+        "Per skill: naam, beschrijving, category badge",
+        "Klikbaar voor detail view",
+        "Indicator of SKILLS_PATH writable is (edit mode enabled)"
+      ]
+    },
+    {
+      "id": "UI-014",
+      "title": "Skill detail en edit",
+      "description": "Detail view en edit mogelijkheid voor centrale skills",
+      "priority": 29,
+      "status": "pending",
+      "epic": "Skills",
+      "dependencies": ["UI-013"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Modal of side panel met skill details",
+        "Prompt content in code editor (Monaco of CodeMirror)",
+        "Edit mode alleen als SKILLS_PATH writable is",
+        "Save button schrijft terug naar file",
+        "Cancel verwerpt changes"
+      ]
+    },
+    {
+      "id": "UI-015",
+      "title": "Project Prompts pagina",
+      "description": "Skills overzicht specifiek voor een project met override mogelijkheid",
+      "priority": 30,
+      "status": "pending",
+      "epic": "Skills",
+      "dependencies": ["UI-005", "API-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route: /project/:id/prompts",
+        "Toont alle skills (centraal + project overrides)",
+        "Badge/markering voor overridden skills",
+        "Filter: All, Active (in availableSkills), Overridden",
+        "Toggle om skill active/inactive te maken voor project"
+      ]
+    },
+    {
+      "id": "UI-016",
+      "title": "Skill override en diff view",
+      "description": "Override skills en bekijk verschillen met origineel",
+      "priority": 31,
+      "status": "pending",
+      "epic": "Skills",
+      "dependencies": ["UI-015"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Override button bij centrale skill opent edit modal",
+        "Side-by-side diff view: origineel links, override rechts",
+        "Syntax highlighted diff",
+        "Save slaat override op in project folder ({projectPath}/.ralph/skills/)",
+        "Update prd.json availableSkills indien nodig",
+        "Revert to original button verwijdert override file"
+      ]
+    },
+    {
+      "id": "RUNNER-001",
+      "title": "Runner process manager",
+      "description": "Service voor het beheren van Claude Docker containers",
+      "priority": 32,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": ["SETUP-003", "DB-004"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "src/lib/services/runnerManager.ts",
+        "Start: spawn Claude container met juiste mounts en env vars",
+        "Stop: graceful shutdown van container",
+        "Track running containers per project",
+        "Prevent multiple runners per project",
+        "Cleanup orphaned containers bij app start",
+        "Unit tests met mocked Docker API"
+      ]
+    },
+    {
+      "id": "RUNNER-002",
+      "title": "Runner log streaming",
+      "description": "Stream container output naar websocket clients",
+      "priority": 33,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": ["RUNNER-001", "API-002"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Capture stdout/stderr van Claude container",
+        "Broadcast naar websocket subscribers",
+        "Buffer laatste N lines voor late joiners",
+        "Persist logs naar runner_logs tabel",
+        "Timestamp per log line",
+        "Unit tests voor log buffering en broadcast logic"
+      ]
+    },
+    {
+      "id": "RUNNER-003",
+      "title": "Runner prompt configuratie",
+      "description": "Genereer runner prompt met project context en skills",
+      "priority": 34,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": ["RUNNER-001", "API-005"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "src/lib/services/promptGenerator.ts",
+        "Basis agent prompt template (zoals eerder besproken)",
+        "Inject project-specifieke skills",
+        "Inject prd.json locatie en format",
+        "Output als CLAUDE.md of prompt file die container leest",
+        "Unit tests voor prompt generatie met verschillende configuraties"
+      ]
+    },
+    {
+      "id": "RUNNER-004",
+      "title": "Runner status monitoring",
+      "description": "Monitor runner status en detecteer completion",
+      "priority": 35,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": ["RUNNER-002"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Detecteer wanneer Claude klaar is (container exit)",
+        "Parse exit status (success/failure)",
+        "Lees prd.json voor updated story statuses",
+        "Broadcast status change via websocket",
+        "Auto-restart voor volgende pending story (indien runner nog 'aan' staat)",
+        "Unit tests voor status detection en restart logic"
+      ]
+    },
+    {
+      "id": "E2E-001",
+      "title": "E2E: Project management flow",
+      "description": "End-to-end tests voor project toevoegen, bekijken en verwijderen",
+      "priority": 36,
+      "status": "pending",
+      "epic": "Testing",
+      "dependencies": ["SETUP-004", "UI-004"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Test: Project toevoegen via discovery modal",
+        "Test: Project toevoegen via handmatige input",
+        "Test: Project details bekijken",
+        "Test: Project settings aanpassen (branch name)",
+        "Test: Project verwijderen",
+        "Test: Empty state wanneer geen projecten",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "E2E-002",
+      "title": "E2E: Kanban board flow",
+      "description": "End-to-end tests voor kanban board interacties",
+      "priority": 37,
+      "status": "pending",
+      "epic": "Testing",
+      "dependencies": ["SETUP-004", "UI-008"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Test: Stories worden correct weergegeven in kolommen",
+        "Test: Drag & drop van Backlog naar Te doen",
+        "Test: Drag & drop van Te doen naar Backlog",
+        "Test: Blocked stories kunnen niet verplaatst worden",
+        "Test: Story detail modal opent bij klik",
+        "Test: Skills toevoegen/verwijderen in story modal",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "E2E-003",
+      "title": "E2E: Runner flow",
+      "description": "End-to-end tests voor runner start/stop en log viewing",
+      "priority": 38,
+      "status": "pending",
+      "epic": "Testing",
+      "dependencies": ["SETUP-004", "UI-010", "RUNNER-004"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Test: Runner starten via project pagina",
+        "Test: Runner starten via kanban pagina",
+        "Test: Runner status update in UI",
+        "Test: Log modal opent bij In Progress story",
+        "Test: Live log streaming werkt",
+        "Test: Runner stoppen",
+        "Alle tests draaien headless in CI (met mocked Claude container)"
+      ]
+    },
+    {
+      "id": "E2E-004",
+      "title": "E2E: Skills management flow",
+      "description": "End-to-end tests voor skills beheer en overrides",
+      "priority": 39,
+      "status": "pending",
+      "epic": "Testing",
+      "dependencies": ["SETUP-004", "UI-016"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Test: Centrale skills pagina toont skills",
+        "Test: Skill detail view opent",
+        "Test: Project prompts pagina toont overrides",
+        "Test: Skill override aanmaken",
+        "Test: Diff view toont verschillen",
+        "Test: Override verwijderen (revert)",
+        "Alle tests draaien headless in CI"
+      ]
+    }
+  ]
+}
