@@ -301,7 +301,7 @@
       "title": "Runner API routes",
       "description": "API voor het starten en stoppen van de runner",
       "priority": 13,
-      "status": "pending",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-003", "SETUP-003"],
       "recommendedSkills": ["backend-development:api-design-principles"],

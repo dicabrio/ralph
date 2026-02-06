@@ -395,3 +395,40 @@
 - Use PathLike type for fs mocks to avoid TypeScript errors, then convert to string inside mock
 - Test isolation issues can occur when running multiple test files with shared database - each file passes individually
 - Skills directory structure: {SKILLS_PATH}/{skill-id}/SKILL.md for central, {projectPath}/.ralph/skills/{skill-id}/SKILL.md for overrides
+- Services in src/lib/services/ folder for business logic (runnerManager.ts)
+- Docker container management via exec + promisify pattern for async CLI operations
+
+## 2026-02-06 - API-006
+**Title:** Runner API routes
+
+**Implemented:**
+- Created RunnerManager service at src/lib/services/runnerManager.ts for Docker container lifecycle
+- Singleton pattern with in-memory state tracking of running containers
+- Container operations: start (spawn), stop (graceful/force), getStatus, getAllStatus, cleanupOrphanedContainers
+- Created tRPC router at src/lib/trpc/routers/runner.ts with full CRUD operations
+- Procedures: start, stop, getStatus, getAllStatus
+- Start spawns Claude Docker container via `docker run -d` with detached mode
+- Stop uses `docker stop` (graceful) or `docker kill` (force) followed by `docker rm`
+- Status returns: idle, running, or stopping + optional storyId, containerId, startedAt
+- Validates project exists in database before container operations
+- Integrated runner router into app router
+- Unit tests with mocked promisify for Docker CLI (32 tests total: 13 service + 19 router)
+
+**Files changed:**
+- src/lib/services/runnerManager.ts (new - Docker container management service)
+- src/lib/services/runnerManager.test.ts (new - 13 unit tests)
+- src/lib/trpc/routers/runner.ts (new - runner tRPC router)
+- src/lib/trpc/routers/runner.test.ts (new - 19 unit tests)
+- src/lib/trpc/routers/index.ts (added runner router to appRouter)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Use promisify(exec) for async Docker CLI operations instead of callback-based exec
+- Mock node:util's promisify to return a controlled mock function for testing
+- Container names use pattern: claude-runner-{projectId} for easy identification
+- Detached mode (-d) in docker run returns container ID for tracking
+- Docker ps --format with filters enables precise container existence/status checks
+- In-memory Map tracking with Docker CLI verification provides reliable state management
+- Singleton pattern works well for cross-request container state tracking
+- getRelativeProjectPath extracts project folder name from absolute path for container mounting
+- HOST_PROJECTS_ROOT env var needed for host path resolution in spawned containers

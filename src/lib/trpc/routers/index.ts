@@ -9,6 +9,7 @@ import { healthRouter } from './health'
 import { projectsRouter } from './projects'
 import { storiesRouter } from './stories'
 import { skillsRouter } from './skills'
+import { runnerRouter } from './runner'
 
 /**
  * Main application router
@@ -19,6 +20,7 @@ export const appRouter = router({
   projects: projectsRouter,
   stories: storiesRouter,
   skills: skillsRouter,
+  runner: runnerRouter,
 })
 
 /**
