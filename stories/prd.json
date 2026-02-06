@@ -659,7 +659,7 @@
       "title": "Runner log streaming",
       "description": "Stream container output naar websocket clients",
       "priority": 33,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["RUNNER-001", "API-002"],
       "recommendedSkills": [],

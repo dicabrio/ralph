@@ -9,6 +9,7 @@
  */
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
+import { logStreamingService } from './logStreamingService'
 
 const execAsync = promisify(exec)
 
@@ -154,6 +155,8 @@ class RunnerManager {
             storyId,
             startedAt: new Date(),
           })
+          // Start log streaming for adopted container
+          logStreamingService.startStreaming(projectId, containerName, storyId)
           return {
             status: 'running',
             projectId,
@@ -207,6 +210,9 @@ class RunnerManager {
       startedAt: new Date(),
     })
 
+    // Start log streaming
+    logStreamingService.startStreaming(projectId, containerName, storyId)
+
     return {
       status: 'running',
       projectId,
@@ -230,6 +236,9 @@ class RunnerManager {
     this.stoppingContainers.add(projectId)
 
     try {
+      // Stop log streaming first
+      logStreamingService.stopStreaming(projectId)
+
       // Stop the container
       if (await this.containerIsRunning(containerName)) {
         if (force) {

@@ -1067,3 +1067,39 @@
 - Story verification confirms Docker-out-of-Docker pattern works correctly
 - Container name pattern: claude-runner-{projectId} for easy identification
 - All 466 unit tests pass with --no-file-parallelism (required for SQLite test isolation)
+
+## 2026-02-06 - RUNNER-002
+**Title:** Runner log streaming
+
+**Implemented:**
+- Created LogStreamingService at src/lib/services/logStreamingService.ts
+- Service captures stdout/stderr from Docker containers via `docker logs -f --timestamps`
+- Uses spawn() to stream logs in real-time from running containers
+- Log parsing: extracts Docker timestamp format (2024-01-15T12:34:56.789012345Z) from log lines
+- WebSocket broadcast: uses existing getWebSocketServer().broadcastLog() to push logs to subscribers
+- In-memory log buffer: stores last 100 log lines per project for late joiners
+- Database persistence: inserts logs to runner_logs table (async, non-blocking)
+- Integrated with RunnerManager: startStreaming() called when container starts, stopStreaming() on stop
+- Handles adopted containers (running but not tracked) by starting log streaming on adoption
+- Exported LogStreamingService class for testability in addition to singleton instance
+- 19 unit tests for logStreamingService covering all functionality
+- Updated runnerManager tests to mock logStreamingService to prevent spawn calls
+
+**Files changed:**
+- src/lib/services/logStreamingService.ts (new - 298 lines)
+- src/lib/services/logStreamingService.test.ts (new - 337 lines)
+- src/lib/services/runnerManager.ts (added logStreamingService import and integration)
+- src/lib/services/runnerManager.test.ts (added mocks for spawn and logStreamingService)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- docker logs -f --timestamps provides continuous output with ISO8601 timestamps
+- spawn() with stdio: ['ignore', 'pipe', 'pipe'] enables stdout/stderr piping
+- WebSocket server already has broadcastLog() method that handles buffering and subscriber notification
+- LogEntry structure: projectId, storyId, content, logType ('stdout'|'stderr'), timestamp
+- Singleton pattern with exported class allows both production singleton and testable instances
+- vi.mock hoisting: mock functions must be defined BEFORE vi.mock() calls in test files
+- EventEmitter from node:events used in tests to simulate process stdout/stderr streams
+- Mock factories (createMockProcess) allow fresh EventEmitter instances per spawn call
+- Testing pattern: store spawned processes in array, access process[n] to trigger events in tests
+- Integration with existing services: add import and call methods in start/stop lifecycle hooks

@@ -7,17 +7,36 @@
  * Uses mocked child_process for Docker CLI operations.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { EventEmitter } from 'node:events'
 
 // Store the mock function that we'll control
 let mockExecAsync = vi.fn()
 
-// Mock child_process.exec and util.promisify
+// Mock child_process.exec, spawn, and util.promisify
 vi.mock('node:child_process', () => ({
   exec: vi.fn(),
+  spawn: vi.fn(() => {
+    const stdout = new EventEmitter()
+    const stderr = new EventEmitter()
+    return { stdout, stderr, kill: vi.fn(), on: vi.fn() }
+  }),
 }))
 
 vi.mock('node:util', () => ({
   promisify: () => mockExecAsync,
+}))
+
+// Mock logStreamingService to prevent it from actually running
+vi.mock('./logStreamingService', () => ({
+  logStreamingService: {
+    startStreaming: vi.fn(),
+    stopStreaming: vi.fn(),
+    isStreaming: vi.fn(() => false),
+    getBufferedLogs: vi.fn(() => []),
+    clearBuffer: vi.fn(),
+    getActiveStreams: vi.fn(() => []),
+    stopAllStreams: vi.fn(),
+  },
 }))
 
 import type { RunnerManager } from './runnerManager'
