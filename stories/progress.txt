@@ -680,4 +680,43 @@
 - Use cn() utility for conditional class merging (failed state styling)
 - Export type definitions alongside component for type-safe imports
 - Lucide React Link icon renamed to LinkIcon to avoid conflict with TanStack Router Link
+- @dnd-kit for drag & drop: DndContext wraps the board, useDraggable/useDroppable for items/containers
+- PointerSensor with distance constraint (8px) prevents accidental drags on click
+- DragOverlay provides a floating preview of the dragged item
+- pointerWithin collision detection works well for column-based layouts
+- Visual feedback: isOver + canDrop states for ring colors (primary=valid, destructive=invalid)
+
+## 2026-02-06 - UI-008
+**Title:** Kanban drag & drop
+
+**Implemented:**
+- Added @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities packages
+- Created DraggableStoryCard component with useDraggable hook
+- Created DroppableColumn component with useDroppable hook
+- Implemented transition validation: only Backlog <-> Te doen allowed
+- Block stories with unmet dependencies from moving to Te doen
+- Added visual feedback during drag:
+  - Primary ring for valid drop zones
+  - Destructive ring for invalid drop zones
+  - Background color changes on hover
+  - DragOverlay with rotation and shadow for preview
+- PointerSensor with 8px distance constraint to allow clicks
+- 27 unit tests covering all drag validation logic
+
+**Files changed:**
+- package.json (added @dnd-kit dependencies)
+- pnpm-lock.yaml (updated)
+- src/routes/project/$id/kanban.tsx (major rewrite with DnD)
+- src/routes/project/$id/kanban.test.tsx (new - 27 tests)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- @dnd-kit separates drag (useDraggable) from drop (useDroppable) concerns
+- DragOverlay is rendered outside the normal DOM tree for smooth animations
+- Column-based Kanban uses column IDs as droppable IDs, story IDs as draggable IDs
+- Transition validation logic is computed at both UI (visual feedback) and drop (action) time
+- Both Backlog and Te doen columns have status 'pending' - difference is dependency resolution
+- Since status doesn't change, no API call is needed for these transitions
+- Test helper functions extracted separately from component for isolated testing
+- PointerSensor's distance constraint prevents drag activation on simple clicks
 
