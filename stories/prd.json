@@ -770,7 +770,7 @@
       "title": "E2E: Skills management flow",
       "description": "End-to-end tests voor skills beheer en overrides",
       "priority": 39,
-      "status": "pending",
+      "status": "done",
       "epic": "Testing",
       "dependencies": ["SETUP-004", "UI-016"],
       "recommendedSkills": [],
