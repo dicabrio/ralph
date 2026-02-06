@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectIdRouteImport } from './routes/project/$id'
 import { Route as DemoTrpcRouteImport } from './routes/demo/trpc'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as DemoDrizzleRouteImport } from './routes/demo/drizzle'
@@ -30,6 +31,11 @@ import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ss
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectIdRoute = ProjectIdRouteImport.update({
+  id: '/project/$id',
+  path: '/project/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTrpcRoute = DemoTrpcRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc': typeof DemoTrpcRoute
+  '/project/$id': typeof ProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc': typeof DemoTrpcRoute
+  '/project/$id': typeof ProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc': typeof DemoTrpcRoute
+  '/project/$id': typeof ProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/demo/drizzle'
     | '/demo/tanstack-query'
     | '/demo/trpc'
+    | '/project/$id'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/demo/api/names'
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/demo/drizzle'
     | '/demo/tanstack-query'
     | '/demo/trpc'
+    | '/project/$id'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/demo/api/names'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/demo/drizzle'
     | '/demo/tanstack-query'
     | '/demo/trpc'
+    | '/project/$id'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/demo/api/names'
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   DemoDrizzleRoute: typeof DemoDrizzleRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoTrpcRoute: typeof DemoTrpcRoute
+  ProjectIdRoute: typeof ProjectIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/project/$id': {
+      id: '/project/$id'
+      path: '/project/$id'
+      fullPath: '/project/$id'
+      preLoaderRoute: typeof ProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/trpc': {
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoDrizzleRoute: DemoDrizzleRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoTrpcRoute: DemoTrpcRoute,
+  ProjectIdRoute: ProjectIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,

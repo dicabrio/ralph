@@ -355,7 +355,7 @@
       "title": "Dashboard pagina",
       "description": "Hoofdpagina met overzicht van alle projecten",
       "priority": 16,
-      "status": "pending",
+      "status": "done",
       "epic": "Dashboard",
       "dependencies": ["UI-001", "API-003"],
       "recommendedSkills": ["frontend-design"],
