@@ -6,6 +6,7 @@
  */
 import { router } from '../trpc'
 import { healthRouter } from './health'
+import { projectsRouter } from './projects'
 
 /**
  * Main application router
@@ -13,6 +14,7 @@ import { healthRouter } from './health'
  */
 export const appRouter = router({
   health: healthRouter,
+  projects: projectsRouter,
 })
 
 /**

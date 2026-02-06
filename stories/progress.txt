@@ -25,6 +25,8 @@
 - tRPC v11 with superjson transformer at /api/trpc/*
 - tRPC routers in src/lib/trpc/routers/ with barrel export
 - tRPC integrated with TanStack Query via trpc.Provider in root-provider.tsx
+- tRPC router tests use createCallerFactory pattern for isolated testing
+- Mock node:fs with importOriginal to preserve DB initialization while mocking project paths
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -301,3 +303,32 @@
 - Use random ports in tests to avoid conflicts when tests run in parallel
 - Message collection pattern with waiters array helps avoid race conditions in async tests
 - ws library's Buffer type needs explicit handling in TypeScript for message parsing
+- tRPC routers use createCallerFactory for unit testing without HTTP
+- Mock node:fs with importOriginal to preserve database functionality while mocking project paths
+
+## 2026-02-06 - API-003
+**Title:** Projects API routes
+
+**Implemented:**
+- Created tRPC router at src/lib/trpc/routers/projects.ts with full CRUD operations
+- Procedures: list, getById, create, update, delete
+- create/update validates that path exists on filesystem via existsSync
+- Sync with prd.json when fetching projects (reads projectDescription, branchName from file)
+- Input validation with Zod schemas (createProjectSchema, updateProjectSchema)
+- TRPCError handling for NOT_FOUND, BAD_REQUEST, and CONFLICT errors
+- Unit tests with mocked filesystem (21 tests passing)
+
+**Files changed:**
+- src/lib/trpc/routers/projects.ts (new - projects tRPC router)
+- src/lib/trpc/routers/projects.test.ts (new - 21 unit tests)
+- src/lib/trpc/routers/index.ts (added projects router to appRouter)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- When mocking node:fs in tests, use `importOriginal` to preserve unmocked functions (mkdirSync, etc.)
+- Database initialization uses existsSync/mkdirSync, so partial mocks must allow these through
+- SQLite unique constraint violations throw error with "UNIQUE constraint failed" message
+- Drizzle's .returning() returns an array, always destructure first element for single row
+- prd.json sync pattern: read file on every getById/list, update DB if values differ
+- Use passthrough() in Zod schemas to allow unknown properties in parsed JSON files
+- TRPCError codes: NOT_FOUND (404), BAD_REQUEST (400), CONFLICT (409)

@@ -246,7 +246,7 @@
       "title": "Projects API routes",
       "description": "CRUD operaties voor projecten",
       "priority": 10,
-      "status": "pending",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-001", "DB-002"],
       "recommendedSkills": ["backend-development:api-design-principles"],
