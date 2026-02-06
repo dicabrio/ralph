@@ -902,3 +902,35 @@
 - Container name pattern: claude-brainstorm-{sessionId} for isolation
 - HOST_PROJECTS_ROOT needed for host path resolution when mounting project in container
 - Session tracking uses in-memory Map similar to runnerManager pattern
+
+## 2026-02-06 - UI-013
+**Title:** Centrale Prompts pagina
+
+**Implemented:**
+- Created /prompts route at src/routes/prompts.tsx with skills listing
+- Skills grouped by category extracted from ID (e.g., "backend-development:api-patterns" → "Backend Development")
+- Search/filter functionality across name, description, and ID fields
+- Created SkillDetailModal component showing skill content with copy button
+- Added isWritable endpoint to skills router for checking SKILLS_PATH permissions
+- Category badge colors for visual distinction
+- Responsive grid layout with collapsible category groups
+- Stats bar showing total skills, categories, and filtered count
+- Loading, error, and empty states
+
+**Files changed:**
+- src/routes/prompts.tsx (new - 294 lines)
+- src/components/SkillDetailModal.tsx (new - 157 lines)
+- src/lib/trpc/routers/skills.ts (added isWritable endpoint)
+- src/lib/trpc/routers/skills.test.ts (added 2 tests for isWritable)
+- src/routeTree.gen.ts (auto-generated with /prompts route)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Skill IDs follow pattern "category:skill-name" - category can be extracted with skillId.slice(0, colonIndex)
+- TanStack Router file-based routing: create src/routes/prompts.tsx for /prompts route
+- Route tree auto-generated when dev server runs (routeTree.gen.ts updated automatically)
+- Use node:fs/promises access() with constants.W_OK to check write permissions
+- Map.entries() returns iterator, convert with Array.from() for rendering
+- Category groups default expanded with useState(true), toggle for UX
+- Pre-existing TypeScript errors in demo files don't affect actual functionality
+- useMemo for filtering and grouping prevents recalculation on every render
