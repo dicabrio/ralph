@@ -170,3 +170,29 @@
 - Use getByRole() in Playwright to avoid strict mode violations with multiple elements
 - CI=true enables headless mode and single worker in Playwright
 - Pre-existing TypeScript errors in demo files don't affect test functionality
+
+## 2026-02-06 - DB-002
+**Title:** Schema: projects tabel
+
+**Implemented:**
+- Created src/db/schema/projects.ts with complete table definition
+- Fields: id (autoincrement PK), name, path (unique), description, branch_name, created_at, updated_at
+- Used reusable timestamps from common.ts for consistency
+- Added unique constraint on path field
+- Exported from barrel file src/db/schema/index.ts
+- Generated migration: drizzle/0001_tiny_bushwacker.sql
+- Applied migration successfully
+
+**Files changed:**
+- src/db/schema/projects.ts (new)
+- src/db/schema/index.ts (added projects export)
+- drizzle/0001_tiny_bushwacker.sql (new - auto-generated migration)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- SQLite uses `text` type for strings (no varchar with length like PostgreSQL)
+- Drizzle generates migrations with readable SQL including CREATE TABLE and CREATE UNIQUE INDEX
+- SQLite unique constraints are implemented as unique indexes
+- Schema follows existing pattern: sqliteTable, integer with mode, text, spread timestamps
+- Type exports (Project, NewProject) use $inferSelect and $inferInsert for type safety
+- Pre-existing TypeScript errors in drizzle-orm node_modules don't affect actual schema functionality

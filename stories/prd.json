@@ -179,7 +179,7 @@
       "title": "Schema: projects tabel",
       "description": "Maak projects tabel voor het opslaan van gekoppelde projecten",
       "priority": 5,
-      "status": "pending",
+      "status": "done",
       "epic": "Database",
       "dependencies": ["DB-001"],
       "recommendedSkills": ["database-design:postgresql"],
