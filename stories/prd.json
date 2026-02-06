@@ -390,7 +390,7 @@
       "title": "Project discovery modal",
       "description": "Modal die gevonden projecten toont om toe te voegen",
       "priority": 18,
-      "status": "in_progress",
+      "status": "done",
       "epic": "Dashboard",
       "dependencies": ["UI-002", "API-007"],
       "recommendedSkills": ["frontend-design"],

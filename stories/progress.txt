@@ -560,3 +560,30 @@
 - Validation state machine: null -> loading -> valid/path_not_found/no_prd/already_added
 - isValidProjectPath from projectDiscovery service can be reused in router endpoints
 
+## 2026-02-06 - UI-004
+**Title:** Project discovery modal
+
+**Implemented:**
+- Created DiscoverProjectsModal component for bulk-adding discovered projects
+- Modal lists all projects found in PROJECTS_ROOT with prd.json files
+- Checkbox selection for projects with Select All / Deselect All toggle
+- Already-added projects shown as disabled with "Added" badge
+- Bulk add button adds all selected projects sequentially
+- Loading spinner during discovery phase
+- Error handling with retry capability
+- Integrated modal with Dashboard page via "Discover" button
+- Query refetch (staleTime: 0) ensures fresh data when modal opens
+
+**Files changed:**
+- src/components/DiscoverProjectsModal.tsx (new - 350+ lines)
+- src/routes/index.tsx (added modal integration, state handlers)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- staleTime: 0 forces query refetch on every component mount (useful for discovery)
+- Use refetch() from useQuery for manual re-triggering
+- Set isAdding state during bulk operations to prevent modal close
+- Sequential mutation calls for bulk add (mutateAsync with try/catch in loop)
+- Group available and already-added projects in separate sections for clarity
+- Use label element wrapping checkbox for better click target
+
