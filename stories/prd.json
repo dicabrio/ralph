@@ -212,7 +212,7 @@
       "title": "tRPC setup met TanStack Start",
       "description": "Configureer tRPC voor type-safe API communicatie",
       "priority": 8,
-      "status": "in_progress",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["SETUP-001"],
       "recommendedSkills": ["backend-development:api-design-principles"],

@@ -22,6 +22,9 @@
 - Vitest with jsdom environment for React component testing
 - Playwright with chromium for E2E testing (auto-starts dev server)
 - Test coverage via @vitest/coverage-v8 with v8 provider
+- tRPC v11 with superjson transformer at /api/trpc/*
+- tRPC routers in src/lib/trpc/routers/ with barrel export
+- tRPC integrated with TanStack Query via trpc.Provider in root-provider.tsx
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -222,3 +225,38 @@
 - text() with enum option creates a SQLite text column with CHECK constraint for allowed values
 - story_id is nullable since some logs may be general project logs not tied to a specific story
 - SQLite foreign keys with references() and onDelete: 'cascade' handle parent deletion gracefully
+
+## 2026-02-06 - API-001
+**Title:** tRPC setup met TanStack Start
+
+**Implemented:**
+- Installed tRPC v11 (@trpc/server, @trpc/client, @trpc/react-query) with superjson transformer
+- Created tRPC server configuration in src/lib/trpc/trpc.ts with router, publicProcedure, middleware
+- Set up API handler at src/routes/api/trpc/$.ts using fetchRequestHandler
+- Integrated tRPC client with existing TanStack Query in root-provider.tsx
+- Created health router with check (status, timestamp, uptime) and echo endpoints
+- Added demo page at /demo/trpc showing type-safe queries
+- Unit tests for health router (7 passing tests)
+
+**Files changed:**
+- package.json (added tRPC dependencies)
+- pnpm-lock.yaml (updated)
+- src/lib/trpc/trpc.ts (new - server configuration)
+- src/lib/trpc/client.ts (new - client configuration)
+- src/lib/trpc/context.ts (new - context factory)
+- src/lib/trpc/index.ts (new - barrel export)
+- src/lib/trpc/routers/index.ts (new - app router)
+- src/lib/trpc/routers/health.ts (new - health endpoints)
+- src/lib/trpc/routers/health.test.ts (new - unit tests)
+- src/routes/api/trpc/$.ts (new - API handler)
+- src/routes/demo/trpc.tsx (new - demo page)
+- src/integrations/trpc/provider.tsx (new - provider component)
+- src/integrations/tanstack-query/root-provider.tsx (updated with tRPC provider)
+
+**Learnings:**
+- TanStack Start API routes use createFileRoute with server.handlers for GET/POST
+- tRPC fetchRequestHandler works seamlessly with TanStack Start's request handling
+- superjson automatically handles Date serialization/deserialization between client and server
+- tRPC client can share the same QueryClient as TanStack Query for unified caching
+- createCallerFactory is useful for testing routers without HTTP requests
+- File-based routing creates type definitions in routeTree.gen.ts automatically
