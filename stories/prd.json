@@ -497,7 +497,7 @@
       "title": "Runner log modal",
       "description": "Modal met live terminal output van de runner",
       "priority": 24,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-006", "API-002"],
       "recommendedSkills": ["frontend-design"],

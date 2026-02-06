@@ -756,4 +756,42 @@
 - fireEvent is sufficient for most tests; @testing-library/user-event not required
 - Modal keeps selectedStory during close animation, clears after timeout
 - Dependencies are resolved by looking up stories in allStories array passed from parent
+- useWebSocket hook from src/lib/websocket/client.ts provides isConnected, isReconnecting, subscribe, unsubscribe
+- UseWebSocketOptions type can be imported and used with NonNullable<...['onLog']> for typed callback parameters
+- Terminal-style UI uses zinc color palette (zinc-900, zinc-950 for dark backgrounds)
+- WebSocket subscription needs projectId as string, not number (use String(projectId))
+- Auto-scroll pattern: track autoScroll state, disable on manual scroll up, enable on button click
+- Clipboard API: navigator.clipboard.writeText() for copying logs
+- Log lines can have logType 'stdout' or 'stderr' - style stderr differently (text-red-400)
+- Test WebSocket hooks by storing callbacks in globalThis and invoking them in tests
+
+## 2026-02-06 - UI-010
+**Title:** Runner log modal
+
+**Implemented:**
+- Created RunnerLogModal component at src/components/RunnerLogModal.tsx
+- Terminal-style output with monospace font and dark background (zinc-950)
+- Live streaming via WebSocket using existing useWebSocket hook
+- Auto-scroll to bottom with toggle button (blue when enabled)
+- Copy logs button with "Copied" feedback state
+- Story info (ID and title) displayed in header
+- Connection status indicator (Connected/Reconnecting/Disconnected)
+- Line count in footer with "Jump to latest" link when auto-scroll disabled
+- Integrated with Kanban page: clicking In Progress story opens log modal
+- Modal opens from handleStoryClick when story.status === 'in_progress'
+
+**Files changed:**
+- src/components/RunnerLogModal.tsx (new - 346 lines)
+- src/components/RunnerLogModal.test.tsx (new - 32 unit tests)
+- src/routes/project/$id/kanban.tsx (added import and integration)
+
+**Learnings:**
+- Circular dependency: useCallback handlers that reference returned values from hooks need refactoring
+- Store callbacks separately and pass to hook options to avoid "used before declaration" errors
+- UseWebSocketOptions type export allows typed callback parameters
+- Terminal styling: font-mono text-sm bg-zinc-950 with zinc color palette
+- Log filtering: compare projectId as String since WebSocket sends strings
+- Auto-scroll detection: check if scrollHeight - scrollTop - clientHeight < 50 means at bottom
+- Test pattern: store hook callbacks in globalThis to invoke them in tests
+- Pre-existing TypeScript errors in demo files don't block the build if they're not in src/
 

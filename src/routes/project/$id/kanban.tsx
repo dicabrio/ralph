@@ -28,6 +28,7 @@ import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
+import { RunnerLogModal } from '@/components/RunnerLogModal'
 
 export const Route = createFileRoute('/project/$id/kanban')({
   component: KanbanBoard,
@@ -512,6 +513,8 @@ function KanbanBoard() {
   // Modal state
   const [selectedStory, setSelectedStory] = useState<Story | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
+  const [logModalStory, setLogModalStory] = useState<Story | null>(null)
 
   // Configure sensors with activation constraint
   const sensors = useSensors(
@@ -587,10 +590,17 @@ function KanbanBoard() {
     [hasFailedStories],
   )
 
-  // Handle story click - opens detail modal
+  // Handle story click - opens log modal for in-progress, detail modal for others
   const handleStoryClick = useCallback((story: Story) => {
-    setSelectedStory(story)
-    setIsDetailModalOpen(true)
+    if (story.status === 'in_progress') {
+      // Open runner log modal for in-progress stories
+      setLogModalStory(story)
+      setIsLogModalOpen(true)
+    } else {
+      // Open detail modal for other stories
+      setSelectedStory(story)
+      setIsDetailModalOpen(true)
+    }
   }, [])
 
   // Handle modal close
@@ -598,6 +608,13 @@ function KanbanBoard() {
     setIsDetailModalOpen(false)
     // Keep selectedStory for exit animation, clear after modal is hidden
     setTimeout(() => setSelectedStory(null), 200)
+  }, [])
+
+  // Handle log modal close
+  const handleCloseLogModal = useCallback(() => {
+    setIsLogModalOpen(false)
+    // Keep logModalStory for exit animation, clear after modal is hidden
+    setTimeout(() => setLogModalStory(null), 200)
   }, [])
 
   // Drag handlers
@@ -775,6 +792,14 @@ function KanbanBoard() {
         projectId={projectId}
         story={selectedStory}
         allStories={stories}
+      />
+
+      {/* Runner log modal */}
+      <RunnerLogModal
+        isOpen={isLogModalOpen}
+        onClose={handleCloseLogModal}
+        projectId={projectId}
+        story={logModalStory}
       />
     </DndContext>
   )
