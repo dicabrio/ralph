@@ -555,4 +555,116 @@ describe('projectsRouter', () => {
       expect(result.scannedAt.getTime()).toBeLessThanOrEqual(afterTime.getTime())
     })
   })
+
+  describe('validatePath', () => {
+    it('returns pathExists = false when path does not exist', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const caller = createCaller({})
+      const result = await caller.validatePath({ path: '/nonexistent/path' })
+
+      expect(result.pathExists).toBe(false)
+      expect(result.hasPrd).toBe(false)
+      expect(result.isAlreadyAdded).toBe(false)
+      expect(result.suggestedName).toBeNull()
+    })
+
+    it('returns hasPrd = false when path exists but has no prd.json', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        // Path exists but no prd.json
+        if (p === '/valid/path') return true
+        if (p.includes('stories/prd.json')) return false
+        return false
+      })
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+
+      const caller = createCaller({})
+      const result = await caller.validatePath({ path: '/valid/path' })
+
+      expect(result.pathExists).toBe(true)
+      expect(result.hasPrd).toBe(false)
+      expect(result.suggestedName).toBeNull()
+    })
+
+    it('returns hasPrd = true and reads metadata when prd.json exists', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === '/project/path') return true
+        if (p.includes('stories/prd.json')) return true
+        return false
+      })
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'My Project',
+        projectDescription: 'A description',
+        branchName: 'main',
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.validatePath({ path: '/project/path' })
+
+      expect(result.pathExists).toBe(true)
+      expect(result.hasPrd).toBe(true)
+      expect(result.suggestedName).toBe('My Project')
+      expect(result.description).toBe('A description')
+      expect(result.branchName).toBe('main')
+    })
+
+    it('returns isAlreadyAdded = true when project is in database', async () => {
+      // Add project to database first
+      await db.insert(projects).values({
+        name: 'Existing',
+        path: '/existing/path',
+      })
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === '/existing/path') return true
+        if (p.includes('stories/prd.json')) return true
+        return false
+      })
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Existing Project',
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.validatePath({ path: '/existing/path' })
+
+      expect(result.hasPrd).toBe(true)
+      expect(result.isAlreadyAdded).toBe(true)
+    })
+
+    it('returns isAlreadyAdded = false when project is not in database', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === '/new/path') return true
+        if (p.includes('stories/prd.json')) return true
+        return false
+      })
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'New Project',
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.validatePath({ path: '/new/path' })
+
+      expect(result.hasPrd).toBe(true)
+      expect(result.isAlreadyAdded).toBe(false)
+    })
+  })
 })

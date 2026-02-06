@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   Plus,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { AddProjectModal } from '@/components/AddProjectModal'
 
 export const Route = createFileRoute('/')({ component: Dashboard })
 
@@ -261,16 +263,26 @@ function EmptyState({
 }
 
 function Dashboard() {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const utils = trpc.useUtils()
+
   // Fetch all projects
   const { data: projects = [], isLoading } = trpc.projects.list.useQuery(
     undefined,
     { staleTime: 10000 }
   )
 
-  // Placeholder handlers for modals (to be implemented in UI-003 and UI-004)
   const handleAddProject = () => {
-    // TODO: Open add project modal (UI-003)
-    console.log('Add project clicked')
+    setIsAddModalOpen(true)
+  }
+
+  const handleAddModalClose = () => {
+    setIsAddModalOpen(false)
+  }
+
+  const handleAddSuccess = () => {
+    // Invalidate projects list to refetch
+    utils.projects.list.invalidate()
   }
 
   const handleDiscover = () => {
@@ -336,6 +348,13 @@ function Dashboard() {
           ))}
         </div>
       )}
+
+      {/* Add Project Modal */}
+      <AddProjectModal
+        isOpen={isAddModalOpen}
+        onClose={handleAddModalClose}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   )
 }

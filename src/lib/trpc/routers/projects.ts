@@ -13,7 +13,7 @@ import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
-import { discoverProjects } from '@/lib/services/projectDiscovery'
+import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -269,6 +269,44 @@ export const projectsRouter = router({
       }
 
       return { success: true, deletedId: deleted.id }
+    }),
+
+  /**
+   * Validate a project path
+   * Checks if the path exists and contains a prd.json file
+   * Also reads prd.json for suggested project name
+   */
+  validatePath: publicProcedure
+    .input(z.object({ path: z.string().min(1, 'Path is required') }))
+    .query(async ({ input }) => {
+      const pathExists = existsSync(input.path)
+      const hasPrd = pathExists && isValidProjectPath(input.path)
+
+      let suggestedName: string | null = null
+      let description: string | null = null
+      let branchName: string | null = null
+
+      if (hasPrd) {
+        const prdData = await readPrdJson(input.path)
+        if (prdData) {
+          suggestedName = prdData.projectName || null
+          description = prdData.projectDescription || null
+          branchName = prdData.branchName || null
+        }
+      }
+
+      // Check if project already exists in database
+      const existingProjects = await db.select({ path: projects.path }).from(projects)
+      const isAlreadyAdded = existingProjects.some(p => p.path === input.path)
+
+      return {
+        pathExists,
+        hasPrd,
+        isAlreadyAdded,
+        suggestedName,
+        description,
+        branchName,
+      }
     }),
 
   /**

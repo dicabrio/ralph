@@ -373,7 +373,7 @@
       "title": "Project toevoegen modal",
       "description": "Modal voor handmatig toevoegen van een project",
       "priority": 17,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Dashboard",
       "dependencies": ["UI-002"],
       "recommendedSkills": ["frontend-design"],
