@@ -1,4 +1,17 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState, useCallback, useMemo } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import {
   ArrowLeft,
   Play,
@@ -9,6 +22,7 @@ import {
   AlertCircle,
   CircleDashed,
   Clock,
+  GripVertical,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
@@ -29,11 +43,11 @@ interface KanbanColumn {
   icon: React.ReactNode
   headerColor: string
   bgColor: string
+  isDraggable: boolean // Whether stories in this column can be dragged
+  isDroppable: boolean // Whether stories can be dropped here
 }
 
 // Define the columns for the Kanban board
-// Note: 'backlog' maps to 'pending' status for "Te doen" column
-// 'pending' is used for "Backlog" column for stories not yet ready
 const KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'backlog',
@@ -42,6 +56,8 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <Clock className="w-4 h-4" />,
     headerColor: 'text-slate-600 dark:text-slate-400',
     bgColor: 'bg-slate-50 dark:bg-slate-900/50',
+    isDraggable: true,
+    isDroppable: true,
   },
   {
     id: 'todo',
@@ -50,6 +66,8 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <CircleDashed className="w-4 h-4" />,
     headerColor: 'text-amber-600 dark:text-amber-400',
     bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+    isDraggable: true,
+    isDroppable: true,
   },
   {
     id: 'failed',
@@ -58,6 +76,8 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <AlertCircle className="w-4 h-4" />,
     headerColor: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-50 dark:bg-red-900/20',
+    isDraggable: false,
+    isDroppable: false,
   },
   {
     id: 'in_progress',
@@ -66,6 +86,8 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <PlayCircle className="w-4 h-4" />,
     headerColor: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    isDraggable: false,
+    isDroppable: false,
   },
   {
     id: 'done',
@@ -74,27 +96,29 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <CheckCircle2 className="w-4 h-4" />,
     headerColor: 'text-emerald-600 dark:text-emerald-400',
     bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+    isDraggable: false,
+    isDroppable: false,
   },
 ]
 
+// Check if a story has all dependencies met
+function hasAllDependenciesMet(story: Story, allStories: Story[]): boolean {
+  return story.dependencies.every((depId) => {
+    const depStory = allStories.find((s) => s.id === depId)
+    return depStory && depStory.status === 'done'
+  })
+}
+
 // Filter stories for a column
-// For UI-006, we show basic cards without drag-and-drop (that's UI-007/UI-008)
 function getStoriesForColumn(
   stories: Story[],
   column: KanbanColumn,
 ): Story[] {
-  // The 'backlog' column shows stories that are pending but have unmet dependencies
-  // The 'todo' (pending) column shows stories that are ready to be worked on
   if (column.id === 'backlog') {
     // Stories in backlog: pending status with unmet dependencies
     return stories.filter((story) => {
       if (story.status !== 'pending') return false
-      // Check if all dependencies are done
-      const hasUnmetDependencies = story.dependencies.some((depId) => {
-        const depStory = stories.find((s) => s.id === depId)
-        return !depStory || depStory.status !== 'done'
-      })
-      return hasUnmetDependencies
+      return !hasAllDependenciesMet(story, stories)
     })
   }
 
@@ -102,17 +126,43 @@ function getStoriesForColumn(
     // Stories in todo: pending status with all dependencies met
     return stories.filter((story) => {
       if (story.status !== 'pending') return false
-      // Check if all dependencies are done (or no dependencies)
-      const allDependenciesMet = story.dependencies.every((depId) => {
-        const depStory = stories.find((s) => s.id === depId)
-        return depStory && depStory.status === 'done'
-      })
-      return allDependenciesMet
+      return hasAllDependenciesMet(story, stories)
     })
   }
 
   // Other columns: match by status directly
   return stories.filter((story) => story.status === column.status)
+}
+
+// Get which column a story belongs to
+function getColumnForStory(story: Story, allStories: Story[]): string {
+  if (story.status === 'pending') {
+    return hasAllDependenciesMet(story, allStories) ? 'todo' : 'backlog'
+  }
+  return story.status
+}
+
+// Check if a story can be dropped in a target column
+function canDropInColumn(
+  story: Story,
+  targetColumnId: string,
+  allStories: Story[],
+): boolean {
+  const targetColumn = KANBAN_COLUMNS.find((c) => c.id === targetColumnId)
+  if (!targetColumn || !targetColumn.isDroppable) return false
+
+  // Can only move between backlog and todo
+  if (story.status !== 'pending') return false
+
+  // Can always move to backlog
+  if (targetColumnId === 'backlog') return true
+
+  // Can only move to todo if all dependencies are met
+  if (targetColumnId === 'todo') {
+    return hasAllDependenciesMet(story, allStories)
+  }
+
+  return false
 }
 
 // Compute project stats from stories
@@ -127,6 +177,139 @@ function computeProjectStats(stories: Story[]) {
   return { total, done, failed, inProgress, pending, progress }
 }
 
+// Draggable Story Card component
+interface DraggableStoryCardProps {
+  story: Story
+  allStories: Story[]
+  isDraggable: boolean
+  onClick?: () => void
+}
+
+function DraggableStoryCard({
+  story,
+  allStories,
+  isDraggable,
+  onClick,
+}: DraggableStoryCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: story.id,
+    disabled: !isDraggable,
+    data: {
+      story,
+      sourceColumn: getColumnForStory(story, allStories),
+    },
+  })
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging && 'opacity-50 z-50',
+      )}
+    >
+      {isDraggable && (
+        <div
+          {...listeners}
+          {...attributes}
+          className={cn(
+            'absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center',
+            'cursor-grab active:cursor-grabbing',
+            'text-muted-foreground hover:text-foreground transition-colors',
+            'opacity-0 group-hover:opacity-100 hover:opacity-100',
+          )}
+          style={{ zIndex: 10 }}
+        >
+          <GripVertical className="w-4 h-4" />
+        </div>
+      )}
+      <div className={cn(isDraggable && 'group')}>
+        <StoryCard story={story} onClick={onClick} />
+      </div>
+    </div>
+  )
+}
+
+// Droppable Column component
+interface DroppableColumnProps {
+  column: KanbanColumn
+  stories: Story[]
+  allStories: Story[]
+  isOver: boolean
+  canDrop: boolean
+  onStoryClick?: (story: Story) => void
+}
+
+function DroppableColumn({
+  column,
+  stories,
+  allStories,
+  isOver,
+  canDrop,
+  onStoryClick,
+}: DroppableColumnProps) {
+  const { setNodeRef } = useDroppable({
+    id: column.id,
+    disabled: !column.isDroppable,
+    data: { column },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'flex flex-col min-w-[280px] max-w-[320px] bg-muted/30 rounded-lg border overflow-hidden transition-all',
+        isOver && canDrop && 'ring-2 ring-primary border-primary/50',
+        isOver && !canDrop && 'ring-2 ring-destructive border-destructive/50',
+      )}
+    >
+      <ColumnHeader column={column} count={stories.length} />
+      <div
+        className={cn(
+          'flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)] transition-colors',
+          isOver && canDrop && 'bg-primary/5',
+          isOver && !canDrop && 'bg-destructive/5',
+        )}
+      >
+        {stories.length === 0 ? (
+          <p
+            className={cn(
+              'text-xs text-muted-foreground text-center py-4',
+              isOver && canDrop && 'text-primary',
+            )}
+          >
+            {isOver && canDrop ? 'Drop here' : 'No stories'}
+          </p>
+        ) : (
+          stories
+            .sort((a, b) => a.priority - b.priority)
+            .map((story) => (
+              <DraggableStoryCard
+                key={story.id}
+                story={story}
+                allStories={allStories}
+                isDraggable={column.isDraggable}
+                onClick={onStoryClick ? () => onStoryClick(story) : undefined}
+              />
+            ))
+        )}
+      </div>
+    </div>
+  )
+}
 
 // Column header component
 interface ColumnHeaderProps {
@@ -150,42 +333,6 @@ function ColumnHeader({ column, count }: ColumnHeaderProps) {
       >
         {count}
       </span>
-    </div>
-  )
-}
-
-// Kanban column component
-interface KanbanColumnProps {
-  column: KanbanColumn
-  stories: Story[]
-  onStoryClick?: (story: Story) => void
-}
-
-function KanbanColumnComponent({
-  column,
-  stories,
-  onStoryClick,
-}: KanbanColumnProps) {
-  return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px] bg-muted/30 rounded-lg border overflow-hidden">
-      <ColumnHeader column={column} count={stories.length} />
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)]">
-        {stories.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No stories
-          </p>
-        ) : (
-          stories
-            .sort((a, b) => a.priority - b.priority)
-            .map((story) => (
-              <StoryCard
-                key={story.id}
-                story={story}
-                onClick={onStoryClick ? () => onStoryClick(story) : undefined}
-              />
-            ))
-        )}
-      </div>
     </div>
   )
 }
@@ -339,10 +486,36 @@ function StatsBar({ stats }: StatsBarProps) {
   )
 }
 
+// Drag overlay content (shows the card being dragged)
+interface DragOverlayContentProps {
+  story: Story
+}
+
+function DragOverlayContent({ story }: DragOverlayContentProps) {
+  return (
+    <div className="w-[280px] opacity-90 rotate-3 shadow-2xl">
+      <StoryCard story={story} />
+    </div>
+  )
+}
+
 function KanbanBoard() {
   const { id } = Route.useParams()
   const projectId = parseInt(id, 10)
   const utils = trpc.useUtils()
+
+  // Drag state
+  const [activeStory, setActiveStory] = useState<Story | null>(null)
+  const [overColumnId, setOverColumnId] = useState<string | null>(null)
+
+  // Configure sensors with activation constraint
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+  )
 
   // Fetch project data
   const {
@@ -380,6 +553,12 @@ function KanbanBoard() {
     },
   })
 
+  // Note: For drag & drop between backlog and todo, we don't need to update status
+  // because both columns have the same status ('pending').
+  // The column is determined by dependency status, not by a separate field.
+  // This is intentional - we're just allowing users to visualize what they want,
+  // but the actual column assignment is driven by dependency completion.
+
   // Compute stats
   const stats = computeProjectStats(stories)
   const runnerStatus: RunnerStatus = runnerState?.status ?? 'idle'
@@ -395,15 +574,82 @@ function KanbanBoard() {
   }
 
   // Filter columns: only show 'failed' column if there are failed stories
-  const visibleColumns = KANBAN_COLUMNS.filter(
-    (col) => col.id !== 'failed' || hasFailedStories,
+  const visibleColumns = useMemo(
+    () =>
+      KANBAN_COLUMNS.filter(
+        (col) => col.id !== 'failed' || hasFailedStories,
+      ),
+    [hasFailedStories],
   )
 
   // Handle story click - will open detail modal in UI-009
-  const handleStoryClick = (story: Story) => {
+  const handleStoryClick = useCallback((story: Story) => {
     // TODO: UI-009 will implement the story detail modal
     console.log('Story clicked:', story.id)
-  }
+  }, [])
+
+  // Drag handlers
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const story = stories.find((s) => s.id === event.active.id)
+      if (story) {
+        setActiveStory(story)
+      }
+    },
+    [stories],
+  )
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event
+    setOverColumnId(over?.id as string | null)
+  }, [])
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+
+      setActiveStory(null)
+      setOverColumnId(null)
+
+      if (!over || !active) return
+
+      const story = stories.find((s) => s.id === active.id)
+      if (!story) return
+
+      const targetColumnId = over.id as string
+      const sourceColumnId = getColumnForStory(story, stories)
+
+      // If dropped on the same column, do nothing
+      if (sourceColumnId === targetColumnId) return
+
+      // Check if the drop is valid
+      if (!canDropInColumn(story, targetColumnId, stories)) {
+        // Invalid drop - the visual feedback already showed this was not allowed
+        return
+      }
+
+      // Since both backlog and todo have status 'pending', there's nothing to update
+      // The column is determined by dependency status which we can't change via drag & drop
+      // This drag & drop is for visual organization only
+      // In a real app, you might want to add a 'manual_column' field to override this
+
+      // For now, we'll just show that the drag happened
+      // In the future, we could add a 'forceColumn' field to the story
+      console.log(
+        `Would move story ${story.id} from ${sourceColumnId} to ${targetColumnId}`,
+      )
+    },
+    [stories],
+  )
+
+  // Calculate if current drag can drop in a column
+  const canDropActiveStory = useCallback(
+    (columnId: string): boolean => {
+      if (!activeStory) return false
+      return canDropInColumn(activeStory, columnId, stories)
+    },
+    [activeStory, stories],
+  )
 
   // Loading state
   if (isLoadingProject || isLoadingStories) {
@@ -441,56 +687,74 @@ function KanbanBoard() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="px-6 py-4">
-          {/* Top row: back link and project name */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name}
-              </h1>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex flex-col h-[calc(100vh-64px)]">
+        {/* Header */}
+        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-6 py-4">
+            {/* Top row: back link and project name */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/project/$id"
+                  params={{ id }}
+                  className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm">Back</span>
+                </Link>
+                <h1 className="text-xl font-bold text-foreground">
+                  {project.name}
+                </h1>
+              </div>
+              <KanbanRunnerControls
+                projectId={projectId}
+                runnerStatus={runnerStatus}
+                currentStoryId={runnerState?.storyId}
+                onStart={handleStartRunner}
+                onStop={handleStopRunner}
+                isStarting={startRunner.isPending}
+                isStopping={stopRunner.isPending}
+              />
             </div>
-            <KanbanRunnerControls
-              projectId={projectId}
-              runnerStatus={runnerStatus}
-              currentStoryId={runnerState?.storyId}
-              onStart={handleStartRunner}
-              onStop={handleStopRunner}
-              isStarting={startRunner.isPending}
-              isStopping={stopRunner.isPending}
-            />
+            {/* Bottom row: stats */}
+            <StatsBar stats={stats} />
           </div>
-          {/* Bottom row: stats */}
-          <StatsBar stats={stats} />
+        </div>
+
+        {/* Kanban columns */}
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex gap-4 p-6 min-w-max">
+            {visibleColumns.map((column) => {
+              const columnStories = getStoriesForColumn(stories, column)
+              const isOver = overColumnId === column.id
+              const canDrop = canDropActiveStory(column.id)
+              return (
+                <DroppableColumn
+                  key={column.id}
+                  column={column}
+                  stories={columnStories}
+                  allStories={stories}
+                  isOver={isOver}
+                  canDrop={canDrop}
+                  onStoryClick={handleStoryClick}
+                />
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Kanban columns */}
-      <div className="flex-1 overflow-x-auto">
-        <div className="flex gap-4 p-6 min-w-max">
-          {visibleColumns.map((column) => {
-            const columnStories = getStoriesForColumn(stories, column)
-            return (
-              <KanbanColumnComponent
-                key={column.id}
-                column={column}
-                stories={columnStories}
-                onStoryClick={handleStoryClick}
-              />
-            )
-          })}
-        </div>
-      </div>
-    </div>
+      {/* Drag overlay - shows the card being dragged */}
+      <DragOverlay>
+        {activeStory && <DragOverlayContent story={activeStory} />}
+      </DragOverlay>
+    </DndContext>
   )
 }

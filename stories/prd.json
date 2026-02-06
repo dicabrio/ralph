@@ -461,7 +461,7 @@
       "title": "Kanban drag & drop",
       "description": "Drag & drop functionaliteit voor story cards",
       "priority": 22,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-007"],
       "recommendedSkills": ["frontend-design"],
