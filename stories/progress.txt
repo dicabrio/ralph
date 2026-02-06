@@ -18,6 +18,10 @@
 - Database schema files in src/db/schema/ folder with barrel export in index.ts
 - Drizzle migrations in drizzle/ folder, run with `pnpm db:generate` and `pnpm db:migrate`
 - WAL mode enabled for better concurrent SQLite performance
+- Unit tests in src/**/*.test.ts, E2E tests in e2e/*.spec.ts
+- Vitest with jsdom environment for React component testing
+- Playwright with chromium for E2E testing (auto-starts dev server)
+- Test coverage via @vitest/coverage-v8 with v8 provider
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -129,3 +133,40 @@
 - Drizzle's execute() method is not available for better-sqlite3 driver, use sqlite.prepare() instead
 - Schema folder structure allows for future expansion with separate table files
 - Default DATA_PATH=./data works for local development without Docker
+- Unit tests in src/**/*.test.ts, E2E tests in e2e/*.spec.ts
+- Vitest with jsdom environment for React component testing
+- Playwright with chromium for E2E testing (auto-starts dev server)
+- Test coverage via @vitest/coverage-v8 with v8 provider
+
+## 2026-02-06 - SETUP-004
+**Title:** Test setup (Vitest, RTL, Playwright)
+
+**Implemented:**
+- Configured Vitest with vitest.config.ts (jsdom environment, globals, coverage)
+- Created test setup file src/test/setup.ts with RTL cleanup and jest-dom matchers
+- Installed and configured Playwright for E2E tests with chromium
+- Added test scripts: test, test:unit, test:e2e, test:coverage, test:watch
+- Created example unit test for cn() utility (6 passing tests)
+- Created E2E tests for home page (3 passing tests)
+- Added typecheck script for TypeScript validation
+- Updated tsconfig.json with vitest/globals types
+- Updated .gitignore for test output folders
+
+**Files changed:**
+- vitest.config.ts (new)
+- playwright.config.ts (new)
+- src/test/setup.ts (new)
+- src/lib/utils.test.ts (new - example unit test)
+- e2e/home.spec.ts (new - example E2E test)
+- package.json (added test scripts, installed test dependencies)
+- tsconfig.json (added vitest/globals types)
+- .gitignore (added coverage/, test-results/, playwright-report/)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Vitest version must match @vitest/coverage-v8 version (both 3.x or both 4.x)
+- React Testing Library needs cleanup in afterEach for proper test isolation
+- Playwright's webServer config auto-starts dev server for E2E tests
+- Use getByRole() in Playwright to avoid strict mode violations with multiple elements
+- CI=true enables headless mode and single worker in Playwright
+- Pre-existing TypeScript errors in demo files don't affect test functionality

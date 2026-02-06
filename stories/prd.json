@@ -140,7 +140,7 @@
       "title": "Test setup (Vitest, RTL, Playwright)",
       "description": "Configureer test tooling: Vitest voor unit tests, React Testing Library voor component tests, Playwright voor E2E tests",
       "priority": 4,
-      "status": "pending",
+      "status": "done",
       "epic": "Testing",
       "dependencies": ["SETUP-001"],
       "recommendedSkills": [],
