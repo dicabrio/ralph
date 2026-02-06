@@ -5,7 +5,9 @@
 - Path alias @ configured for src/ folder in vite.config.ts
 - Lucide React for icons
 - Root layout in src/routes/__root.tsx with RootDocument shell component
-- Header component contains sidebar navigation with slide-out menu
+- Layout component wraps all routes with responsive sidebar navigation
+- Sidebar component in src/components/Sidebar.tsx with collapse toggle and mobile overlay
+- Dark mode via system preference (prefers-color-scheme media query)
 - Dev server runs on port 9000
 - Project uses pnpm (v8.x) with lockfile v6 - use pnpm@8.15.9 for Docker builds
 - Docker build uses multi-stage build: deps → builder → runner
@@ -461,4 +463,40 @@
 - String ordering matters in mock conditions - check 'not-added-project' before 'added-project' to avoid substring matching issues
 - Use PathLike type for mock function parameters to satisfy TypeScript in test files
 - Service exports discoverProjects (async, returns DiscoveryResult) and isValidProjectPath (sync, returns boolean)
+- Layout component in __root.tsx wraps children for consistent layout across routes
+- Sidebar component uses useRouterState() to get current pathname for active state
+- useSidebar hook manages collapsed state with localStorage persistence
+- Dark mode uses matchMedia('prefers-color-scheme: dark') with addEventListener for live updates
+
+## 2026-02-06 - UI-001
+**Title:** Layout en navigatie
+
+**Implemented:**
+- Created Sidebar component with permanent desktop sidebar and mobile overlay
+- Created Layout component that wraps children with sidebar
+- Navigation items: Dashboard (/), Brainstorm (/brainstorm), Prompts (/prompts)
+- Active state with visual indicator (left border highlight on active nav item)
+- Responsive: mobile has hamburger menu + overlay sidebar, desktop has permanent sidebar
+- Sidebar collapse toggle with localStorage persistence
+- Dark mode support via system preference (prefers-color-scheme)
+- Added distinctive typography: Plus Jakarta Sans (body) + JetBrains Mono (code)
+- 28 unit tests covering navigation state, collapse toggle, responsive behavior, dark mode
+
+**Files changed:**
+- src/components/Sidebar.tsx (new)
+- src/components/Sidebar.test.tsx (new - 16 tests)
+- src/components/Layout.tsx (new)
+- src/components/Layout.test.tsx (new - 12 tests)
+- src/routes/__root.tsx (replaced Header with Layout)
+- src/styles.css (added custom fonts, updated body font family)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- TanStack Router's useRouterState() hook provides current pathname via location.pathname
+- Use cn() utility for conditional className merging with clsx + tailwind-merge
+- Sidebar collapsed state persists in localStorage for user preference
+- Dark mode toggle uses matchMedia listener for live system preference changes
+- When testing with mocked Link component, use getAllByTestId for elements with same data-testid
+- TailwindCSS v4 uses @import 'tailwindcss' instead of @tailwind directives
+- Google Fonts can be imported directly in CSS via @import url()
 
