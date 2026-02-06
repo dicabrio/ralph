@@ -14,6 +14,7 @@ import {
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { AddProjectModal } from '@/components/AddProjectModal'
+import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
 
 export const Route = createFileRoute('/')({ component: Dashboard })
 
@@ -264,6 +265,7 @@ function EmptyState({
 
 function Dashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isDiscoverModalOpen, setIsDiscoverModalOpen] = useState(false)
   const utils = trpc.useUtils()
 
   // Fetch all projects
@@ -286,8 +288,16 @@ function Dashboard() {
   }
 
   const handleDiscover = () => {
-    // TODO: Open discovery modal (UI-004)
-    console.log('Discover projects clicked')
+    setIsDiscoverModalOpen(true)
+  }
+
+  const handleDiscoverModalClose = () => {
+    setIsDiscoverModalOpen(false)
+  }
+
+  const handleDiscoverSuccess = () => {
+    // Invalidate projects list to refetch
+    utils.projects.list.invalidate()
   }
 
   return (
@@ -354,6 +364,13 @@ function Dashboard() {
         isOpen={isAddModalOpen}
         onClose={handleAddModalClose}
         onSuccess={handleAddSuccess}
+      />
+
+      {/* Discover Projects Modal */}
+      <DiscoverProjectsModal
+        isOpen={isDiscoverModalOpen}
+        onClose={handleDiscoverModalClose}
+        onSuccess={handleDiscoverSuccess}
       />
     </div>
   )
