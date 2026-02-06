@@ -425,7 +425,7 @@
       "title": "Kanban board pagina",
       "description": "Story board met drag & drop functionaliteit",
       "priority": 20,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-005", "API-004"],
       "recommendedSkills": ["frontend-design"],
