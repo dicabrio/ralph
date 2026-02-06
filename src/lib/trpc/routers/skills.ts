@@ -189,6 +189,26 @@ export const skillsRouter = router({
   }),
 
   /**
+   * Check if SKILLS_PATH is writable (for edit mode)
+   */
+  isWritable: publicProcedure.query(async () => {
+    try {
+      // Check if directory exists first
+      if (!existsSync(SKILLS_PATH)) {
+        return { writable: false, reason: 'Skills directory does not exist' }
+      }
+
+      // Try to write a test file to check write permissions
+      const { access, constants } = await import('node:fs/promises')
+      await access(SKILLS_PATH, constants.W_OK)
+
+      return { writable: true, reason: null }
+    } catch {
+      return { writable: false, reason: 'Skills directory is read-only' }
+    }
+  }),
+
+  /**
    * List skills for a project (central + overrides merged)
    * Overrides replace central skills with same ID
    */

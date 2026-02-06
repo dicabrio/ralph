@@ -570,7 +570,7 @@
       "title": "Centrale Prompts pagina",
       "description": "Overzicht van alle centrale skills/prompts",
       "priority": 28,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Skills",
       "dependencies": ["UI-001", "API-005"],
       "recommendedSkills": ["frontend-design"],
