@@ -969,3 +969,37 @@
 - Unsaved changes tracking: compare editedContent !== skill.content in useEffect
 - Modal close with confirmation: window.confirm() for simple blocking dialog
 - Reset editing state when skill prop changes (different skill selected)
+
+## 2026-02-06 - UI-015
+**Title:** Project Prompts pagina
+
+**Implemented:**
+- Created Project Prompts page at /project/:id/prompts with full feature set
+- Skills listing merged from central + project overrides using skills.listByProject
+- Override badge (amber) for skills with project-specific overrides
+- Active badge (green) for skills enabled in project's availableSkills
+- Filter tabs: All, Active (in availableSkills), Overridden with counts
+- Toggle button per skill to activate/deactivate (updates prd.json availableSkills)
+- Search functionality across skill name, description, and category
+- Category grouping with expand/collapse and active count per category
+- Stats bar showing total skills, categories, active count, overridden count
+- Click skill to open SkillDetailModal (reused from prompts page)
+- Added getAvailableSkills endpoint to read availableSkills from prd.json
+- Added toggleSkillActive endpoint to add/remove skills from availableSkills
+- 10 new unit tests for the new endpoints
+
+**Files changed:**
+- src/routes/project/$id/prompts.tsx (complete rewrite - 545 lines)
+- src/lib/trpc/routers/skills.ts (added getAvailableSkills, toggleSkillActive endpoints, +60 lines)
+- src/lib/trpc/routers/skills.test.ts (added 10 tests for new endpoints)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- availableSkills in prd.json is an array of skill IDs that the project has enabled
+- Toggle active pattern: read current array, add/remove skill, write back sorted array
+- Use passthrough() in Zod schema to allow unknown properties when reading prd.json
+- Reuse existing SkillDetailModal component - set isWritable to false for project context
+- Filter tabs with counts provide quick insight into skill distribution
+- Set<string> for activeSkillsSet enables O(1) lookup when filtering/displaying active state
+- togglingSkills Set tracks in-flight mutations for per-skill loading indicator
+- useMemo for filterCounts prevents recalculation on every render
