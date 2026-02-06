@@ -550,7 +550,7 @@
       "title": "Brainstorm API via Claude container",
       "description": "API endpoint voor brainstorm chat via Claude Docker container met project toegang",
       "priority": 27,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Brainstorm",
       "dependencies": ["API-001", "API-005", "SETUP-003"],
       "recommendedSkills": ["backend-development:api-design-principles"],

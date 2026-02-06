@@ -22,6 +22,20 @@ export type ClientMessage =
   | { type: 'ping'; timestamp: number }
 
 /**
+ * Generated story from brainstorm
+ */
+export interface GeneratedStory {
+  id: string
+  title: string
+  description: string
+  priority: number
+  epic: string
+  dependencies: string[]
+  recommendedSkills: string[]
+  acceptanceCriteria: string[]
+}
+
+/**
  * Server -> Client message types
  */
 export type ServerMessage =
@@ -40,6 +54,32 @@ export type ServerMessage =
     }
   | { type: 'pong'; timestamp: number }
   | { type: 'error'; payload: { message: string }; timestamp: number }
+  // Brainstorm streaming messages
+  | {
+      type: 'brainstorm_start'
+      payload: { sessionId: string; projectId: string }
+      timestamp: number
+    }
+  | {
+      type: 'brainstorm_chunk'
+      payload: { sessionId: string; content: string }
+      timestamp: number
+    }
+  | {
+      type: 'brainstorm_stories'
+      payload: { sessionId: string; stories: GeneratedStory[] }
+      timestamp: number
+    }
+  | {
+      type: 'brainstorm_complete'
+      payload: { sessionId: string; content: string; stories: GeneratedStory[] }
+      timestamp: number
+    }
+  | {
+      type: 'brainstorm_error'
+      payload: { sessionId: string; error: string }
+      timestamp: number
+    }
 
 /**
  * Extended WebSocket connection with tracking info
