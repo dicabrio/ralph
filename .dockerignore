@@ -43,6 +43,9 @@ docs
 *.md
 !package.json
 
+# Keep scripts folder (needed for Claude runner)
+!scripts
+
 # Stories and project management
 stories
 

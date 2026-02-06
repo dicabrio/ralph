@@ -11,6 +11,9 @@
 - Docker build uses multi-stage build: deps → builder → runner
 - TanStack Start builds to .output/ folder, run with `node .output/server/index.mjs`
 - Docker health checks use 127.0.0.1 (not localhost) to avoid IPv6 issues in Alpine
+- Docker socket mount pattern for Docker-out-of-Docker (DooD) to spawn Claude containers
+- Helper scripts in scripts/ folder for Claude container management
+- HOST_PROJECTS_ROOT and HOST_SKILLS_PATH env vars needed for mounting host paths in spawned containers
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -59,3 +62,33 @@
 - Alpine wget uses IPv6 first for localhost, causing health check failures - use 127.0.0.1
 - Build output is started with `node .output/server/index.mjs`
 - Better-auth requires BETTER_AUTH_SECRET and BETTER_AUTH_BASE_URL env vars (for later stories)
+
+## 2026-02-06 - SETUP-003
+**Title:** Claude Docker integratie voorbereiden
+
+**Implemented:**
+- Added Docker socket mount to docker-compose.yml for Docker-out-of-Docker (DooD) pattern
+- Installed Docker CLI in runner stage of Dockerfile
+- Created claude-runner reference service in docker-compose with manual profile
+- Created helper scripts for Claude container management:
+  - start-claude-runner.sh: Start a Claude container for a specific project
+  - stop-claude-runner.sh: Stop and remove a running Claude container
+  - claude-runner-status.sh: Check status of Claude runner containers
+- Added HOST_PROJECTS_ROOT and HOST_SKILLS_PATH env vars for host path resolution
+- Verified Docker CLI works from within Ralph container
+
+**Files changed:**
+- docker-compose.yml (added Docker socket mount, claude-runner reference, HOST env vars)
+- Dockerfile (added docker-cli installation, scripts copy)
+- .dockerignore (added !scripts to include scripts folder)
+- scripts/start-claude-runner.sh (new)
+- scripts/stop-claude-runner.sh (new)
+- scripts/claude-runner-status.sh (new)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Docker-out-of-Docker (DooD) is simpler and safer than Docker-in-Docker (DinD)
+- Docker socket mount allows spawning containers on the host from within a container
+- Host paths must be passed explicitly (HOST_PROJECTS_ROOT) because container paths differ from host paths
+- Alpine's docker-cli package is lightweight (~15MB) and sufficient for container management
+- Using profiles: [manual] in docker-compose prevents a service from starting with `docker-compose up`

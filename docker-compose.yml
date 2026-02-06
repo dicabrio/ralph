@@ -14,6 +14,9 @@ services:
       - ${PROJECTS_ROOT:-./projects}:/projects
       # Skills folder (central skills library)
       - ${SKILLS_PATH:-./skills}:/skills
+      # Docker socket mount - allows Ralph to spawn Claude containers
+      # This enables Docker-out-of-Docker (DooD) pattern
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=production
       - PORT=9000
@@ -24,6 +27,9 @@ services:
       - PROJECTS_ROOT=/projects
       # Skills path inside container
       - SKILLS_PATH=/skills
+      # Host paths for Claude container mounts (used by runner to pass to Claude)
+      - HOST_PROJECTS_ROOT=${PROJECTS_ROOT:-./projects}
+      - HOST_SKILLS_PATH=${SKILLS_PATH:-./skills}
       # Anthropic API key for Claude integration
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     restart: unless-stopped
@@ -33,3 +39,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # Claude Code container reference configuration
+  # This service is NOT started directly via docker-compose
+  # Instead, it serves as documentation for how Ralph spawns Claude containers
+  # The ralph-app container uses the Docker API to start claude-runner instances dynamically
+  #
+  # Example docker run command used by Ralph:
+  #   docker run --name claude-runner-<project-id> \
+  #     -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  #     -v /host/path/to/project:/workspace \
+  #     -v /host/path/to/skills:/skills:ro \
+  #     -w /workspace \
+  #     -it anthropics/claude-code:latest
+  #
+  # See scripts/start-claude-runner.sh for the actual implementation
+  claude-runner:
+    image: anthropics/claude-code:latest
+    profiles:
+      - manual  # Prevents starting with 'docker-compose up'
+    container_name: claude-runner-${PROJECT_ID:-default}
+    # Volumes are mounted dynamically by Ralph based on project configuration:
+    # - Project folder with read/write access for code changes
+    # - Skills folder for agent prompts
+    # Note: PROJECT_PATH is set dynamically when starting the container
+    volumes:
+      - ${PROJECT_PATH:-/tmp/placeholder}:/workspace
+      - ${SKILLS_PATH:-./skills}:/skills:ro
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    working_dir: /workspace
+    # Container runs interactively and exits when done
+    stdin_open: true
+    tty: true
