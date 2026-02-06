@@ -195,7 +195,7 @@
       "title": "Schema: runner_logs tabel",
       "description": "Maak tabel voor het opslaan van runner terminal output",
       "priority": 7,
-      "status": "pending",
+      "status": "done",
       "epic": "Database",
       "dependencies": ["DB-002"],
       "recommendedSkills": ["database-design:postgresql"],

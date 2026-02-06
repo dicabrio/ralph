@@ -196,3 +196,29 @@
 - Schema follows existing pattern: sqliteTable, integer with mode, text, spread timestamps
 - Type exports (Project, NewProject) use $inferSelect and $inferInsert for type safety
 - Pre-existing TypeScript errors in drizzle-orm node_modules don't affect actual schema functionality
+- Foreign keys with onDelete: 'cascade' for automatic cleanup of related records
+
+## 2026-02-06 - DB-004
+**Title:** Schema: runner_logs tabel
+
+**Implemented:**
+- Created src/db/schema/runner_logs.ts with complete table definition
+- Fields: id, project_id (FK), story_id, log_content, log_type (stdout/stderr), timestamp
+- Foreign key to projects table with cascade delete
+- Added 3 indexes: project_id, timestamp, and composite (project_id, timestamp)
+- Exported from barrel file src/db/schema/index.ts
+- Generated migration: drizzle/0002_nervous_valeria_richards.sql
+- Applied migration successfully
+
+**Files changed:**
+- src/db/schema/runner_logs.ts (new)
+- src/db/schema/index.ts (added runner_logs export)
+- drizzle/0002_nervous_valeria_richards.sql (new - auto-generated migration)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Drizzle's index() function uses array return syntax in table definition callback: `(table) => [index(...), ...]`
+- Composite indexes are useful for queries that filter on multiple columns (e.g., logs by project and time)
+- text() with enum option creates a SQLite text column with CHECK constraint for allowed values
+- story_id is nullable since some logs may be general project logs not tied to a specific story
+- SQLite foreign keys with references() and onDelete: 'cascade' handle parent deletion gracefully
