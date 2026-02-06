@@ -620,3 +620,35 @@
 - Use enabled option in useQuery to conditionally disable queries (e.g., when projectId is NaN)
 - Runner status types: 'idle' | 'running' | 'stopping' match the backend RunnerState
 
+## 2026-02-06 - UI-006
+**Title:** Kanban board pagina
+
+**Implemented:**
+- Full Kanban board page at /project/:id/kanban with 5 columns
+- Columns: Backlog, Te doen, Gefaald (conditional), In Progress, Voltooid
+- Smart column filtering logic:
+  - Backlog: pending stories with unmet dependencies
+  - Te doen: pending stories where all dependencies are done
+  - Other columns: match by status directly
+- Sticky header with project name, back navigation, stats bar and runner controls
+- Runner controls (start/stop) with live status badge
+- Stats bar showing done/in-progress/failed/pending counts and progress %
+- Column headers with icon, title and story count badge
+- Basic story cards with ID, priority badge, title and epic label
+- Stories sorted by priority within columns
+- Failed column conditionally rendered only when failed stories exist
+- Responsive layout with horizontal scroll for many columns
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (complete rewrite from stub)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Kanban columns can have different filtering logic for same status (backlog vs todo both use 'pending' but filter by dependency status)
+- Use column.id for identification since status can overlap (backlog/todo both pending)
+- Stories with empty dependency arrays pass .every() check (vacuous truth)
+- Conditional column visibility: filter KANBAN_COLUMNS array based on hasFailedStories
+- Compact runner controls reuse logic from project detail page but with smaller UI
+- Stats bar provides quick overview without taking too much vertical space
+- max-h-[calc(100vh-300px)] allows columns to scroll independently
+
