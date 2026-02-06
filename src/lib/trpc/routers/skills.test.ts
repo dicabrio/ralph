@@ -844,6 +844,224 @@ describe('skillsRouter', () => {
     })
   })
 
+  describe('getAvailableSkills', () => {
+    it('returns empty array when project has no prd.json', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const pathStr = String(path)
+        if (pathStr.includes('ralph.db') || pathStr.includes('/data')) return true
+        return false
+      })
+
+      const caller = createCaller({})
+      const result = await caller.getAvailableSkills({ projectId: project.id })
+
+      expect(result).toEqual([])
+    })
+
+    it('returns availableSkills from prd.json', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        availableSkills: ['skill-1', 'skill-2', 'skill-3'],
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.getAvailableSkills({ projectId: project.id })
+
+      expect(result).toEqual(['skill-1', 'skill-2', 'skill-3'])
+    })
+
+    it('returns empty array when availableSkills is not defined', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        // No availableSkills field
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.getAvailableSkills({ projectId: project.id })
+
+      expect(result).toEqual([])
+    })
+
+    it('throws NOT_FOUND for non-existent project', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.getAvailableSkills({ projectId: 99999 })).rejects.toThrow(TRPCError)
+      await expect(caller.getAvailableSkills({ projectId: 99999 })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+  })
+
+  describe('toggleSkillActive', () => {
+    it('adds skill to availableSkills when active=true', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        availableSkills: ['existing-skill'],
+      }))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'new-skill',
+        active: true,
+      })
+
+      expect(result.skillId).toBe('new-skill')
+      expect(result.active).toBe(true)
+      expect(result.availableSkills).toContain('new-skill')
+      expect(result.availableSkills).toContain('existing-skill')
+
+      // Verify writeFile was called with sorted array
+      expect(writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('prd.json'),
+        expect.stringContaining('"availableSkills"'),
+        'utf-8'
+      )
+    })
+
+    it('removes skill from availableSkills when active=false', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        availableSkills: ['skill-1', 'skill-2', 'skill-3'],
+      }))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'skill-2',
+        active: false,
+      })
+
+      expect(result.skillId).toBe('skill-2')
+      expect(result.active).toBe(false)
+      expect(result.availableSkills).not.toContain('skill-2')
+      expect(result.availableSkills).toContain('skill-1')
+      expect(result.availableSkills).toContain('skill-3')
+    })
+
+    it('does not duplicate skill when already active', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        availableSkills: ['skill-1', 'skill-2'],
+      }))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'skill-1',
+        active: true,
+      })
+
+      expect(result.availableSkills.filter(s => s === 'skill-1')).toHaveLength(1)
+    })
+
+    it('initializes availableSkills when not present', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Test',
+        // No availableSkills field
+      }))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'new-skill',
+        active: true,
+      })
+
+      expect(result.availableSkills).toEqual(['new-skill'])
+    })
+
+    it('throws NOT_FOUND for non-existent project', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.toggleSkillActive({
+        projectId: 99999,
+        skillId: 'skill-1',
+        active: true,
+      })).rejects.toThrow(TRPCError)
+      await expect(caller.toggleSkillActive({
+        projectId: 99999,
+        skillId: 'skill-1',
+        active: true,
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+
+    it('throws NOT_FOUND when prd.json does not exist', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/test/project',
+      }).returning()
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const pathStr = String(path)
+        if (pathStr.includes('ralph.db') || pathStr.includes('/data')) return true
+        return false
+      })
+
+      const caller = createCaller({})
+
+      await expect(caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'skill-1',
+        active: true,
+      })).rejects.toThrow(TRPCError)
+      await expect(caller.toggleSkillActive({
+        projectId: project.id,
+        skillId: 'skill-1',
+        active: true,
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+  })
+
   describe('input validation', () => {
     it('validates skillId is not empty', async () => {
       const caller = createCaller({})

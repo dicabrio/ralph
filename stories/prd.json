@@ -605,7 +605,7 @@
       "title": "Project Prompts pagina",
       "description": "Skills overzicht specifiek voor een project met override mogelijkheid",
       "priority": 30,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Skills",
       "dependencies": ["UI-005", "API-005"],
       "recommendedSkills": ["frontend-design"],

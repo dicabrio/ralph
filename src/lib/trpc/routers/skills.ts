@@ -15,6 +15,66 @@ import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
 
+// PRD.json schema for availableSkills
+const prdJsonSchema = z.object({
+  availableSkills: z.array(z.string()).optional(),
+}).passthrough()
+
+/**
+ * Get the prd.json path for a project
+ */
+function getPrdPath(projectPath: string): string {
+  return join(projectPath, 'stories', 'prd.json')
+}
+
+/**
+ * Read availableSkills from prd.json
+ */
+async function readAvailableSkills(projectPath: string): Promise<string[]> {
+  const prdPath = getPrdPath(projectPath)
+
+  if (!existsSync(prdPath)) {
+    return []
+  }
+
+  try {
+    const content = await readFile(prdPath, 'utf-8')
+    const data = JSON.parse(content)
+    const parsed = prdJsonSchema.parse(data)
+    return parsed.availableSkills || []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Write availableSkills to prd.json
+ */
+async function writeAvailableSkills(projectPath: string, availableSkills: string[]): Promise<void> {
+  const prdPath = getPrdPath(projectPath)
+
+  if (!existsSync(prdPath)) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: `prd.json not found at ${prdPath}`,
+    })
+  }
+
+  try {
+    const content = await readFile(prdPath, 'utf-8')
+    const data = JSON.parse(content)
+    data.availableSkills = availableSkills
+    const newContent = JSON.stringify(data, null, 2) + '\n'
+    await writeFile(prdPath, newContent, 'utf-8')
+  } catch (error) {
+    if (error instanceof TRPCError) throw error
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Failed to write prd.json: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    })
+  }
+}
+
 // Environment variables
 const SKILLS_PATH = process.env.SKILLS_PATH || './skills'
 
@@ -543,6 +603,53 @@ export const skillsRouter = router({
         override: overrideSkill.content,
         diff,
         hasChanges: centralSkill.content !== overrideSkill.content,
+      }
+    }),
+
+  /**
+   * Get availableSkills from a project's prd.json
+   */
+  getAvailableSkills: publicProcedure
+    .input(z.object({ projectId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const project = await getProjectById(input.projectId)
+      return readAvailableSkills(project.path)
+    }),
+
+  /**
+   * Toggle a skill's active status in a project's prd.json
+   * Adds or removes the skill ID from availableSkills array
+   */
+  toggleSkillActive: publicProcedure
+    .input(z.object({
+      projectId: z.number().int().positive(),
+      skillId: z.string().min(1),
+      active: z.boolean(),
+    }))
+    .mutation(async ({ input }) => {
+      const project = await getProjectById(input.projectId)
+      const currentSkills = await readAvailableSkills(project.path)
+
+      let updatedSkills: string[]
+
+      if (input.active) {
+        // Add skill if not already present
+        if (!currentSkills.includes(input.skillId)) {
+          updatedSkills = [...currentSkills, input.skillId].sort()
+        } else {
+          updatedSkills = currentSkills
+        }
+      } else {
+        // Remove skill
+        updatedSkills = currentSkills.filter(id => id !== input.skillId)
+      }
+
+      await writeAvailableSkills(project.path, updatedSkills)
+
+      return {
+        skillId: input.skillId,
+        active: input.active,
+        availableSkills: updatedSkills,
       }
     }),
 })
