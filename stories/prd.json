@@ -337,7 +337,7 @@
       "title": "Layout en navigatie",
       "description": "Basis layout met sidebar navigatie",
       "priority": 15,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Dashboard",
       "dependencies": ["SETUP-001"],
       "recommendedSkills": ["frontend-design"],
