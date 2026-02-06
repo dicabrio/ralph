@@ -824,3 +824,41 @@
 - Typing indicator: bouncing dots with staggered animation-delay for visual effect
 - Pre-existing TypeScript errors in demo files don't affect build (confirmed)
 
+
+## 2026-02-06 - UI-012
+**Title:** Brainstorm story preview
+
+**Implemented:**
+- Created StoryPreviewCard component for displaying AI-generated story previews
+- Component shows title, description, priority, epic, skills tags, and dependencies
+- Collapsible acceptance criteria section with count badge
+- Edit and Approve buttons with loading/approved states
+- Created StoryEditModal component for editing stories before approval
+- Modal allows editing all fields: ID, title, description, priority, epic
+- Add/remove acceptance criteria, skills, and dependencies inline
+- Added addStories mutation to stories router for bulk adding stories to prd.json
+- Integrated preview cards in brainstorm page with MessageBubble component
+- Bulk approve button to add all unapproved stories at once
+- Mock story generator based on user message keywords (until API-008)
+- 23 unit tests for StoryPreviewCard, 29 tests for StoryEditModal
+- 7 tests for addStories mutation in stories router
+
+**Files changed:**
+- src/components/StoryPreviewCard.tsx (new - 205 lines)
+- src/components/StoryPreviewCard.test.tsx (new - 23 tests)
+- src/components/StoryEditModal.tsx (new - 415 lines)
+- src/components/StoryEditModal.test.tsx (new - 29 tests)
+- src/lib/trpc/routers/stories.ts (added addStories mutation)
+- src/lib/trpc/routers/stories.test.ts (added 7 tests for addStories)
+- src/routes/brainstorm.tsx (major rewrite with story preview integration)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- GeneratedStory type excludes status field since new stories always start as pending
+- Story preview cards use collapsible pattern for acceptance criteria to save space
+- Bulk approve uses single mutation call with array of stories for atomicity
+- storyKey pattern (messageId:storyId) ensures unique identification across messages
+- Modal close behavior: backdrop click, X button, Escape key, and Cancel button
+- Add items to lists with Enter key support for better UX
+- Use Set<string> for tracking approving/approved state for O(1) lookups
+- Mock story generator uses keyword detection until real API is implemented

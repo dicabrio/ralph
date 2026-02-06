@@ -8,9 +8,13 @@ import {
   User,
   FolderOpen,
   ArrowDown,
+  Sparkles,
+  CheckCheck,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { StoryPreviewCard, type GeneratedStory } from '@/components/StoryPreviewCard'
+import { StoryEditModal } from '@/components/StoryEditModal'
 
 export const Route = createFileRoute('/brainstorm')({ component: BrainstormPage })
 
@@ -20,6 +24,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  generatedStories?: GeneratedStory[]
 }
 
 // Project type
@@ -41,6 +46,107 @@ function generateId(): string {
 // Format timestamp
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+// Mock story generator - will be replaced by API-008
+function generateMockStories(userMessage: string, projectName: string): GeneratedStory[] {
+  // Simple heuristic to generate mock stories based on keywords
+  const lowerMessage = userMessage.toLowerCase()
+
+  const stories: GeneratedStory[] = []
+  const timestamp = Date.now()
+
+  if (lowerMessage.includes('auth') || lowerMessage.includes('login') || lowerMessage.includes('user')) {
+    stories.push({
+      id: `AUTH-${timestamp.toString(36).slice(-4).toUpperCase()}`,
+      title: 'User Authentication Flow',
+      description: 'Implement secure user authentication with login, logout, and session management.',
+      priority: stories.length + 1,
+      epic: 'Authentication',
+      dependencies: [],
+      recommendedSkills: ['backend-development:api-design-principles'],
+      acceptanceCriteria: [
+        'Users can log in with email and password',
+        'Sessions are stored securely with JWT tokens',
+        'Login attempts are rate-limited',
+        'Password requirements are validated',
+      ],
+    })
+  }
+
+  if (lowerMessage.includes('dashboard') || lowerMessage.includes('overview') || lowerMessage.includes('home')) {
+    stories.push({
+      id: `DASH-${timestamp.toString(36).slice(-4).toUpperCase()}`,
+      title: 'Dashboard Overview Page',
+      description: 'Create a main dashboard page showing key metrics and recent activity.',
+      priority: stories.length + 1,
+      epic: 'Dashboard',
+      dependencies: [],
+      recommendedSkills: ['frontend-design'],
+      acceptanceCriteria: [
+        'Dashboard displays summary cards for key metrics',
+        'Recent activity is shown in a timeline',
+        'Data refreshes automatically every 30 seconds',
+        'Responsive layout for mobile and desktop',
+      ],
+    })
+  }
+
+  if (lowerMessage.includes('api') || lowerMessage.includes('endpoint') || lowerMessage.includes('backend')) {
+    stories.push({
+      id: `API-${timestamp.toString(36).slice(-4).toUpperCase()}`,
+      title: 'RESTful API Endpoints',
+      description: 'Design and implement RESTful API endpoints for core resources.',
+      priority: stories.length + 1,
+      epic: 'Core API',
+      dependencies: [],
+      recommendedSkills: ['backend-development:api-design-principles', 'database-design:postgresql'],
+      acceptanceCriteria: [
+        'Endpoints follow RESTful conventions',
+        'Input validation using Zod schemas',
+        'Error responses are consistent and informative',
+        'API documentation generated with OpenAPI spec',
+      ],
+    })
+  }
+
+  if (lowerMessage.includes('test') || lowerMessage.includes('testing') || lowerMessage.includes('coverage')) {
+    stories.push({
+      id: `TEST-${timestamp.toString(36).slice(-4).toUpperCase()}`,
+      title: 'Test Coverage Setup',
+      description: 'Configure testing infrastructure with unit, integration, and E2E tests.',
+      priority: stories.length + 1,
+      epic: 'Testing',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: [
+        'Unit tests configured with Vitest',
+        'Integration tests for API endpoints',
+        'E2E tests with Playwright',
+        'Coverage reports generated automatically',
+      ],
+    })
+  }
+
+  // If no specific keywords matched, generate a generic story
+  if (stories.length === 0) {
+    stories.push({
+      id: `FEAT-${timestamp.toString(36).slice(-4).toUpperCase()}`,
+      title: 'Feature Implementation',
+      description: `Implement the requested feature for ${projectName}: ${userMessage.slice(0, 100)}`,
+      priority: 1,
+      epic: 'Features',
+      dependencies: [],
+      recommendedSkills: ['frontend-design'],
+      acceptanceCriteria: [
+        'Feature meets the described requirements',
+        'Unit tests cover core functionality',
+        'Documentation updated with usage instructions',
+      ],
+    })
+  }
+
+  return stories
 }
 
 // Project selector component
@@ -173,17 +279,32 @@ function ProjectSelector({
 // Message bubble component
 interface MessageBubbleProps {
   message: Message
+  projectId: number | null
+  onEditStory: (story: GeneratedStory, messageId: string, storyIndex: number) => void
+  onApproveStory: (story: GeneratedStory, messageId: string, storyIndex: number) => void
+  onBulkApprove: (stories: GeneratedStory[], messageId: string) => void
+  approvingStoryIds: Set<string>
+  approvedStoryIds: Set<string>
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({
+  message,
+  projectId,
+  onEditStory,
+  onApproveStory,
+  onBulkApprove,
+  approvingStoryIds,
+  approvedStoryIds,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user'
+  const hasStories = message.generatedStories && message.generatedStories.length > 0
+  const unapprovedStories = message.generatedStories?.filter(
+    (s) => !approvedStoryIds.has(`${message.id}:${s.id}`)
+  ) || []
 
   return (
     <div
-      className={cn(
-        'flex gap-3 max-w-3xl',
-        isUser ? 'ml-auto flex-row-reverse' : '',
-      )}
+      className={cn('flex gap-3 max-w-3xl', isUser ? 'ml-auto flex-row-reverse' : '')}
       data-testid={`message-${message.id}`}
     >
       {/* Avatar */}
@@ -195,20 +316,11 @@ function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-muted text-muted-foreground',
         )}
       >
-        {isUser ? (
-          <User className="w-4 h-4" />
-        ) : (
-          <Bot className="w-4 h-4" />
-        )}
+        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
       </div>
 
       {/* Message content */}
-      <div
-        className={cn(
-          'flex flex-col gap-1',
-          isUser ? 'items-end' : 'items-start',
-        )}
-      >
+      <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
         <div
           className={cn(
             'px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap',
@@ -219,6 +331,47 @@ function MessageBubble({ message }: MessageBubbleProps) {
         >
           {message.content}
         </div>
+
+        {/* Generated stories preview */}
+        {hasStories && projectId && (
+          <div className="w-full mt-3 space-y-3" data-testid="generated-stories">
+            {/* Story header with bulk approve */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span>{message.generatedStories!.length} stories generated</span>
+              </div>
+              {unapprovedStories.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onBulkApprove(unapprovedStories, message.id)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg',
+                    'bg-primary text-primary-foreground',
+                    'hover:bg-primary/90 transition-colors',
+                  )}
+                  data-testid="bulk-approve-button"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Approve All ({unapprovedStories.length})
+                </button>
+              )}
+            </div>
+
+            {/* Story cards */}
+            {message.generatedStories!.map((story, index) => (
+              <StoryPreviewCard
+                key={`${message.id}:${story.id}`}
+                story={story}
+                onEdit={() => onEditStory(story, message.id, index)}
+                onApprove={() => onApproveStory(story, message.id, index)}
+                isApproving={approvingStoryIds.has(`${message.id}:${story.id}`)}
+                isApproved={approvedStoryIds.has(`${message.id}:${story.id}`)}
+              />
+            ))}
+          </div>
+        )}
+
         <span className="text-xs text-muted-foreground px-1">
           {formatTime(message.timestamp)}
         </span>
@@ -277,6 +430,13 @@ function BrainstormPage() {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [approvingStoryIds, setApprovingStoryIds] = useState<Set<string>>(new Set())
+  const [approvedStoryIds, setApprovedStoryIds] = useState<Set<string>>(new Set())
+  const [editingStory, setEditingStory] = useState<{
+    story: GeneratedStory
+    messageId: string
+    storyIndex: number
+  } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -285,6 +445,12 @@ function BrainstormPage() {
   // Fetch projects
   const { data: projects = [], isLoading: isLoadingProjects } =
     trpc.projects.list.useQuery(undefined, { staleTime: 30000 })
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId)
+
+  // Add stories mutation
+  const addStoriesMutation = trpc.stories.addStories.useMutation()
+  const utils = trpc.useUtils()
 
   // Scroll to bottom function
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -298,8 +464,7 @@ function BrainstormPage() {
 
     const threshold = 100
     const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      threshold
+      container.scrollHeight - container.scrollTop - container.clientHeight < threshold
     setIsAtBottom(isNearBottom)
   }, [])
 
@@ -314,6 +479,92 @@ function BrainstormPage() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  // Handle story edit
+  const handleEditStory = useCallback(
+    (story: GeneratedStory, messageId: string, storyIndex: number) => {
+      setEditingStory({ story, messageId, storyIndex })
+    },
+    [],
+  )
+
+  // Handle story save after edit
+  const handleSaveEditedStory = useCallback(
+    (updatedStory: GeneratedStory) => {
+      if (!editingStory) return
+
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === editingStory.messageId && msg.generatedStories) {
+            const newStories = [...msg.generatedStories]
+            newStories[editingStory.storyIndex] = updatedStory
+            return { ...msg, generatedStories: newStories }
+          }
+          return msg
+        }),
+      )
+    },
+    [editingStory],
+  )
+
+  // Handle approve single story
+  const handleApproveStory = useCallback(
+    async (story: GeneratedStory, messageId: string, _storyIndex: number) => {
+      if (!selectedProjectId) return
+
+      const storyKey = `${messageId}:${story.id}`
+      setApprovingStoryIds((prev) => new Set([...prev, storyKey]))
+
+      try {
+        await addStoriesMutation.mutateAsync({
+          projectId: selectedProjectId,
+          stories: [story],
+        })
+
+        setApprovedStoryIds((prev) => new Set([...prev, storyKey]))
+        utils.stories.listByProject.invalidate({ projectId: selectedProjectId })
+      } catch (error) {
+        console.error('Failed to approve story:', error)
+      } finally {
+        setApprovingStoryIds((prev) => {
+          const next = new Set(prev)
+          next.delete(storyKey)
+          return next
+        })
+      }
+    },
+    [selectedProjectId, addStoriesMutation, utils],
+  )
+
+  // Handle bulk approve
+  const handleBulkApprove = useCallback(
+    async (stories: GeneratedStory[], messageId: string) => {
+      if (!selectedProjectId) return
+
+      // Mark all as approving
+      const storyKeys = stories.map((s) => `${messageId}:${s.id}`)
+      setApprovingStoryIds((prev) => new Set([...prev, ...storyKeys]))
+
+      try {
+        await addStoriesMutation.mutateAsync({
+          projectId: selectedProjectId,
+          stories,
+        })
+
+        setApprovedStoryIds((prev) => new Set([...prev, ...storyKeys]))
+        utils.stories.listByProject.invalidate({ projectId: selectedProjectId })
+      } catch (error) {
+        console.error('Failed to bulk approve stories:', error)
+      } finally {
+        setApprovingStoryIds((prev) => {
+          const next = new Set(prev)
+          storyKeys.forEach((key) => next.delete(key))
+          return next
+        })
+      }
+    },
+    [selectedProjectId, addStoriesMutation, utils],
+  )
 
   // Handle sending a message
   const handleSendMessage = useCallback(async () => {
@@ -336,18 +587,29 @@ function BrainstormPage() {
     // TODO: Replace with actual API call when API-008 is done
     await new Promise((resolve) => setTimeout(resolve, 1500 + Math.random() * 1000))
 
+    // Generate mock stories based on user message
+    const generatedStories = selectedProject
+      ? generateMockStories(trimmedInput, selectedProject.name)
+      : []
+
+    const hasStories = generatedStories.length > 0
+    const contentText = selectedProjectId
+      ? hasStories
+        ? `Based on your request, I've generated ${generatedStories.length} user ${generatedStories.length === 1 ? 'story' : 'stories'} for ${selectedProject?.name}. You can review, edit, and approve them below.`
+        : `I understand you want to work on the project. Here's what I can help you with:\n\n1. Generate user stories based on your requirements\n2. Refine acceptance criteria\n3. Suggest dependencies between stories\n4. Recommend skills for implementation\n\nWhat would you like to explore?`
+      : `Please select a project first to start brainstorming user stories. The project selector is at the top of the page.`
+
     const assistantMessage: Message = {
       id: generateId(),
       role: 'assistant',
-      content: selectedProjectId
-        ? `I understand you want to discuss the project. Here's what I can help you with:\n\n1. Generate user stories based on your requirements\n2. Refine acceptance criteria\n3. Suggest dependencies between stories\n4. Recommend skills for implementation\n\nWhat would you like to explore?`
-        : `Please select a project first to start brainstorming user stories. The project selector is at the top of the page.`,
+      content: contentText,
       timestamp: new Date(),
+      generatedStories: hasStories ? generatedStories : undefined,
     }
 
     setMessages((prev) => [...prev, assistantMessage])
     setIsTyping(false)
-  }, [inputValue, selectedProjectId])
+  }, [inputValue, selectedProjectId, selectedProject])
 
   // Handle input key down (Enter to send, Shift+Enter for new line)
   const handleKeyDown = useCallback(
@@ -382,9 +644,7 @@ function BrainstormPage() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <h1 className="text-xl font-semibold text-foreground">
-                Brainstorm
-              </h1>
+              <h1 className="text-xl font-semibold text-foreground">Brainstorm</h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Generate and refine user stories with AI assistance
               </p>
@@ -400,18 +660,23 @@ function BrainstormPage() {
       </div>
 
       {/* Messages area */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto"
-      >
+      <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6">
           {!hasMessages ? (
             <ChatEmptyState hasProject={selectedProjectId !== null} />
           ) : (
             <div className="space-y-6">
               {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  projectId={selectedProjectId}
+                  onEditStory={handleEditStory}
+                  onApproveStory={handleApproveStory}
+                  onBulkApprove={handleBulkApprove}
+                  approvingStoryIds={approvingStoryIds}
+                  approvedStoryIds={approvedStoryIds}
+                />
               ))}
               {isTyping && <TypingIndicator />}
               <div ref={messagesEndRef} />
@@ -492,6 +757,16 @@ function BrainstormPage() {
           </p>
         </div>
       </div>
+
+      {/* Story edit modal */}
+      {editingStory && (
+        <StoryEditModal
+          story={editingStory.story}
+          isOpen={true}
+          onClose={() => setEditingStory(null)}
+          onSave={handleSaveEditedStory}
+        />
+      )}
     </div>
   )
 }

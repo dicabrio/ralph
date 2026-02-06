@@ -233,6 +233,53 @@ export const storiesRouter = router({
       return prdData.userStories[storyIndex]
     }),
 
+/**
+   * Add new stories to a project's prd.json
+   * Used by brainstorm feature to add AI-generated stories
+   */
+  addStories: publicProcedure
+    .input(z.object({
+      projectId: z.number().int().positive(),
+      stories: z.array(z.object({
+        id: z.string().min(1),
+        title: z.string().min(1),
+        description: z.string().min(1),
+        priority: z.number().int().positive(),
+        epic: z.string().min(1),
+        dependencies: z.array(z.string()),
+        recommendedSkills: z.array(z.string()),
+        acceptanceCriteria: z.array(z.string()),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const project = await getProjectById(input.projectId)
+      const prdData = await readPrdJson(project.path)
+
+      // Check for duplicate story IDs
+      const existingIds = new Set(prdData.userStories.map(s => s.id))
+      const duplicates = input.stories.filter(s => existingIds.has(s.id))
+
+      if (duplicates.length > 0) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Story IDs already exist: ${duplicates.map(d => d.id).join(', ')}`,
+        })
+      }
+
+      // Add stories with pending status
+      const newStories: Story[] = input.stories.map(s => ({
+        ...s,
+        status: 'pending' as const,
+      }))
+
+      prdData.userStories.push(...newStories)
+
+      // Write back to file
+      await writePrdJson(project.path, prdData)
+
+      return newStories
+    }),
+
   /**
    * Update a story's recommended skills
    */

@@ -533,7 +533,7 @@
       "title": "Brainstorm story preview",
       "description": "Preview van gegenereerde stories met approve actie",
       "priority": 26,
-      "status": "pending",
+      "status": "done",
       "epic": "Brainstorm",
       "dependencies": ["UI-011"],
       "recommendedSkills": ["frontend-design"],

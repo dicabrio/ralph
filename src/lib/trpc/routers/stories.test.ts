@@ -542,6 +542,171 @@ describe('storiesRouter', () => {
     })
   })
 
+describe('addStories', () => {
+    it('adds new stories to prd.json', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const newStories = [
+        {
+          id: 'NEW-001',
+          title: 'New Story',
+          description: 'A new story description',
+          priority: 10,
+          epic: 'New Epic',
+          dependencies: [],
+          recommendedSkills: ['new-skill'],
+          acceptanceCriteria: ['New criterion'],
+        },
+      ]
+
+      const result = await caller.addStories({
+        projectId: testProjectId,
+        stories: newStories,
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('NEW-001')
+      expect(result[0].status).toBe('pending')
+      expect(writeFile).toHaveBeenCalledTimes(1)
+
+      // Verify the written content includes new story
+      const writeCall = vi.mocked(writeFile).mock.calls[0]
+      const writtenData = JSON.parse(writeCall[1] as string)
+      expect(writtenData.userStories).toHaveLength(5) // 4 original + 1 new
+      expect(writtenData.userStories[4].id).toBe('NEW-001')
+      expect(writtenData.userStories[4].status).toBe('pending')
+    })
+
+    it('adds multiple stories at once', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const newStories = [
+        {
+          id: 'BATCH-001',
+          title: 'Batch Story 1',
+          description: 'Description 1',
+          priority: 11,
+          epic: 'Batch',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: [],
+        },
+        {
+          id: 'BATCH-002',
+          title: 'Batch Story 2',
+          description: 'Description 2',
+          priority: 12,
+          epic: 'Batch',
+          dependencies: ['BATCH-001'],
+          recommendedSkills: ['skill-x'],
+          acceptanceCriteria: ['Criterion'],
+        },
+      ]
+
+      const result = await caller.addStories({
+        projectId: testProjectId,
+        stories: newStories,
+      })
+
+      expect(result).toHaveLength(2)
+      expect(result.map(s => s.id)).toEqual(['BATCH-001', 'BATCH-002'])
+
+      const writeCall = vi.mocked(writeFile).mock.calls[0]
+      const writtenData = JSON.parse(writeCall[1] as string)
+      expect(writtenData.userStories).toHaveLength(6) // 4 original + 2 new
+    })
+
+    it('throws CONFLICT when story ID already exists', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+      const duplicateStory = [
+        {
+          id: 'STORY-001', // Already exists
+          title: 'Duplicate Story',
+          description: 'Description',
+          priority: 100,
+          epic: 'Test',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: [],
+        },
+      ]
+
+      await expect(caller.addStories({
+        projectId: testProjectId,
+        stories: duplicateStory,
+      })).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: expect.stringContaining('STORY-001'),
+      })
+    })
+
+    it('throws NOT_FOUND when project does not exist', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.addStories({
+        projectId: 99999,
+        stories: [{
+          id: 'TEST-001',
+          title: 'Test',
+          description: 'Test',
+          priority: 1,
+          epic: 'Test',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: [],
+        }],
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+
+    it('validates story input with Zod', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+
+      // Missing required field (title)
+      await expect(caller.addStories({
+        projectId: testProjectId,
+        stories: [{
+          id: 'INVALID',
+          title: '', // Empty title
+          description: 'Test',
+          priority: 1,
+          epic: 'Test',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: [],
+        }],
+      })).rejects.toThrow()
+
+      // Invalid priority (negative)
+      await expect(caller.addStories({
+        projectId: testProjectId,
+        stories: [{
+          id: 'INVALID',
+          title: 'Test',
+          description: 'Test',
+          priority: -1,
+          epic: 'Test',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: [],
+        }],
+      })).rejects.toThrow()
+    })
+  })
+
   describe('file operations error handling', () => {
     it('handles writeFile errors gracefully', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
