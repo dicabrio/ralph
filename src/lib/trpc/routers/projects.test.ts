@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import type { PathLike } from 'node:fs'
 
 // Mock the filesystem modules BEFORE importing anything that uses them
 // Use importOriginal to preserve non-mocked exports
@@ -24,6 +25,8 @@ vi.mock('node:fs', async (importOriginal) => {
       // Return mocked value for project paths
       return false
     }),
+    readdirSync: vi.fn(() => []),
+    statSync: vi.fn(() => ({ isDirectory: () => true })),
   }
 })
 
@@ -35,7 +38,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   }
 })
 
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createCallerFactory } from '../trpc'
 import { projectsRouter } from './projects'
@@ -420,6 +423,136 @@ describe('projectsRouter', () => {
 
       await expect(caller.delete({ id: -1 })).rejects.toThrow()
       await expect(caller.delete({ id: 0 })).rejects.toThrow()
+    })
+  })
+
+  describe('discover', () => {
+    beforeEach(() => {
+      // Reset PROJECTS_ROOT env
+      delete process.env.PROJECTS_ROOT
+    })
+
+    it('returns empty array when PROJECTS_ROOT does not exist', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const caller = createCaller({})
+      const result = await caller.discover()
+
+      expect(result.projects).toEqual([])
+      expect(result.projectsRoot).toBe('./projects')
+      expect(result.scannedAt).toBeInstanceOf(Date)
+    })
+
+    it('returns discovered projects with isAdded = false when not in database', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === './projects') return true
+        if (p.includes('new-project/stories/prd.json')) return true
+        return true
+      })
+      vi.mocked(readdirSync).mockReturnValue(['new-project'] as unknown as ReturnType<typeof readdirSync>)
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'New Project',
+        projectDescription: 'Not in database yet',
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.discover()
+
+      expect(result.projects).toHaveLength(1)
+      expect(result.projects[0]).toMatchObject({
+        name: 'New Project',
+        description: 'Not in database yet',
+        isAdded: false,
+      })
+    })
+
+    it('marks discovered projects as isAdded = true when already in database', async () => {
+      // First, add a project to the database (use path without ./ to match discovery output)
+      await db.insert(projects).values({
+        name: 'Existing Project',
+        path: 'projects/existing-project',
+      })
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === './projects') return true
+        if (p.includes('existing-project/stories/prd.json')) return true
+        return true
+      })
+      vi.mocked(readdirSync).mockReturnValue(['existing-project'] as unknown as ReturnType<typeof readdirSync>)
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Existing Project',
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.discover()
+
+      expect(result.projects).toHaveLength(1)
+      expect(result.projects[0].isAdded).toBe(true)
+    })
+
+    it('correctly differentiates added and not-added projects', async () => {
+      // Add one project to database (use path without ./ to match discovery output)
+      await db.insert(projects).values({
+        name: 'Added Project',
+        path: 'projects/added-project',
+      })
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        const p = String(path)
+        if (p.includes('ralph.db') || p.includes('/data')) {
+          return require('node:fs').existsSync(path)
+        }
+        if (p === './projects') return true
+        if (p.includes('added-project/stories/prd.json')) return true
+        if (p.includes('not-added-project/stories/prd.json')) return true
+        return true
+      })
+      vi.mocked(readdirSync).mockReturnValue(['added-project', 'not-added-project'] as unknown as ReturnType<typeof readdirSync>)
+      vi.mocked(statSync).mockReturnValue({ isDirectory: () => true } as ReturnType<typeof statSync>)
+      vi.mocked(readFile).mockImplementation(async (path) => {
+        const p = String(path)
+        // Be specific - not-added-project should NOT match added-project
+        if (p.includes('not-added-project')) {
+          return JSON.stringify({ projectName: 'Not Added Project' })
+        }
+        if (p.includes('added-project')) {
+          return JSON.stringify({ projectName: 'Added Project' })
+        }
+        return JSON.stringify({ projectName: 'Unknown' })
+      })
+
+      const caller = createCaller({})
+      const result = await caller.discover()
+
+      expect(result.projects).toHaveLength(2)
+
+      const addedProject = result.projects.find(p => p.name === 'Added Project')
+      const notAddedProject = result.projects.find(p => p.name === 'Not Added Project')
+
+      expect(addedProject?.isAdded).toBe(true)
+      expect(notAddedProject?.isAdded).toBe(false)
+    })
+
+    it('includes scannedAt timestamp', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const beforeTime = new Date()
+      const caller = createCaller({})
+      const result = await caller.discover()
+      const afterTime = new Date()
+
+      expect(result.scannedAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime())
+      expect(result.scannedAt.getTime()).toBeLessThanOrEqual(afterTime.getTime())
     })
   })
 })

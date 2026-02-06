@@ -27,6 +27,8 @@
 - tRPC integrated with TanStack Query via trpc.Provider in root-provider.tsx
 - tRPC router tests use createCallerFactory pattern for isolated testing
 - Mock node:fs with importOriginal to preserve DB initialization while mocking project paths
+- Services in src/lib/services/ folder for business logic (projectDiscovery, runnerManager)
+- path.join() strips leading ./ - use consistent path formats when comparing discovered vs database paths
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -432,3 +434,31 @@
 - Singleton pattern works well for cross-request container state tracking
 - getRelativeProjectPath extracts project folder name from absolute path for container mounting
 - HOST_PROJECTS_ROOT env var needed for host path resolution in spawned containers
+- path.join() strips leading ./ from paths - use consistent path formats in tests
+
+## 2026-02-06 - API-007
+**Title:** Project discovery service
+
+**Implemented:**
+- Created src/lib/services/projectDiscovery.ts with project discovery logic
+- discoverProjects() scans PROJECTS_ROOT for folders with stories/prd.json
+- Returns DiscoveredProject with path, name, description, branchName, hasPrdJson
+- isValidProjectPath() helper to check if a path is a valid project
+- Added projects.discover tRPC procedure that marks which projects are already in database
+- Unit tests for projectDiscovery service (15 tests)
+- Added discover endpoint tests to projects router tests (5 new tests)
+
+**Files changed:**
+- src/lib/services/projectDiscovery.ts (new)
+- src/lib/services/projectDiscovery.test.ts (new - 15 unit tests)
+- src/lib/trpc/routers/projects.ts (added discover procedure and import)
+- src/lib/trpc/routers/projects.test.ts (added 5 discover tests)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- path.join() in Node.js strips leading ./ from paths, so './projects' joined with 'folder' becomes 'projects/folder'
+- When testing with mocked existsSync, use .includes() for path matching to handle path format variations
+- String ordering matters in mock conditions - check 'not-added-project' before 'added-project' to avoid substring matching issues
+- Use PathLike type for mock function parameters to satisfy TypeScript in test files
+- Service exports discoverProjects (async, returns DiscoveryResult) and isValidProjectPath (sync, returns boolean)
+

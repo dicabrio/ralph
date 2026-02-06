@@ -13,6 +13,7 @@ import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
+import { discoverProjects } from '@/lib/services/projectDiscovery'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -269,6 +270,31 @@ export const projectsRouter = router({
 
       return { success: true, deletedId: deleted.id }
     }),
+
+  /**
+   * Discover projects in PROJECTS_ROOT
+   * Returns projects with prd.json files, indicating which are already added to the database
+   */
+  discover: publicProcedure.query(async () => {
+    // Get discovered projects from filesystem
+    const discoveryResult = await discoverProjects()
+
+    // Get all existing project paths from database
+    const existingProjects = await db.select({ path: projects.path }).from(projects)
+    const existingPaths = new Set(existingProjects.map(p => p.path))
+
+    // Mark which discovered projects are already in the database
+    const projectsWithStatus = discoveryResult.projects.map(project => ({
+      ...project,
+      isAdded: existingPaths.has(project.path),
+    }))
+
+    return {
+      projects: projectsWithStatus,
+      projectsRoot: discoveryResult.projectsRoot,
+      scannedAt: discoveryResult.scannedAt,
+    }
+  }),
 })
 
 export type ProjectsRouter = typeof projectsRouter

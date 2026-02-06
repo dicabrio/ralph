@@ -319,7 +319,7 @@
       "title": "Project discovery service",
       "description": "Service voor het automatisch ontdekken van projecten in PROJECTS_ROOT",
       "priority": 14,
-      "status": "pending",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-003"],
       "recommendedSkills": [],
