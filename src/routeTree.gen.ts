@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DemoTrpcRouteImport } from './routes/demo/trpc'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as DemoDrizzleRouteImport } from './routes/demo/drizzle'
 import { Route as DemoDbChatApiRouteImport } from './routes/demo/db-chat-api'
@@ -19,6 +20,7 @@ import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.se
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
+import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
@@ -28,6 +30,11 @@ import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ss
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoTrpcRoute = DemoTrpcRouteImport.update({
+  id: '/demo/trpc',
+  path: '/demo/trpc',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
@@ -75,6 +82,11 @@ const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
   path: '/demo/api/names',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
+  id: '/api/trpc/$',
+  path: '/api/trpc/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -108,7 +120,9 @@ export interface FileRoutesByFullPath {
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/demo/trpc': typeof DemoTrpcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -125,7 +139,9 @@ export interface FileRoutesByTo {
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/demo/trpc': typeof DemoTrpcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -143,7 +159,9 @@ export interface FileRoutesById {
   '/demo/db-chat-api': typeof DemoDbChatApiRoute
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/demo/trpc': typeof DemoTrpcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -162,7 +180,9 @@ export interface FileRouteTypes {
     | '/demo/db-chat-api'
     | '/demo/drizzle'
     | '/demo/tanstack-query'
+    | '/demo/trpc'
     | '/api/auth/$'
+    | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
@@ -179,7 +199,9 @@ export interface FileRouteTypes {
     | '/demo/db-chat-api'
     | '/demo/drizzle'
     | '/demo/tanstack-query'
+    | '/demo/trpc'
     | '/api/auth/$'
+    | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
@@ -196,7 +218,9 @@ export interface FileRouteTypes {
     | '/demo/db-chat-api'
     | '/demo/drizzle'
     | '/demo/tanstack-query'
+    | '/demo/trpc'
     | '/api/auth/$'
+    | '/api/trpc/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
@@ -214,7 +238,9 @@ export interface RootRouteChildren {
   DemoDbChatApiRoute: typeof DemoDbChatApiRoute
   DemoDrizzleRoute: typeof DemoDrizzleRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  DemoTrpcRoute: typeof DemoTrpcRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoApiTqTodosRoute: typeof DemoApiTqTodosRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
@@ -232,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/trpc': {
+      id: '/demo/trpc'
+      path: '/demo/trpc'
+      fullPath: '/demo/trpc'
+      preLoaderRoute: typeof DemoTrpcRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/tanstack-query': {
@@ -297,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoApiNamesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/trpc/$': {
+      id: '/api/trpc/$'
+      path: '/api/trpc/$'
+      fullPath: '/api/trpc/$'
+      preLoaderRoute: typeof ApiTrpcSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -342,7 +382,9 @@ const rootRouteChildren: RootRouteChildren = {
   DemoDbChatApiRoute: DemoDbChatApiRoute,
   DemoDrizzleRoute: DemoDrizzleRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  DemoTrpcRoute: DemoTrpcRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiTrpcSplatRoute: ApiTrpcSplatRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoApiTqTodosRoute: DemoApiTqTodosRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
