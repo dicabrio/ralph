@@ -407,7 +407,7 @@
       "title": "Project pagina",
       "description": "Detail pagina voor een specifiek project",
       "priority": 19,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Project",
       "dependencies": ["UI-001", "API-003"],
       "recommendedSkills": ["frontend-design"],
