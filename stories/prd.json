@@ -677,7 +677,7 @@
       "title": "Runner prompt configuratie",
       "description": "Genereer runner prompt met project context en skills",
       "priority": 34,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["RUNNER-001", "API-005"],
       "recommendedSkills": [],

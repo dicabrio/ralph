@@ -1103,3 +1103,35 @@
 - Mock factories (createMockProcess) allow fresh EventEmitter instances per spawn call
 - Testing pattern: store spawned processes in array, access process[n] to trigger events in tests
 - Integration with existing services: add import and call methods in start/stop lifecycle hooks
+
+## 2026-02-06 - RUNNER-003
+**Title:** Runner prompt configuratie
+
+**Implemented:**
+- Created src/lib/services/promptGenerator.ts for generating Claude runner prompts
+- Base agent instructions template covering full story lifecycle:
+  - Story selection (pending/failed, lowest priority, dependency check)
+  - Status transitions (pending -> in_progress -> done/failed)
+  - Progress.txt format and codebase patterns section
+  - Commit convention and stop conditions
+  - Failure protocol with detailed format
+- Skills injection from project override path first, then central skills
+- prd.json format documentation embedded in prompt
+- writePromptToProject() outputs CLAUDE.md to {projectPath}/.ralph/
+- generatePromptForProject() convenience function using prd.json config
+- 28 unit tests covering all prompt generation scenarios
+
+**Files changed:**
+- src/lib/services/promptGenerator.ts (new - 280 lines)
+- src/lib/services/promptGenerator.test.ts (new - 28 tests)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- SKILL.md frontmatter parsing reused from brainstormManager pattern
+- Project override path: {projectPath}/.ralph/skills/{skillId}/SKILL.md
+- Central skills path: {SKILLS_PATH}/{skillId}/SKILL.md
+- CLAUDE.md output path: {projectPath}/.ralph/CLAUDE.md
+- Agent prompt template based on actual Ralph loop system instructions
+- Skills body extracted from content after frontmatter using regex
+- mkdir with recursive: true ensures directory creation is idempotent
+- Test mocking pattern: mock existsSync differently for DB paths vs project paths
