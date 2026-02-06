@@ -13,10 +13,12 @@ import {
   Sparkles,
   GitBranch,
   Filter,
+  GitCompare,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { SkillDetailModal } from '@/components/SkillDetailModal'
+import { SkillOverrideModal } from '@/components/SkillOverrideModal'
 
 export const Route = createFileRoute('/project/$id/prompts')({
   component: ProjectPrompts,
@@ -98,10 +100,11 @@ interface ProjectSkillCardProps {
   isActive: boolean
   onToggleActive: () => void
   onClick: () => void
+  onOverrideClick: () => void
   isToggling: boolean
 }
 
-function ProjectSkillCard({ skill, isActive, onToggleActive, onClick, isToggling }: ProjectSkillCardProps) {
+function ProjectSkillCard({ skill, isActive, onToggleActive, onClick, onOverrideClick, isToggling }: ProjectSkillCardProps) {
   const category = extractCategory(skill.id)
 
   return (
@@ -169,6 +172,24 @@ function ProjectSkillCard({ skill, isActive, onToggleActive, onClick, isToggling
           <p className="text-sm text-muted-foreground line-clamp-2">{skill.description}</p>
         </button>
 
+        {/* Override button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOverrideClick()
+          }}
+          className={cn(
+            'shrink-0 p-2 rounded-lg transition-all duration-200',
+            'text-muted-foreground hover:text-primary hover:bg-primary/10',
+            skill.isOverride && 'text-amber-600 dark:text-amber-400'
+          )}
+          aria-label={skill.isOverride ? `Edit override for ${skill.name}` : `Create override for ${skill.name}`}
+          title={skill.isOverride ? 'Edit override' : 'Create override'}
+        >
+          <GitCompare className="w-5 h-5" />
+        </button>
+
         <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
       </div>
     </div>
@@ -182,6 +203,7 @@ interface CategoryGroupProps {
   activeSkills: Set<string>
   onToggleActive: (skillId: string, active: boolean) => void
   onSkillClick: (skill: Skill) => void
+  onOverrideClick: (skill: Skill) => void
   togglingSkills: Set<string>
   defaultExpanded?: boolean
 }
@@ -192,6 +214,7 @@ function CategoryGroup({
   activeSkills,
   onToggleActive,
   onSkillClick,
+  onOverrideClick,
   togglingSkills,
   defaultExpanded = true,
 }: CategoryGroupProps) {
@@ -225,6 +248,7 @@ function CategoryGroup({
               isActive={activeSkills.has(skill.id)}
               onToggleActive={() => onToggleActive(skill.id, !activeSkills.has(skill.id))}
               onClick={() => onSkillClick(skill)}
+              onOverrideClick={() => onOverrideClick(skill)}
               isToggling={togglingSkills.has(skill.id)}
             />
           ))}
@@ -284,6 +308,7 @@ function ProjectPrompts() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<FilterType>('all')
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null)
+  const [overrideSkill, setOverrideSkill] = useState<Skill | null>(null)
   const [togglingSkills, setTogglingSkills] = useState<Set<string>>(new Set())
 
   const utils = trpc.useUtils()
@@ -375,9 +400,19 @@ function ProjectPrompts() {
     setSelectedSkill(skill)
   }
 
+  // Handle override click
+  const handleOverrideClick = (skill: Skill) => {
+    setOverrideSkill(skill)
+  }
+
   // Handle modal close
   const handleCloseModal = () => {
     setSelectedSkill(null)
+  }
+
+  // Handle override modal close
+  const handleCloseOverrideModal = () => {
+    setOverrideSkill(null)
   }
 
   const isLoading = isLoadingProject || isLoadingSkills
@@ -524,6 +559,7 @@ function ProjectPrompts() {
               activeSkills={activeSkillsSet}
               onToggleActive={handleToggleActive}
               onSkillClick={handleSkillClick}
+              onOverrideClick={handleOverrideClick}
               togglingSkills={togglingSkills}
             />
           ))}
@@ -536,6 +572,18 @@ function ProjectPrompts() {
           skill={selectedSkill}
           isWritable={false}
           onClose={handleCloseModal}
+          onSaved={() => {
+            utils.skills.listByProject.invalidate({ projectId })
+          }}
+        />
+      )}
+
+      {/* Skill override modal */}
+      {overrideSkill && (
+        <SkillOverrideModal
+          skill={overrideSkill}
+          projectId={projectId}
+          onClose={handleCloseOverrideModal}
           onSaved={() => {
             utils.skills.listByProject.invalidate({ projectId })
           }}

@@ -1003,3 +1003,40 @@
 - Set<string> for activeSkillsSet enables O(1) lookup when filtering/displaying active state
 - togglingSkills Set tracks in-flight mutations for per-skill loading indicator
 - useMemo for filterCounts prevents recalculation on every render
+
+## 2026-02-06 - UI-016
+**Title:** Skill override en diff view
+
+**Implemented:**
+- Created SkillOverrideModal component at src/components/SkillOverrideModal.tsx
+- Modal provides side-by-side diff view with original (left, read-only) and override (right, editable)
+- View mode toggle: Side by Side vs Unified diff view
+- CodeMirror editor integration for editing override content
+- Save button creates override (new) or updates existing override (existing)
+- Revert to Original button deletes override and reverts to central skill
+- Unsaved changes tracking with confirmation dialog on close
+- Loading state while fetching diff data
+- Error handling with visible error messages
+- Integrated with Project Prompts page via GitCompare button on each skill card
+- Uses existing diff endpoint (already in skills router) for fetching original vs override
+- Uses existing createOverride, updateOverride, deleteOverride mutations
+- 25 unit tests covering all modal states and interactions
+
+**Files changed:**
+- src/components/SkillOverrideModal.tsx (new - 450+ lines)
+- src/components/SkillOverrideModal.test.tsx (new - 25 tests)
+- src/routes/project/$id/prompts.tsx (added import, state, handlers, modal integration)
+- package.json (added @codemirror/merge dependency)
+- pnpm-lock.yaml (updated)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Existing skills.diff endpoint returns { original, override, diff, hasChanges } - reusable for UI
+- createOverride vs updateOverride: check skill.isOverride || skill.hasOverride to decide which to call
+- deleteOverride deletes the override file and reverts to central skill
+- Side-by-side view: flexbox with two equal columns, left read-only (pre tag), right editable (CodeMirror)
+- Unified diff view: shows line-by-line diff with +/- prefix coloring
+- tRPC query enabled option: only fetch diff when skill is/has override, otherwise fetch central skill
+- vi.mock hoisting issue: mock functions must be defined before vi.mock() call to be accessible
+- window.confirm() mock: use vi.spyOn() with mockImplementation() in beforeEach
+- Multiple elements with same text: use getAllByText() instead of getByText() to avoid strict mode error

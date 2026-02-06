@@ -622,7 +622,7 @@
       "title": "Skill override en diff view",
       "description": "Override skills en bekijk verschillen met origineel",
       "priority": 31,
-      "status": "pending",
+      "status": "done",
       "epic": "Skills",
       "dependencies": ["UI-015"],
       "recommendedSkills": ["frontend-design"],
