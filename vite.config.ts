@@ -7,6 +7,7 @@ import { fileURLToPath, URL } from 'url'
 
 import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
+import { webSocketPlugin } from './src/lib/websocket/vite-plugin'
 
 const config = defineConfig({
   resolve: {
@@ -24,6 +25,8 @@ const config = defineConfig({
     tailwindcss(),
     tanstackStart(),
     viteReact(),
+    // WebSocket server for live runner logs
+    webSocketPlugin({ port: 9001 }),
   ],
 })
 

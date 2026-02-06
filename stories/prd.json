@@ -229,7 +229,7 @@
       "title": "Websocket server voor live logs",
       "description": "Implementeer websocket server voor het streamen van runner logs",
       "priority": 9,
-      "status": "pending",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-001"],
       "recommendedSkills": ["backend-development:api-design-principles"],

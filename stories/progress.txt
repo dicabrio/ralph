@@ -260,3 +260,44 @@
 - tRPC client can share the same QueryClient as TanStack Query for unified caching
 - createCallerFactory is useful for testing routers without HTTP requests
 - File-based routing creates type definitions in routeTree.gen.ts automatically
+- WebSocket server with ws library in src/lib/websocket/
+- WebSocket Vite plugin starts WS server on port 9001 during development
+- Use `@vitest-environment node` comment for tests that need Node.js (not jsdom)
+
+## 2026-02-06 - API-002
+**Title:** Websocket server voor live logs
+
+**Implemented:**
+- Created WebSocket server with `ws` library at src/lib/websocket/server.ts
+- Implemented project subscription system: subscribe/unsubscribe by projectId
+- Server broadcasts log updates to subscribed clients only
+- Log buffer (100 lines per project) for late-joining clients
+- Heartbeat mechanism with 30s interval for connection health monitoring
+- React client hook at src/lib/websocket/client.ts with:
+  - Automatic reconnection with exponential backoff and jitter
+  - Message queueing during disconnection
+  - Connection state management (isConnected, isReconnecting)
+- Vite plugin to start WebSocket server during development (port 9001)
+- Unit tests for WebSocket server (11 tests passing)
+
+**Files changed:**
+- package.json (added ws, @types/ws dependencies)
+- pnpm-lock.yaml (updated)
+- src/lib/websocket/types.ts (new - shared types for WS messages)
+- src/lib/websocket/server.ts (new - WebSocket server implementation)
+- src/lib/websocket/client.ts (new - React hook with reconnection)
+- src/lib/websocket/vite-plugin.ts (new - Vite dev server integration)
+- src/lib/websocket/index.ts (new - barrel export)
+- src/lib/websocket/server.test.ts (new - 11 unit tests)
+- vite.config.ts (added webSocketPlugin)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- TanStack Start with Nitro uses Fetch API which doesn't expose raw sockets for WebSocket upgrades
+- Separate WebSocket server on port 9001 is the cleanest solution for this architecture
+- Vite plugins can start background services via `configureServer()` hook
+- WebSocketServer standalone mode doesn't support path filtering; path is only used with noServer mode
+- Tests running real WebSocket connections need `@vitest-environment node` (not jsdom)
+- Use random ports in tests to avoid conflicts when tests run in parallel
+- Message collection pattern with waiters array helps avoid race conditions in async tests
+- ws library's Buffer type needs explicit handling in TypeScript for message parsing
