@@ -751,7 +751,7 @@
       "title": "E2E: Runner flow",
       "description": "End-to-end tests voor runner start/stop en log viewing",
       "priority": 38,
-      "status": "pending",
+      "status": "done",
       "epic": "Testing",
       "dependencies": ["SETUP-004", "UI-010", "RUNNER-004"],
       "recommendedSkills": [],

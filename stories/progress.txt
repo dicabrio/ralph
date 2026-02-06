@@ -1251,3 +1251,30 @@
 - Skills add/remove mutations may fail silently - test UI flow not persistence
 - test.describe.configure({ mode: 'serial' }) ensures test order within describe
 - sharedTestProject = null in beforeAll creates fresh project each test run
+
+## 2026-02-06 - E2E-003
+**Title:** E2E: Runner flow
+
+**Implemented:**
+- Created comprehensive E2E tests for runner flow in e2e/runner-flow.spec.ts
+- Tests for runner controls display on project page (heading, status badge, start button)
+- Tests for runner controls display on kanban page (status badge, start/stop buttons)
+- Tests for log modal functionality when clicking on in-progress stories
+- Tests for log modal UI elements (connection status, copy button, auto-scroll)
+- Tests for differentiating story detail modal vs log modal based on status
+- Tests for runner start/stop button visibility based on runner state
+- 21 passing E2E tests covering the runner flow
+
+**Files changed:**
+- e2e/runner-flow.spec.ts (new - 567 lines)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Playwright selectors need careful handling to avoid matching multiple elements
+- Use `getByRole('heading', { name: 'text', level: 3 })` for specific heading matches
+- Use `.first()` or exact text matchers (`text="In Progress"`) to avoid strict mode violations
+- For serial test execution, use `test.describe.configure({ mode: 'serial' })`
+- tRPC with superjson uses httpBatchLink which makes mocking API responses complex
+- Testing UI state (controls visible, buttons enabled) is more reliable than mocking API responses
+- Story cards with `status: 'in_progress'` open log modal, others open detail modal
+- Log modal has data-testid attributes for easy testing (connection-status, copy-button, autoscroll-button, close-button, log-container)
