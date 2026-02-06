@@ -332,3 +332,38 @@
 - prd.json sync pattern: read file on every getById/list, update DB if values differ
 - Use passthrough() in Zod schemas to allow unknown properties in parsed JSON files
 - TRPCError codes: NOT_FOUND (404), BAD_REQUEST (400), CONFLICT (409)
+- Stories router reads/writes prd.json for story management
+- Use `--no-file-parallelism` for unit tests to avoid SQLite concurrent access issues
+
+## 2026-02-06 - API-004
+**Title:** Stories API routes
+
+**Implemented:**
+- Created tRPC router at src/lib/trpc/routers/stories.ts for story management
+- Procedures: listByProject, getById, updateStatus, updateSkills
+- Reads stories from project's prd.json file (stories/prd.json)
+- Writes status and skills updates back to prd.json
+- Status transition validation with allowed transitions:
+  - pending -> in_progress, done
+  - in_progress -> done, failed, pending
+  - done -> pending
+  - failed -> in_progress, pending
+- Input validation with Zod schemas (storySchema, storyStatusEnum)
+- TRPCError handling for NOT_FOUND, BAD_REQUEST, INTERNAL_SERVER_ERROR
+- Unit tests with mocked filesystem (30 tests passing)
+
+**Files changed:**
+- src/lib/trpc/routers/stories.ts (new - stories tRPC router)
+- src/lib/trpc/routers/stories.test.ts (new - 30 unit tests)
+- src/lib/trpc/routers/index.ts (added stories router to appRouter)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- ZodError uses `.issues` (not `.errors`) to access validation errors array
+- ZodIssue type must be imported for proper typing in error messages
+- prd.json read/write pattern: read full file, modify in memory, write entire file back
+- Status transition validation using a validTransitions map is clean and maintainable
+- Stories are identified by string IDs (e.g., "API-004"), not database integers
+- Use writeFile with JSON.stringify(data, null, 2) + '\n' for pretty-printed JSON with trailing newline
+- Unit tests with SQLite must run with --no-file-parallelism to avoid concurrent access issues
+- Mock both node:fs (existsSync) and node:fs/promises (readFile, writeFile) separately

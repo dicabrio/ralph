@@ -264,7 +264,7 @@
       "title": "Stories API routes",
       "description": "API voor het ophalen en updaten van stories uit prd.json",
       "priority": 11,
-      "status": "in_progress",
+      "status": "done",
       "epic": "Core API",
       "dependencies": ["API-003"],
       "recommendedSkills": ["backend-development:api-design-principles"],
