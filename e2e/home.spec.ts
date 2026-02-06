@@ -1,32 +1,50 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('Home page', () => {
-  test('should load the home page', async ({ page }) => {
+test.describe('Dashboard page', () => {
+  test('should load the dashboard page', async ({ page }) => {
     await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    // Wait for React hydration to complete
+    await page.waitForFunction(() => {
+      const heading = document.querySelector('h1')
+      return heading?.textContent?.includes('Dashboard')
+    }, { timeout: 15000 })
 
     // Check the main heading is present
-    const mainHeading = page.getByRole('heading', { name: 'TANSTACK START' })
+    const mainHeading = page.locator('h1:has-text("Dashboard")')
     await expect(mainHeading).toBeVisible()
   })
 
-  test('should display feature cards', async ({ page }) => {
+  test('should display navigation sidebar', async ({ page }) => {
     await page.goto('/')
+    await page.waitForLoadState('networkidle')
 
-    // Check that feature cards are present
-    const featureCards = page.locator('text=Powerful Server Functions')
-    await expect(featureCards).toBeVisible()
+    // Wait for sidebar to render
+    await page.waitForSelector('nav', { timeout: 15000 })
 
-    // Check another feature
-    const typeSafetyCard = page.locator('text=Strongly Typed Everything')
-    await expect(typeSafetyCard).toBeVisible()
+    // Check navigation items in the sidebar
+    const sidebar = page.locator('aside')
+    await expect(sidebar.locator('text=Dashboard')).toBeVisible()
+    await expect(sidebar.locator('text=Brainstorm')).toBeVisible()
+    await expect(sidebar.locator('text=Prompts')).toBeVisible()
   })
 
-  test('should have documentation link', async ({ page }) => {
+  test('should have Add Project and Discover buttons', async ({ page }) => {
     await page.goto('/')
+    await page.waitForLoadState('networkidle')
 
-    // Check the documentation link exists
-    const docLink = page.locator('a:has-text("Documentation")')
-    await expect(docLink).toBeVisible()
-    await expect(docLink).toHaveAttribute('href', 'https://tanstack.com/start')
+    // Wait for buttons to be interactive
+    await page.waitForFunction(() => {
+      const buttons = document.querySelectorAll('button')
+      return buttons.length > 0
+    }, { timeout: 15000 })
+
+    // Check the buttons exist (either in header or empty state) - use .first() since there can be multiple
+    const addProjectButton = page.getByRole('button', { name: /add project/i }).first()
+    const discoverButton = page.getByRole('button', { name: /discover/i }).first()
+
+    await expect(addProjectButton).toBeVisible()
+    await expect(discoverButton).toBeVisible()
   })
 })

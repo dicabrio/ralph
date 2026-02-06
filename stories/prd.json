@@ -713,7 +713,7 @@
       "title": "E2E: Project management flow",
       "description": "End-to-end tests voor project toevoegen, bekijken en verwijderen",
       "priority": 36,
-      "status": "pending",
+      "status": "done",
       "epic": "Testing",
       "dependencies": ["SETUP-004", "UI-004"],
       "recommendedSkills": [],

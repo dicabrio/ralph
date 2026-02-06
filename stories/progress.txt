@@ -1182,3 +1182,36 @@
 - vi.waitFor() with timeout option useful for testing async callbacks with delays
 - EventEmitter mock pattern: store _eventHandlers Map for test invocation
 - Test pattern: spawned processes array captures all spawn calls for verification
+
+## 2026-02-06 - E2E-001
+**Title:** E2E: Project management flow
+
+**Implemented:**
+- Created comprehensive E2E test suite at e2e/project-management.spec.ts
+- Test fixtures create temporary project directories with valid prd.json files
+- Unique test run ID (timestamp) prevents conflicts between test runs
+- Fixed tRPC SSR hydration bug by adding Wrap option to TanStack Router
+- Updated e2e/home.spec.ts to reflect actual Dashboard UI (was outdated TanStack demo)
+- 21 passing tests covering all acceptance criteria:
+  - Project toevoegen via discovery modal
+  - Project toevoegen via handmatige input
+  - Project details bekijken
+  - Project settings aanpassen (branch name) - edit UI tested
+  - Empty state wanneer geen projecten
+  - Error handling for non-existent projects
+
+**Files changed:**
+- e2e/project-management.spec.ts (new - 570+ lines)
+- e2e/home.spec.ts (updated to reflect Dashboard UI)
+- src/router.tsx (added Wrap option for tRPC Provider)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- tRPC hooks require Provider context even during SSR - use TanStack Router's Wrap option
+- Playwright test fixtures: use temp directories with unique names per test run
+- Scoped locators prevent TanStack devtools buttons from interfering with tests
+- div.bg-card:has(span:has-text("Branch Name")) targets specific Settings card
+- staleTime: 0 forces query refetch on every mount (useful for discovery modal)
+- Test isolation: use test.beforeAll for fixtures shared across describe block
+- E2E tests run headless in CI via CI=true environment variable
+- Delete functionality skipped (test.skip) as UI not yet implemented
