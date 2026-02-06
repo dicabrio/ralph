@@ -529,3 +529,34 @@
 - staleTime option controls how long data is considered fresh before refetching
 - Link component from TanStack Router uses `to` prop with params object for dynamic routes
 
+## 2026-02-06 - UI-003
+**Title:** Project toevoegen modal
+
+**Implemented:**
+- Created AddProjectModal component with form for path and name inputs
+- Added validatePath tRPC endpoint to projects router for real-time validation
+- Path validation checks: path exists, contains prd.json, not already in database
+- Auto-suggests project name from prd.json metadata
+- Debounced input (300ms) for path validation to reduce API calls
+- Visual feedback with icons: loading spinner, checkmark, error icons
+- Error messages for each validation state (path not found, no prd.json, already added)
+- Keyboard support: Escape to close modal, auto-focus on path input
+- Integrated modal with dashboard page via isAddModalOpen state
+- Invalidates projects.list query on successful add to refresh dashboard
+
+**Files changed:**
+- src/components/AddProjectModal.tsx (new - modal component with form)
+- src/lib/trpc/routers/projects.ts (added validatePath endpoint)
+- src/lib/trpc/routers/projects.test.ts (added 5 tests for validatePath)
+- src/routes/index.tsx (integrated modal, added state and handlers)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- trpc.useUtils() provides access to invalidate queries after mutations
+- Debounce pattern: use useState for immediate value, useEffect with timeout for debounced value
+- tRPC query with enabled: false initially disables the query until condition is met
+- Focus management: use useRef + useEffect with small timeout to ensure modal is rendered before focusing
+- Modal accessibility: role="dialog", aria-modal="true", aria-labelledby for title
+- Validation state machine: null -> loading -> valid/path_not_found/no_prd/already_added
+- isValidProjectPath from projectDiscovery service can be reused in router endpoints
+
