@@ -588,7 +588,7 @@
       "title": "Skill detail en edit",
       "description": "Detail view en edit mogelijkheid voor centrale skills",
       "priority": 29,
-      "status": "pending",
+      "status": "done",
       "epic": "Skills",
       "dependencies": ["UI-013"],
       "recommendedSkills": ["frontend-design"],

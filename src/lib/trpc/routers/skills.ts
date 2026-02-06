@@ -449,6 +449,62 @@ export const skillsRouter = router({
     }),
 
   /**
+   * Update a central skill (only if SKILLS_PATH is writable)
+   */
+  updateCentral: publicProcedure
+    .input(z.object({
+      skillId: z.string().min(1),
+      content: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      // Check if directory is writable
+      try {
+        const { access, constants } = await import('node:fs/promises')
+        await access(SKILLS_PATH, constants.W_OK)
+      } catch {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Skills directory is read-only. Cannot save changes.',
+        })
+      }
+
+      const skillPath = join(SKILLS_PATH, input.skillId)
+      const skillMdPath = join(skillPath, 'SKILL.md')
+
+      // Check if skill exists
+      if (!existsSync(skillMdPath)) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Skill "${input.skillId}" not found`,
+        })
+      }
+
+      // Validate content has valid frontmatter
+      try {
+        parseFrontmatter(input.content)
+      } catch {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid SKILL.md format: content must have valid frontmatter',
+        })
+      }
+
+      // Update SKILL.md
+      await writeFile(skillMdPath, input.content, 'utf-8')
+
+      // Return the updated skill
+      const updatedSkill = await readSkill(skillPath, input.skillId)
+      if (!updatedSkill) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to read updated skill',
+        })
+      }
+
+      return updatedSkill
+    }),
+
+  /**
    * Get diff between central skill and project override
    */
   diff: publicProcedure

@@ -765,6 +765,85 @@ describe('skillsRouter', () => {
     })
   })
 
+  describe('updateCentral', () => {
+    it('updates central skill when directory is writable', async () => {
+      vi.mocked(existsSync).mockReturnValue(true) // Skill exists
+
+      // Mock the updated content to be returned
+      const updatedContent = createSkillMd('Updated Skill', 'Updated description', 'Updated content.')
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+      vi.mocked(readFile).mockResolvedValue(updatedContent)
+
+      const caller = createCaller({})
+      const result = await caller.updateCentral({
+        skillId: 'test-skill',
+        content: updatedContent,
+      })
+
+      expect(result.id).toBe('test-skill')
+      expect(result.name).toBe('Updated Skill')
+      expect(writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('SKILL.md'),
+        updatedContent,
+        'utf-8'
+      )
+    })
+
+    it('throws NOT_FOUND when skill does not exist', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const caller = createCaller({})
+
+      await expect(caller.updateCentral({
+        skillId: 'non-existent',
+        content: centralSkillContent,
+      })).rejects.toThrow(TRPCError)
+
+      await expect(caller.updateCentral({
+        skillId: 'non-existent',
+        content: centralSkillContent,
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+
+    it('validates content has valid frontmatter', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+
+      const caller = createCaller({})
+
+      await expect(caller.updateCentral({
+        skillId: 'test-skill',
+        content: 'No frontmatter here',
+      })).rejects.toThrow(TRPCError)
+
+      await expect(caller.updateCentral({
+        skillId: 'test-skill',
+        content: 'No frontmatter here',
+      })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      })
+    })
+
+    it('validates skillId is not empty', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.updateCentral({
+        skillId: '',
+        content: centralSkillContent,
+      })).rejects.toThrow()
+    })
+
+    it('validates content is not empty', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.updateCentral({
+        skillId: 'test-skill',
+        content: '',
+      })).rejects.toThrow()
+    })
+  })
+
   describe('input validation', () => {
     it('validates skillId is not empty', async () => {
       const caller = createCaller({})
