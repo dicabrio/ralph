@@ -480,7 +480,7 @@
       "title": "Story detail modal",
       "description": "Modal met volledige story details en edit mogelijkheden",
       "priority": 23,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-007"],
       "recommendedSkills": ["frontend-design"],

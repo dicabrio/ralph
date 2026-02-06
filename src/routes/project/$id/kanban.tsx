@@ -27,6 +27,7 @@ import {
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
+import { StoryDetailModal } from '@/components/StoryDetailModal'
 
 export const Route = createFileRoute('/project/$id/kanban')({
   component: KanbanBoard,
@@ -508,6 +509,10 @@ function KanbanBoard() {
   const [activeStory, setActiveStory] = useState<Story | null>(null)
   const [overColumnId, setOverColumnId] = useState<string | null>(null)
 
+  // Modal state
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+
   // Configure sensors with activation constraint
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -582,10 +587,17 @@ function KanbanBoard() {
     [hasFailedStories],
   )
 
-  // Handle story click - will open detail modal in UI-009
+  // Handle story click - opens detail modal
   const handleStoryClick = useCallback((story: Story) => {
-    // TODO: UI-009 will implement the story detail modal
-    console.log('Story clicked:', story.id)
+    setSelectedStory(story)
+    setIsDetailModalOpen(true)
+  }, [])
+
+  // Handle modal close
+  const handleCloseDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false)
+    // Keep selectedStory for exit animation, clear after modal is hidden
+    setTimeout(() => setSelectedStory(null), 200)
   }, [])
 
   // Drag handlers
@@ -755,6 +767,15 @@ function KanbanBoard() {
       <DragOverlay>
         {activeStory && <DragOverlayContent story={activeStory} />}
       </DragOverlay>
+
+      {/* Story detail modal */}
+      <StoryDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        projectId={projectId}
+        story={selectedStory}
+        allStories={stories}
+      />
     </DndContext>
   )
 }
