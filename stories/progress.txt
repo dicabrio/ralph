@@ -862,3 +862,43 @@
 - Add items to lists with Enter key support for better UX
 - Use Set<string> for tracking approving/approved state for O(1) lookups
 - Mock story generator uses keyword detection until real API is implemented
+
+## 2026-02-06 - API-008
+**Title:** Brainstorm API via Claude container
+
+**Implemented:**
+- Created brainstorm tRPC router at src/lib/trpc/routers/brainstorm.ts
+- Procedures: chat (streaming via WebSocket), getSession, cancelSession, parseStories, getSystemPrompt, getActiveSessions
+- Created brainstormManager service at src/lib/services/brainstormManager.ts
+- Service manages Claude container lifecycle for brainstorm sessions
+- Container spawned with `docker run --rm -i` and project mounted at /workspace
+- System prompt generated with:
+  - Available skills loaded from SKILLS_PATH
+  - Existing stories loaded from prd.json for dependencies context
+  - JSON output format instructions for story generation
+  - Story ID convention (EPIC-NNN pattern)
+- Streaming via WebSocket with message types:
+  - brainstorm_start, brainstorm_chunk, brainstorm_stories, brainstorm_complete, brainstorm_error
+- parseStoriesFromResponse() extracts JSON blocks from Claude's response
+- Validates and normalizes story objects with default values for optional fields
+- 32 unit tests covering router and manager service
+
+**Files changed:**
+- src/lib/trpc/routers/brainstorm.ts (new - 107 lines)
+- src/lib/trpc/routers/brainstorm.test.ts (new - 367 lines)
+- src/lib/services/brainstormManager.ts (new - 340 lines)
+- src/lib/services/brainstormManager.test.ts (new - 175 lines)
+- src/lib/trpc/routers/index.ts (added brainstorm router)
+- src/lib/websocket/types.ts (added GeneratedStory type and brainstorm message types)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Claude container uses --print flag for non-interactive output mode
+- docker run with -i flag allows stdin input for passing the prompt
+- Response parsing uses regex to extract ```json blocks from mixed text
+- parseStoriesFromResponse filters invalid objects and provides defaults for missing fields
+- WebSocket broadcast callbacks allow real-time streaming to subscribed clients
+- System prompt includes available skills and existing stories for context-aware generation
+- Container name pattern: claude-brainstorm-{sessionId} for isolation
+- HOST_PROJECTS_ROOT needed for host path resolution when mounting project in container
+- Session tracking uses in-memory Map similar to runnerManager pattern
