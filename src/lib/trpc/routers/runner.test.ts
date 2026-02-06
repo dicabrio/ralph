@@ -16,6 +16,8 @@ vi.mock('@/lib/services/runnerManager', () => ({
     stop: vi.fn(),
     getStatus: vi.fn(),
     getAllStatus: vi.fn(),
+    setAutoRestart: vi.fn(),
+    isAutoRestartEnabled: vi.fn(() => false),
   },
 }))
 
@@ -356,6 +358,100 @@ describe('runnerRouter', () => {
       await expect(caller.getAllStatus()).rejects.toThrow(TRPCError)
       await expect(caller.getAllStatus()).rejects.toMatchObject({
         code: 'INTERNAL_SERVER_ERROR',
+      })
+    })
+  })
+
+  describe('setAutoRestart', () => {
+    it('enables auto-restart for an existing project', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.setAutoRestart({
+        projectId: project.id,
+        enabled: true,
+      })
+
+      expect(result.projectId).toBe(project.id)
+      expect(result.autoRestartEnabled).toBe(true)
+      expect(runnerManager.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+    })
+
+    it('disables auto-restart for an existing project', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.setAutoRestart({
+        projectId: project.id,
+        enabled: false,
+      })
+
+      expect(result.projectId).toBe(project.id)
+      expect(result.autoRestartEnabled).toBe(false)
+      expect(runnerManager.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+    })
+
+    it('throws NOT_FOUND for non-existent project', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.setAutoRestart({ projectId: 99999, enabled: true })
+      ).rejects.toThrow(TRPCError)
+      await expect(
+        caller.setAutoRestart({ projectId: 99999, enabled: true })
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+  })
+
+  describe('getAutoRestartStatus', () => {
+    it('returns auto-restart status for an existing project', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      vi.mocked(runnerManager.isAutoRestartEnabled).mockReturnValue(true)
+
+      const caller = createCaller({})
+      const result = await caller.getAutoRestartStatus({ projectId: project.id })
+
+      expect(result.projectId).toBe(project.id)
+      expect(result.autoRestartEnabled).toBe(true)
+      expect(runnerManager.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
+    })
+
+    it('returns false when auto-restart is not enabled', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      vi.mocked(runnerManager.isAutoRestartEnabled).mockReturnValue(false)
+
+      const caller = createCaller({})
+      const result = await caller.getAutoRestartStatus({ projectId: project.id })
+
+      expect(result.autoRestartEnabled).toBe(false)
+    })
+
+    it('throws NOT_FOUND for non-existent project', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.getAutoRestartStatus({ projectId: 99999 })
+      ).rejects.toThrow(TRPCError)
+      await expect(
+        caller.getAutoRestartStatus({ projectId: 99999 })
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
       })
     })
   })

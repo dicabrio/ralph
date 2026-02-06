@@ -1135,3 +1135,50 @@
 - Skills body extracted from content after frontmatter using regex
 - mkdir with recursive: true ensures directory creation is idempotent
 - Test mocking pattern: mock existsSync differently for DB paths vs project paths
+- RunnerStatusMonitor service monitors container exit via `docker wait` command
+- Container exit codes: 0 = success, non-zero = failure
+- WebSocket message types: runner_status (status changes), runner_completed (exit details)
+- broadcastToProject method in WebSocket server for general message broadcasting
+
+## 2026-02-06 - RUNNER-004
+**Title:** Runner status monitoring
+
+**Implemented:**
+- Created RunnerStatusMonitor service at src/lib/services/runnerStatusMonitor.ts
+- Uses `docker wait <containerName>` to detect container exit and capture exit code
+- Parses exit status: exit code 0 = success, non-zero = failure
+- Reads prd.json from project path to check completed story status
+- findNextPendingStory() finds next story with all dependencies met, sorted by priority
+- Broadcasts runner_completed event via WebSocket with:
+  - projectId, storyId, exitCode, success, completedStoryStatus
+  - nextStoryId, willAutoRestart (for UI feedback)
+- Broadcasts runner_status event with status: 'idle' | 'running' | 'stopping'
+- Auto-restart logic: when enabled and next pending story exists, automatically starts next story
+- 1 second delay before auto-restart to allow cleanup
+- Added setAutoRestart and getAutoRestartStatus tRPC endpoints
+- Integrated with RunnerManager: starts monitoring on container start, stops on stop
+- Added broadcastToProject method to WebSocket server for general message broadcasting
+- 29 unit tests for RunnerStatusMonitor service
+- 6 new unit tests for router endpoints
+
+**Files changed:**
+- src/lib/services/runnerStatusMonitor.ts (new - 310 lines)
+- src/lib/services/runnerStatusMonitor.test.ts (new - 29 tests)
+- src/lib/services/runnerManager.ts (integrated status monitor, added auto-restart methods)
+- src/lib/services/runnerManager.test.ts (added mock for runnerStatusMonitor)
+- src/lib/trpc/routers/runner.ts (added setAutoRestart, getAutoRestartStatus endpoints)
+- src/lib/trpc/routers/runner.test.ts (added 6 tests for new endpoints)
+- src/lib/websocket/types.ts (added runner_status, runner_completed message types)
+- src/lib/websocket/server.ts (added broadcastToProject method)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- `docker wait <containerName>` blocks until container exits and returns exit code
+- spawn() with ['docker', 'wait', containerName] captures exit code via stdout
+- ContainerProcess type needed projectPath field for auto-restart lookup
+- projectPaths Map persists paths after container cleanup for restart support
+- Callback pattern allows clean separation: RunnerManager → RunnerStatusMonitor → callbacks
+- setTimeout for auto-restart allows cleanup to complete before restarting
+- vi.waitFor() with timeout option useful for testing async callbacks with delays
+- EventEmitter mock pattern: store _eventHandlers Map for test invocation
+- Test pattern: spawned processes array captures all spawn calls for verification

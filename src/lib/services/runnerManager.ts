@@ -10,6 +10,7 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { logStreamingService } from './logStreamingService'
+import { runnerStatusMonitor } from './runnerStatusMonitor'
 
 const execAsync = promisify(exec)
 
@@ -37,6 +38,7 @@ interface ContainerProcess {
   containerId: string
   storyId?: string
   startedAt: Date
+  projectPath: string
 }
 
 /**
@@ -48,6 +50,28 @@ interface ContainerProcess {
 class RunnerManager {
   private containers: Map<number, ContainerProcess> = new Map()
   private stoppingContainers: Set<number> = new Set()
+  // Store project paths for auto-restart (persists after container cleanup)
+  private projectPaths: Map<number, string> = new Map()
+
+  constructor() {
+    // Set up status monitor callbacks for auto-restart
+    runnerStatusMonitor.setCallbacks({
+      onContainerExit: async (result) => {
+        // Clean up container tracking (but keep projectPath for restart)
+        this.containers.delete(result.projectId)
+      },
+      getProjectPath: async (projectId) => {
+        return this.projectPaths.get(projectId) || null
+      },
+      restartRunner: async (projectId, storyId) => {
+        // Re-start the runner for the next story
+        const projectPath = this.projectPaths.get(projectId)
+        if (projectPath) {
+          await this.start(projectId, projectPath, storyId)
+        }
+      },
+    })
+  }
 
   /**
    * Get the container name for a project
@@ -143,6 +167,9 @@ class RunnerManager {
       throw new Error(`Runner for project ${projectId} is currently stopping`)
     }
 
+    // Store project path for potential auto-restart
+    this.projectPaths.set(projectId, projectPath)
+
     // Clean up any existing container
     if (await this.containerExists(containerName)) {
       if (await this.containerIsRunning(containerName)) {
@@ -154,9 +181,14 @@ class RunnerManager {
             containerId,
             storyId,
             startedAt: new Date(),
+            projectPath,
           })
           // Start log streaming for adopted container
           logStreamingService.startStreaming(projectId, containerName, storyId)
+          // Start status monitoring for adopted container
+          runnerStatusMonitor.startMonitoring(projectId, containerId, containerName, storyId)
+          // Broadcast running status
+          runnerStatusMonitor.broadcastRunning(projectId, storyId, containerId)
           return {
             status: 'running',
             projectId,
@@ -208,10 +240,17 @@ class RunnerManager {
       containerId,
       storyId,
       startedAt: new Date(),
+      projectPath,
     })
 
     // Start log streaming
     logStreamingService.startStreaming(projectId, containerName, storyId)
+
+    // Start status monitoring for exit detection
+    runnerStatusMonitor.startMonitoring(projectId, containerId, containerName, storyId)
+
+    // Broadcast running status
+    runnerStatusMonitor.broadcastRunning(projectId, storyId, containerId)
 
     return {
       status: 'running',
@@ -236,7 +275,10 @@ class RunnerManager {
     this.stoppingContainers.add(projectId)
 
     try {
-      // Stop log streaming first
+      // Stop status monitoring first
+      runnerStatusMonitor.stopMonitoring(projectId)
+
+      // Stop log streaming
       logStreamingService.stopStreaming(projectId)
 
       // Stop the container
@@ -293,11 +335,14 @@ class RunnerManager {
       const containerId = await this.getContainerId(containerName)
 
       // If running but not tracked, adopt it
+      // Note: projectPath will be empty for adopted containers - they won't support auto-restart
       if (!tracked && containerId) {
+        const existingPath = this.projectPaths.get(projectId) || ''
         this.containers.set(projectId, {
           projectId,
           containerId,
           startedAt: new Date(),
+          projectPath: existingPath,
         })
         return {
           status: 'running',
@@ -337,6 +382,25 @@ class RunnerManager {
     }
 
     return states
+  }
+
+  /**
+   * Enable or disable auto-restart for a project
+   *
+   * @param projectId - Database ID of the project
+   * @param enabled - Whether auto-restart is enabled
+   */
+  setAutoRestart(projectId: number, enabled: boolean): void {
+    runnerStatusMonitor.setAutoRestart(projectId, enabled)
+  }
+
+  /**
+   * Check if auto-restart is enabled for a project
+   *
+   * @param projectId - Database ID of the project
+   */
+  isAutoRestartEnabled(projectId: number): boolean {
+    return runnerStatusMonitor.isAutoRestartEnabled(projectId)
   }
 
   /**

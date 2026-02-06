@@ -695,7 +695,7 @@
       "title": "Runner status monitoring",
       "description": "Monitor runner status en detecteer completion",
       "priority": 35,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["RUNNER-002"],
       "recommendedSkills": [],

@@ -39,6 +39,21 @@ vi.mock('./logStreamingService', () => ({
   },
 }))
 
+// Mock runnerStatusMonitor to prevent it from actually running
+vi.mock('./runnerStatusMonitor', () => ({
+  runnerStatusMonitor: {
+    startMonitoring: vi.fn(),
+    stopMonitoring: vi.fn(),
+    setAutoRestart: vi.fn(),
+    isAutoRestartEnabled: vi.fn(() => false),
+    setCallbacks: vi.fn(),
+    broadcastRunning: vi.fn(),
+    isMonitoring: vi.fn(() => false),
+    getActiveMonitors: vi.fn(() => []),
+    stopAllMonitors: vi.fn(),
+  },
+}))
+
 import type { RunnerManager } from './runnerManager'
 
 // Helper to create a fresh RunnerManager instance for each test

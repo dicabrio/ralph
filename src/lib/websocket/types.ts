@@ -80,6 +80,31 @@ export type ServerMessage =
       payload: { sessionId: string; error: string }
       timestamp: number
     }
+  // Runner status change messages
+  | {
+      type: 'runner_status'
+      payload: {
+        projectId: string
+        status: 'idle' | 'running' | 'stopping'
+        storyId?: string
+        containerId?: string
+        exitCode?: number
+      }
+      timestamp: number
+    }
+  | {
+      type: 'runner_completed'
+      payload: {
+        projectId: string
+        storyId?: string
+        exitCode: number
+        success: boolean
+        completedStoryStatus?: 'done' | 'failed' | 'pending' | 'in_progress'
+        nextStoryId?: string
+        willAutoRestart: boolean
+      }
+      timestamp: number
+    }
 
 /**
  * Extended WebSocket connection with tracking info

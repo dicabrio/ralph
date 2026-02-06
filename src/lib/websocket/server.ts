@@ -31,6 +31,7 @@ export interface WebSocketServerInstance {
     content: string,
     logType: 'stdout' | 'stderr'
   ) => void
+  broadcastToProject: (projectId: string, message: ServerMessage) => void
   getSubscriberCount: (projectId: string) => number
   close: () => void
 }
@@ -284,11 +285,20 @@ export function createWebSocketServer(options: {
     wss.close()
   }
 
+  /**
+   * Broadcast any message to all clients subscribed to a project
+   * (Alias for broadcast with better naming for general messages)
+   */
+  function broadcastToProject(projectId: string, message: ServerMessage) {
+    broadcast(projectId, message)
+  }
+
   return {
     wss,
     clients,
     broadcast,
     broadcastLog,
+    broadcastToProject,
     getSubscriberCount,
     close,
   }

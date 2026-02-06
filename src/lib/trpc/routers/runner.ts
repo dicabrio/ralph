@@ -27,6 +27,11 @@ const getStatusSchema = z.object({
   projectId: z.number().int().positive(),
 })
 
+const setAutoRestartSchema = z.object({
+  projectId: z.number().int().positive(),
+  enabled: z.boolean(),
+})
+
 /**
  * Get the relative project path from the full path
  * The project path stored in DB is absolute, we need the relative path
@@ -153,6 +158,62 @@ export const runnerRouter = router({
       })
     }
   }),
+
+  /**
+   * Enable or disable auto-restart for a project
+   */
+  setAutoRestart: publicProcedure
+    .input(setAutoRestartSchema)
+    .mutation(async ({ input }) => {
+      const { projectId, enabled } = input
+
+      // Verify project exists
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${projectId} not found`,
+        })
+      }
+
+      runnerManager.setAutoRestart(projectId, enabled)
+
+      return {
+        projectId,
+        autoRestartEnabled: enabled,
+      }
+    }),
+
+  /**
+   * Get auto-restart status for a project
+   */
+  getAutoRestartStatus: publicProcedure
+    .input(getStatusSchema)
+    .query(async ({ input }) => {
+      const { projectId } = input
+
+      // Verify project exists
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${projectId} not found`,
+        })
+      }
+
+      return {
+        projectId,
+        autoRestartEnabled: runnerManager.isAutoRestartEnabled(projectId),
+      }
+    }),
 })
 
 export type RunnerRouter = typeof runnerRouter
