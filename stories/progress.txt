@@ -652,3 +652,32 @@
 - Stats bar provides quick overview without taking too much vertical space
 - max-h-[calc(100vh-300px)] allows columns to scroll independently
 
+## 2026-02-06 - UI-007
+**Title:** Kanban story cards
+
+**Implemented:**
+- Created reusable StoryCard component at src/components/StoryCard.tsx
+- Card displays: story ID, title, priority badge (P{n}), epic label
+- Dependencies shown as small badges with link icon at bottom of card
+- Failed badge (red) displayed when story status is 'failed'
+- Failed stories get red-tinted background and border styling
+- Click handler with keyboard accessibility (Enter/Space keys)
+- button role and tabIndex for clickable cards
+- Integrated StoryCard into Kanban board with onClick handler for future UI-009 modal
+- 27 unit tests covering all card states and interactions
+
+**Files changed:**
+- src/components/StoryCard.tsx (new - reusable story card component)
+- src/components/StoryCard.test.tsx (new - 27 unit tests)
+- src/routes/project/$id/kanban.tsx (updated to use StoryCard component)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Extract reusable components to src/components/ for better maintainability
+- Use data-testid attributes for reliable test selectors
+- Keyboard accessibility: onKeyDown with Enter/Space for clickable divs
+- Conditional role="button" and tabIndex={0} only when onClick is provided
+- Use cn() utility for conditional class merging (failed state styling)
+- Export type definitions alongside component for type-safe imports
+- Lucide React Link icon renamed to LinkIcon to avoid conflict with TanStack Router Link
+

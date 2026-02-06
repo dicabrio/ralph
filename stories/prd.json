@@ -442,7 +442,7 @@
       "title": "Kanban story cards",
       "description": "Story cards met alle relevante informatie",
       "priority": 21,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-006"],
       "recommendedSkills": ["frontend-design"],

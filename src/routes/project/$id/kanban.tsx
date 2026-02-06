@@ -12,26 +12,11 @@ import {
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
 
 export const Route = createFileRoute('/project/$id/kanban')({
   component: KanbanBoard,
 })
-
-// Story status type
-type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed'
-
-// Story type from the API
-interface Story {
-  id: string
-  title: string
-  description: string
-  priority: number
-  status: StoryStatus
-  epic: string
-  dependencies: string[]
-  recommendedSkills: string[]
-  acceptanceCriteria: string[]
-}
 
 // Runner status type
 type RunnerStatus = 'idle' | 'running' | 'stopping'
@@ -142,38 +127,6 @@ function computeProjectStats(stories: Story[]) {
   return { total, done, failed, inProgress, pending, progress }
 }
 
-// Simple story card for initial implementation
-// Will be enhanced in UI-007
-interface StoryCardProps {
-  story: Story
-}
-
-function StoryCard({ story }: StoryCardProps) {
-  return (
-    <div
-      className={cn(
-        'p-3 bg-card rounded-lg border shadow-sm',
-        'hover:shadow-md hover:border-primary/30 transition-all',
-        'cursor-pointer',
-      )}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-xs font-mono text-muted-foreground">
-          {story.id}
-        </span>
-        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-          P{story.priority}
-        </span>
-      </div>
-      <h4 className="text-sm font-medium text-foreground line-clamp-2">
-        {story.title}
-      </h4>
-      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-        {story.epic}
-      </p>
-    </div>
-  )
-}
 
 // Column header component
 interface ColumnHeaderProps {
@@ -205,9 +158,14 @@ function ColumnHeader({ column, count }: ColumnHeaderProps) {
 interface KanbanColumnProps {
   column: KanbanColumn
   stories: Story[]
+  onStoryClick?: (story: Story) => void
 }
 
-function KanbanColumnComponent({ column, stories }: KanbanColumnProps) {
+function KanbanColumnComponent({
+  column,
+  stories,
+  onStoryClick,
+}: KanbanColumnProps) {
   return (
     <div className="flex flex-col min-w-[280px] max-w-[320px] bg-muted/30 rounded-lg border overflow-hidden">
       <ColumnHeader column={column} count={stories.length} />
@@ -219,7 +177,13 @@ function KanbanColumnComponent({ column, stories }: KanbanColumnProps) {
         ) : (
           stories
             .sort((a, b) => a.priority - b.priority)
-            .map((story) => <StoryCard key={story.id} story={story} />)
+            .map((story) => (
+              <StoryCard
+                key={story.id}
+                story={story}
+                onClick={onStoryClick ? () => onStoryClick(story) : undefined}
+              />
+            ))
         )}
       </div>
     </div>
@@ -435,6 +399,12 @@ function KanbanBoard() {
     (col) => col.id !== 'failed' || hasFailedStories,
   )
 
+  // Handle story click - will open detail modal in UI-009
+  const handleStoryClick = (story: Story) => {
+    // TODO: UI-009 will implement the story detail modal
+    console.log('Story clicked:', story.id)
+  }
+
   // Loading state
   if (isLoadingProject || isLoadingStories) {
     return (
@@ -515,6 +485,7 @@ function KanbanBoard() {
                 key={column.id}
                 column={column}
                 stories={columnStories}
+                onStoryClick={handleStoryClick}
               />
             )
           })}
