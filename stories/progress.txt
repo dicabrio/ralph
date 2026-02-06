@@ -500,3 +500,32 @@
 - TailwindCSS v4 uses @import 'tailwindcss' instead of @tailwind directives
 - Google Fonts can be imported directly in CSS via @import url()
 
+## 2026-02-06 - UI-002
+**Title:** Dashboard pagina
+
+**Implemented:**
+- Dashboard page with project cards grid
+- ProjectCard component with name, description, runner status badge, progress bar
+- Stats row showing done/in-progress/failed/pending counts and total stories
+- Last activity timestamp with relative time formatting
+- Link cards to project detail page (/project/$id)
+- Add Project and Discover buttons in header
+- Empty state component when no projects exist
+- Stub for project detail route (to be implemented in UI-005)
+- Uses tRPC queries: projects.list, stories.listByProject, runner.getStatus
+
+**Files changed:**
+- src/routes/index.tsx (replaced TanStack demo with Dashboard)
+- src/routes/project/$id.tsx (new - stub for project detail page)
+- src/routeTree.gen.ts (auto-generated with new route)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- TanStack Router file-based routing: create folder + $param.tsx for dynamic routes
+- Route tree is auto-generated when dev server runs, picks up new routes
+- trpc hooks (useQuery) integrate seamlessly with components
+- superjson handles Date serialization from API, dates come as Date objects
+- Project cards fetch their own stories/runner data for isolated data fetching
+- staleTime option controls how long data is considered fresh before refetching
+- Link component from TanStack Router uses `to` prop with params object for dynamic routes
+
