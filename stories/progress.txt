@@ -7,6 +7,10 @@
 - Root layout in src/routes/__root.tsx with RootDocument shell component
 - Header component contains sidebar navigation with slide-out menu
 - Dev server runs on port 9000
+- Project uses pnpm (v8.x) with lockfile v6 - use pnpm@8.15.9 for Docker builds
+- Docker build uses multi-stage build: deps → builder → runner
+- TanStack Start builds to .output/ folder, run with `node .output/server/index.mjs`
+- Docker health checks use 127.0.0.1 (not localhost) to avoid IPv6 issues in Alpine
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -28,3 +32,30 @@
 - TanStack Router devtools and Query devtools are integrated
 - Better-auth is already configured for authentication
 - Drizzle ORM is set up for database operations
+
+## 2026-02-06 - SETUP-002
+**Title:** Docker configuratie
+
+**Implemented:**
+- Created multi-stage Dockerfile for Node.js/pnpm TanStack Start application
+- Created docker-compose.yml with ralph-app service
+- Configured volume mounts: DATA_PATH, PROJECTS_ROOT, SKILLS_PATH
+- Set up environment variables: ANTHROPIC_API_KEY, PROJECTS_ROOT, SKILLS_PATH, DATA_PATH
+- Created .dockerignore for optimized builds
+- Created .env.example with documentation
+- Added health check with 127.0.0.1 (IPv4) to avoid Alpine IPv6 issues
+
+**Files changed:**
+- Dockerfile (new)
+- docker-compose.yml (new)
+- .dockerignore (new)
+- .env.example (new)
+- .gitignore (added data/, projects/, skills/ to ignore list)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- pnpm lockfile v6 requires pnpm 8.x, use specific version (8.15.9) in Dockerfile
+- TanStack Start with nitro builds to .output/ folder
+- Alpine wget uses IPv6 first for localhost, causing health check failures - use 127.0.0.1
+- Build output is started with `node .output/server/index.mjs`
+- Better-auth requires BETTER_AUTH_SECRET and BETTER_AUTH_BASE_URL env vars (for later stories)

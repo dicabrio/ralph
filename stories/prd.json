@@ -104,7 +104,7 @@
       "title": "Docker configuratie",
       "description": "Maak Dockerfile en docker-compose.yml voor het draaien van de Ralph applicatie",
       "priority": 2,
-      "status": "pending",
+      "status": "done",
       "epic": "Project Setup",
       "dependencies": ["SETUP-001"],
       "recommendedSkills": [],

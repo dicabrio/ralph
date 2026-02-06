@@ -1,0 +1,35 @@
+services:
+  ralph-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ralph-dashboard
+    ports:
+      - "9000:9000"
+    volumes:
+      # Database storage (SQLite)
+      - ${DATA_PATH:-./data}:/data
+      # Projects folder (read-only for scanning, writable for prd.json updates)
+      # IMPORTANT: Set PROJECTS_ROOT in your .env file to point to your projects folder
+      - ${PROJECTS_ROOT:-./projects}:/projects
+      # Skills folder (central skills library)
+      - ${SKILLS_PATH:-./skills}:/skills
+    environment:
+      - NODE_ENV=production
+      - PORT=9000
+      - HOST=0.0.0.0
+      # Database path inside container
+      - DATA_PATH=/data
+      # Projects root inside container
+      - PROJECTS_ROOT=/projects
+      # Skills path inside container
+      - SKILLS_PATH=/skills
+      # Anthropic API key for Claude integration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

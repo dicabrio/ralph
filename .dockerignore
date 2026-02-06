@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (installed in container)
+node_modules
+.pnp
+.pnp.js
+
+# Build output (built in container)
+.output
+dist
+build
+
+# Development environment
+.env.local
+.env.development
+.env.test
+.env*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage
+.nyc_output
+
+# Docker files (not needed in image)
+Dockerfile*
+docker-compose*
+.docker
+
+# Documentation
+docs
+*.md
+!package.json
+
+# Stories and project management
+stories
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Data folders (mounted at runtime)
+data
+skills
