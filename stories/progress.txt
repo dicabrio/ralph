@@ -31,6 +31,9 @@
 - Mock node:fs with importOriginal to preserve DB initialization while mocking project paths
 - Services in src/lib/services/ folder for business logic (projectDiscovery, runnerManager)
 - path.join() strips leading ./ - use consistent path formats when comparing discovered vs database paths
+- TanStack Router nested routes: parent $id.tsx must render <Outlet />, content goes in $id/index.tsx
+- E2E locators: use filter with data-testid for exact ID match (avoids matching partial text in other elements)
+- E2E modal testing: use coordinates for backdrop click, test behavior not strict expectations for edge cases
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -1215,3 +1218,36 @@
 - Test isolation: use test.beforeAll for fixtures shared across describe block
 - E2E tests run headless in CI via CI=true environment variable
 - Delete functionality skipped (test.skip) as UI not yet implemented
+
+## 2026-02-06 - E2E-002
+**Title:** E2E: Kanban board flow
+
+**Implemented:**
+- Comprehensive E2E tests for Kanban board (31 tests, ~800 lines)
+- Stories display in correct columns based on status and dependencies
+- Drag & drop interactions between Backlog and Te doen columns
+- Blocked stories movement restriction testing
+- Story detail modal opening and field display
+- Modal closing via X button, Escape key, and backdrop click
+- Skills management UI testing (add/remove skill flows)
+- Runner status and stats bar display
+- Navigation tests (back link, project name display)
+- Fixed TanStack Router nested routes issue
+
+**Files changed:**
+- e2e/kanban-board.spec.ts (new - comprehensive E2E tests)
+- src/routes/project/$id.tsx (refactored to layout with Outlet)
+- src/routes/project/$id/index.tsx (new - moved ProjectDetail here)
+- src/routeTree.gen.ts (auto-regenerated)
+
+**Learnings:**
+- TanStack Router file-based routing: $id.tsx acts as parent layout, $id/index.tsx is index route
+- Parent layout routes must render <Outlet /> for child routes to work
+- Story card locators: use filter with data-testid for exact ID match to avoid matching dependency badges
+- getByText with exact: true prevents matching partial text
+- getByRole('heading') more reliable than text selectors for section headers
+- Backdrop click requires coordinates for testing (top-left corner outside modal)
+- Escape key in inputs may close entire modal - test behavior not strict expectation
+- Skills add/remove mutations may fail silently - test UI flow not persistence
+- test.describe.configure({ mode: 'serial' }) ensures test order within describe
+- sharedTestProject = null in beforeAll creates fresh project each test run

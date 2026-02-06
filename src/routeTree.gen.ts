@@ -19,6 +19,7 @@ import { Route as DemoDrizzleRouteImport } from './routes/demo/drizzle'
 import { Route as DemoDbChatApiRouteImport } from './routes/demo/db-chat-api'
 import { Route as DemoDbChatRouteImport } from './routes/demo/db-chat'
 import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
+import { Route as ProjectIdIndexRouteImport } from './routes/project/$id/index'
 import { Route as ProjectIdPromptsRouteImport } from './routes/project/$id/prompts'
 import { Route as ProjectIdKanbanRouteImport } from './routes/project/$id/kanban'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
@@ -81,6 +82,11 @@ const DemoBetterAuthRoute = DemoBetterAuthRouteImport.update({
   id: '/demo/better-auth',
   path: '/demo/better-auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProjectIdRoute,
 } as any)
 const ProjectIdPromptsRoute = ProjectIdPromptsRouteImport.update({
   id: '/prompts',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -177,7 +184,6 @@ export interface FileRoutesByTo {
   '/demo/drizzle': typeof DemoDrizzleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/trpc': typeof DemoTrpcRoute
-  '/project/$id': typeof ProjectIdRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -186,6 +192,7 @@ export interface FileRoutesByTo {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -211,6 +218,7 @@ export interface FileRoutesById {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -237,6 +245,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -252,7 +261,6 @@ export interface FileRouteTypes {
     | '/demo/drizzle'
     | '/demo/tanstack-query'
     | '/demo/trpc'
-    | '/project/$id'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/demo/api/names'
@@ -261,6 +269,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -386,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoBetterAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/$id/': {
+      id: '/project/$id/'
+      path: '/'
+      fullPath: '/project/$id/'
+      preLoaderRoute: typeof ProjectIdIndexRouteImport
+      parentRoute: typeof ProjectIdRoute
+    }
     '/project/$id/prompts': {
       id: '/project/$id/prompts'
       path: '/prompts'
@@ -476,11 +493,13 @@ declare module '@tanstack/react-router' {
 interface ProjectIdRouteChildren {
   ProjectIdKanbanRoute: typeof ProjectIdKanbanRoute
   ProjectIdPromptsRoute: typeof ProjectIdPromptsRoute
+  ProjectIdIndexRoute: typeof ProjectIdIndexRoute
 }
 
 const ProjectIdRouteChildren: ProjectIdRouteChildren = {
   ProjectIdKanbanRoute: ProjectIdKanbanRoute,
   ProjectIdPromptsRoute: ProjectIdPromptsRoute,
+  ProjectIdIndexRoute: ProjectIdIndexRoute,
 }
 
 const ProjectIdRouteWithChildren = ProjectIdRoute._addFileChildren(

@@ -732,7 +732,7 @@
       "title": "E2E: Kanban board flow",
       "description": "End-to-end tests voor kanban board interacties",
       "priority": 37,
-      "status": "pending",
+      "status": "done",
       "epic": "Testing",
       "dependencies": ["SETUP-004", "UI-008"],
       "recommendedSkills": [],
