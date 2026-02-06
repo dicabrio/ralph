@@ -587,3 +587,36 @@
 - Group available and already-added projects in separate sections for clarity
 - Use label element wrapping checkbox for better click target
 
+## 2026-02-06 - UI-005
+**Title:** Project pagina
+
+**Implemented:**
+- Project detail page at /project/:id with full feature implementation
+- Project header with name and description from database
+- Settings section with:
+  - Project path (read-only)
+  - Branch name (editable with inline edit UI)
+- Story statistics section showing counts for: completed, in progress, failed, pending
+- Progress bar with percentage calculation from stories
+- Runner controls with start/stop buttons and live status indicator
+- Quick links to Kanban board (/project/:id/kanban) and Project Prompts (/project/:id/prompts)
+- Error state for non-existent projects
+- Loading state while fetching data
+- Created stub routes for kanban and prompts pages (to be implemented in future stories)
+
+**Files changed:**
+- src/routes/project/$id.tsx (complete rewrite - project detail page)
+- src/routes/project/$id/kanban.tsx (new - stub for UI-006)
+- src/routes/project/$id/prompts.tsx (new - stub for UI-015)
+- src/routeTree.gen.ts (auto-generated with new routes)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- TanStack Router nested routes: create folder with $id/ and child files for sub-routes
+- Route tree auto-generates when dev server picks up new route files
+- Runner status uses refetchInterval for polling live status updates
+- trpc.useUtils() provides invalidate methods for cache updates after mutations
+- Inline edit pattern: useState for editing state, editValue state, save/cancel handlers
+- Use enabled option in useQuery to conditionally disable queries (e.g., when projectId is NaN)
+- Runner status types: 'idle' | 'running' | 'stopping' match the backend RunnerState
+
