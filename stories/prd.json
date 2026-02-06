@@ -161,7 +161,7 @@
       "title": "SQLite database setup met Drizzle ORM",
       "description": "Configureer SQLite database met Drizzle ORM voor type-safe database operaties",
       "priority": 4,
-      "status": "pending",
+      "status": "done",
       "epic": "Database",
       "dependencies": ["SETUP-001"],
       "recommendedSkills": ["database-design:postgresql"],

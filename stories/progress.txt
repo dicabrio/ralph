@@ -14,6 +14,10 @@
 - Docker socket mount pattern for Docker-out-of-Docker (DooD) to spawn Claude containers
 - Helper scripts in scripts/ folder for Claude container management
 - HOST_PROJECTS_ROOT and HOST_SKILLS_PATH env vars needed for mounting host paths in spawned containers
+- SQLite database at {DATA_PATH}/ralph.db with better-sqlite3 driver
+- Database schema files in src/db/schema/ folder with barrel export in index.ts
+- Drizzle migrations in drizzle/ folder, run with `pnpm db:generate` and `pnpm db:migrate`
+- WAL mode enabled for better concurrent SQLite performance
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -92,3 +96,36 @@
 - Host paths must be passed explicitly (HOST_PROJECTS_ROOT) because container paths differ from host paths
 - Alpine's docker-cli package is lightweight (~15MB) and sufficient for container management
 - Using profiles: [manual] in docker-compose prevents a service from starting with `docker-compose up`
+
+## 2026-02-06 - DB-001
+**Title:** SQLite database setup met Drizzle ORM
+
+**Implemented:**
+- Updated drizzle.config.ts to use DATA_PATH env var for database location
+- Updated src/db/index.ts with proper better-sqlite3 initialization and DATA_PATH handling
+- Created schema folder structure: src/db/schema/ with common.ts, todos.ts, index.ts
+- Enabled WAL mode for better concurrent SQLite performance
+- Auto-creates data directory if it doesn't exist
+- Added test script scripts/test-db.ts for verifying database connection
+- Generated first migration for todos table
+
+**Files changed:**
+- drizzle.config.ts (updated to use DATA_PATH, schema folder path, enabled strict mode)
+- src/db/index.ts (complete rewrite with better-sqlite3 initialization, WAL mode, directory creation)
+- src/db/schema.ts (deleted)
+- src/db/schema/common.ts (new - reusable timestamp columns)
+- src/db/schema/todos.ts (new - moved from schema.ts)
+- src/db/schema/index.ts (new - barrel export)
+- src/routes/demo/drizzle.tsx (updated import path)
+- scripts/test-db.ts (new - database connection test)
+- drizzle/ (new - generated migrations folder)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- better-sqlite3 is synchronous, unlike async database drivers
+- Database path should be built with path.join(), not string concatenation
+- better-sqlite3 requires the database file path directly, not a URL like postgres
+- WAL mode (Write-Ahead Logging) improves concurrent read/write performance
+- Drizzle's execute() method is not available for better-sqlite3 driver, use sqlite.prepare() instead
+- Schema folder structure allows for future expansion with separate table files
+- Default DATA_PATH=./data works for local development without Docker
