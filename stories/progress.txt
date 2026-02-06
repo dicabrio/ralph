@@ -720,3 +720,40 @@
 - Test helper functions extracted separately from component for isolated testing
 - PointerSensor's distance constraint prevents drag activation on simple clicks
 
+## 2026-02-06 - UI-009
+**Title:** Story detail modal
+
+**Implemented:**
+- Created StoryDetailModal component at src/components/StoryDetailModal.tsx
+- Modal displays all story fields: ID, title, description, priority, status, epic
+- Acceptance criteria displayed as bulleted list with checkmarks
+- Dependencies section shows linked stories with their current status badges
+- Skills section with:
+  - Current skills displayed as removable tags
+  - Add skill functionality with input field
+  - Suggested skills from project's available skills (not already added)
+  - Calls updateSkills mutation to persist changes
+- Modal close behavior:
+  - Click on backdrop closes modal
+  - Click on X button closes modal
+  - Escape key closes modal
+- Integrated with Kanban page via handleStoryClick callback
+- 37 unit tests covering rendering, interactions, and accessibility
+
+**Files changed:**
+- src/components/StoryDetailModal.tsx (new - modal component)
+- src/components/StoryDetailModal.test.tsx (new - 37 unit tests)
+- src/routes/project/$id/kanban.tsx (added modal integration with state and handlers)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Modal pattern in this codebase uses fixed inset-0 with backdrop and centered content
+- trpc.useUtils() provides invalidate methods for cache updates after mutations
+- skills.listByProject query returns available skills for a project
+- stories.updateSkills mutation accepts array of skill IDs to persist
+- Status badges use consistent styling pattern with bgColor and textColor per status
+- Use getAllByText() when text may appear multiple times (e.g., status in header + dependencies)
+- fireEvent is sufficient for most tests; @testing-library/user-event not required
+- Modal keeps selectedStory during close animation, clears after timeout
+- Dependencies are resolved by looking up stories in allStories array passed from parent
+
