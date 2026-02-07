@@ -63,52 +63,62 @@ export const brainstormRouter = router({
       const project = await getProjectById(input.projectId)
       const wsServer = getWebSocketServer()
 
-      // Start brainstorm session with callbacks
-      const sessionId = await brainstormManager.startSession(
-        input.projectId,
-        project.path,
-        project.name,
-        input.message,
-        {
-          onStart: (sessionId) => {
-            wsServer?.broadcast(String(input.projectId), {
-              type: 'brainstorm_start',
-              payload: { sessionId, projectId: String(input.projectId) },
-              timestamp: Date.now(),
-            })
+      try {
+        // Start brainstorm session with callbacks
+        // This will throw if Docker fails to start (e.g., image not found)
+        const sessionId = await brainstormManager.startSession(
+          input.projectId,
+          project.path,
+          project.name,
+          input.message,
+          {
+            onStart: (sessionId) => {
+              wsServer?.broadcast(String(input.projectId), {
+                type: 'brainstorm_start',
+                payload: { sessionId, projectId: String(input.projectId) },
+                timestamp: Date.now(),
+              })
+            },
+            onChunk: (sessionId, content) => {
+              wsServer?.broadcast(String(input.projectId), {
+                type: 'brainstorm_chunk',
+                payload: { sessionId, content },
+                timestamp: Date.now(),
+              })
+            },
+            onStories: (sessionId, stories) => {
+              wsServer?.broadcast(String(input.projectId), {
+                type: 'brainstorm_stories',
+                payload: { sessionId, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onComplete: (sessionId, content, stories) => {
+              wsServer?.broadcast(String(input.projectId), {
+                type: 'brainstorm_complete',
+                payload: { sessionId, content, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onError: (sessionId, error) => {
+              wsServer?.broadcast(String(input.projectId), {
+                type: 'brainstorm_error',
+                payload: { sessionId, error },
+                timestamp: Date.now(),
+              })
+            },
           },
-          onChunk: (sessionId, content) => {
-            wsServer?.broadcast(String(input.projectId), {
-              type: 'brainstorm_chunk',
-              payload: { sessionId, content },
-              timestamp: Date.now(),
-            })
-          },
-          onStories: (sessionId, stories) => {
-            wsServer?.broadcast(String(input.projectId), {
-              type: 'brainstorm_stories',
-              payload: { sessionId, stories },
-              timestamp: Date.now(),
-            })
-          },
-          onComplete: (sessionId, content, stories) => {
-            wsServer?.broadcast(String(input.projectId), {
-              type: 'brainstorm_complete',
-              payload: { sessionId, content, stories },
-              timestamp: Date.now(),
-            })
-          },
-          onError: (sessionId, error) => {
-            wsServer?.broadcast(String(input.projectId), {
-              type: 'brainstorm_error',
-              payload: { sessionId, error },
-              timestamp: Date.now(),
-            })
-          },
-        },
-      )
+        )
 
-      return { sessionId }
+        return { sessionId }
+      } catch (error) {
+        // Early Docker failures are thrown as errors
+        // Convert to TRPCError so the frontend can display them
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to start brainstorm session',
+        })
+      }
     }),
 
   /**

@@ -258,6 +258,92 @@ export function parseStoriesFromResponse(content: string): GeneratedStory[] {
 }
 
 /**
+ * Format Docker errors into user-friendly messages
+ */
+function formatDockerError(stderr: string, exitCode: number | null): string {
+  const lowerStderr = stderr.toLowerCase()
+
+  // Image pull errors
+  if (lowerStderr.includes('pull access denied') || lowerStderr.includes('repository does not exist')) {
+    return 'De Claude Code Docker image kon niet worden opgehaald. Controleer of je toegang hebt tot de image of probeer: docker pull anthropics/claude-code:latest'
+  }
+
+  // Docker daemon not running
+  if (lowerStderr.includes('cannot connect to the docker daemon') || lowerStderr.includes('is the docker daemon running')) {
+    return 'Docker is niet actief. Start Docker Desktop en probeer opnieuw.'
+  }
+
+  // Docker not installed or not in PATH
+  if (lowerStderr.includes('docker: command not found') || lowerStderr.includes('docker not found')) {
+    return 'Docker is niet geïnstalleerd of niet gevonden in het systeem PATH.'
+  }
+
+  // Permission denied
+  if (lowerStderr.includes('permission denied') && lowerStderr.includes('docker.sock')) {
+    return 'Geen toegang tot Docker. Controleer of je gebruiker in de docker groep zit.'
+  }
+
+  // Volume mount errors
+  if (lowerStderr.includes('mounts denied') || lowerStderr.includes('is not shared')) {
+    return 'Docker heeft geen toegang tot de project folder. Controleer je Docker file sharing instellingen.'
+  }
+
+  // Container already exists
+  if (lowerStderr.includes('is already in use by container')) {
+    return 'Er draait al een brainstorm sessie. Wacht tot deze is voltooid of annuleer hem.'
+  }
+
+  // Authentication errors in Claude
+  if (lowerStderr.includes('invalid_api_key') || lowerStderr.includes('authentication')) {
+    return 'Claude authenticatie mislukt. Controleer je ANTHROPIC_API_KEY of Claude configuratie.'
+  }
+
+  // Timeout errors
+  if (lowerStderr.includes('timeout') || lowerStderr.includes('timed out')) {
+    return 'De verbinding met Claude is verlopen. Probeer opnieuw.'
+  }
+
+  // Network errors
+  if (lowerStderr.includes('network') && (lowerStderr.includes('unreachable') || lowerStderr.includes('failed'))) {
+    return 'Netwerkfout bij het verbinden met Claude. Controleer je internetverbinding.'
+  }
+
+  // Out of memory
+  if (lowerStderr.includes('out of memory') || lowerStderr.includes('oom')) {
+    return 'Onvoldoende geheugen om Claude te starten. Sluit andere applicaties en probeer opnieuw.'
+  }
+
+  // Default: show exit code with first line of stderr if available
+  const firstLine = stderr.trim().split('\n')[0] || ''
+  if (firstLine) {
+    // Truncate long messages
+    const truncated = firstLine.length > 150 ? firstLine.slice(0, 150) + '...' : firstLine
+    return `Claude kon niet worden gestart: ${truncated}`
+  }
+
+  return `Claude container is gestopt met foutcode ${exitCode}. Controleer de logs voor meer details.`
+}
+
+/**
+ * Format spawn errors (e.g., docker not installed)
+ */
+function formatSpawnError(error: Error): string {
+  if (error.message.includes('ENOENT')) {
+    return 'Docker is niet geïnstalleerd of niet gevonden in het systeem PATH.'
+  }
+
+  if (error.message.includes('EACCES')) {
+    return 'Geen toegang om Docker te starten. Controleer je rechten.'
+  }
+
+  if (error.message.includes('EPERM')) {
+    return 'Onvoldoende rechten om Docker te starten.'
+  }
+
+  return `Kon Docker niet starten: ${error.message}`
+}
+
+/**
  * BrainstormManager class
  *
  * Manages brainstorm sessions with Claude containers.
@@ -287,6 +373,7 @@ class BrainstormManager {
    * @param userMessage - The user's message/request
    * @param callbacks - Callbacks for streaming updates
    * @returns The session ID
+   * @throws Error if Docker fails to start within the initial timeout
    */
   async startSession(
     projectId: number,
@@ -369,58 +456,101 @@ class BrainstormManager {
         fullPrompt,
       )
 
-      session.status = 'running'
-
       const docker = spawn('docker', dockerArgs)
       session.containerId = containerName
 
       let outputBuffer = ''
+      let stderrBuffer = ''
+      let hasStartedStreaming = false
+      let earlyFailure: string | null = null
 
-      // Handle stdout (streaming response)
-      docker.stdout.on('data', (data: Buffer) => {
-        const chunk = data.toString()
-        outputBuffer += chunk
-        session.content = outputBuffer
-        callbacks.onChunk?.(sessionId, chunk)
+      // Create a promise that resolves when Docker starts successfully or rejects on early failure
+      const startupPromise = new Promise<void>((resolve, reject) => {
+        const startupTimeout = setTimeout(() => {
+          // If we haven't received any output and haven't failed, assume it's working
+          if (!earlyFailure) {
+            resolve()
+          }
+        }, 5000) // 5 second timeout for early failures
 
-        // Try to parse stories as we receive data
-        const stories = parseStoriesFromResponse(outputBuffer)
-        if (stories.length > session.stories.length) {
-          session.stories = stories
-          callbacks.onStories?.(sessionId, stories)
-        }
-      })
+        // Handle stdout (streaming response)
+        docker.stdout.on('data', (data: Buffer) => {
+          const chunk = data.toString()
+          outputBuffer += chunk
+          session.content = outputBuffer
 
-      // Handle stderr
-      docker.stderr.on('data', (data: Buffer) => {
-        const chunk = data.toString()
-        // Log stderr but don't treat as error unless process fails
-        console.error(`[Brainstorm ${sessionId}] stderr:`, chunk)
-      })
+          // First output means Docker started successfully
+          if (!hasStartedStreaming) {
+            hasStartedStreaming = true
+            session.status = 'running'
+            clearTimeout(startupTimeout)
+            resolve()
+          }
 
-      // Handle process completion
-      docker.on('close', (code) => {
-        if (code === 0) {
-          session.status = 'completed'
-          // Final parse of stories
-          const finalStories = parseStoriesFromResponse(session.content)
-          session.stories = finalStories
-          callbacks.onComplete?.(sessionId, session.content, finalStories)
-        } else {
+          callbacks.onChunk?.(sessionId, chunk)
+
+          // Try to parse stories as we receive data
+          const stories = parseStoriesFromResponse(outputBuffer)
+          if (stories.length > session.stories.length) {
+            session.stories = stories
+            callbacks.onStories?.(sessionId, stories)
+          }
+        })
+
+        // Handle stderr - capture for error messages
+        docker.stderr.on('data', (data: Buffer) => {
+          const chunk = data.toString()
+          stderrBuffer += chunk
+          console.error(`[Brainstorm ${sessionId}] stderr:`, chunk)
+        })
+
+        // Handle process completion
+        docker.on('close', (code) => {
+          clearTimeout(startupTimeout)
+
+          if (code === 0) {
+            session.status = 'completed'
+            const finalStories = parseStoriesFromResponse(session.content)
+            session.stories = finalStories
+            callbacks.onComplete?.(sessionId, session.content, finalStories)
+          } else {
+            session.status = 'error'
+            const userFriendlyError = formatDockerError(stderrBuffer, code)
+
+            // If we haven't started streaming, this is an early failure - reject the promise
+            if (!hasStartedStreaming) {
+              earlyFailure = userFriendlyError
+              reject(new Error(userFriendlyError))
+            } else {
+              // Late failure - use callback
+              callbacks.onError?.(sessionId, userFriendlyError)
+            }
+          }
+        })
+
+        // Handle process error (e.g., docker not installed)
+        docker.on('error', (error) => {
+          clearTimeout(startupTimeout)
           session.status = 'error'
-          callbacks.onError?.(sessionId, `Claude container exited with code ${code}`)
-        }
+          const userFriendlyError = formatSpawnError(error)
+
+          if (!hasStartedStreaming) {
+            earlyFailure = userFriendlyError
+            reject(new Error(userFriendlyError))
+          } else {
+            callbacks.onError?.(sessionId, userFriendlyError)
+          }
+        })
       })
 
-      // Handle process error
-      docker.on('error', (error) => {
-        session.status = 'error'
-        callbacks.onError?.(sessionId, error.message)
-      })
+      // Wait for Docker to start or fail early
+      await startupPromise
 
     } catch (error) {
       session.status = 'error'
-      callbacks.onError?.(sessionId, error instanceof Error ? error.message : 'Unknown error')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      // Re-throw so tRPC can catch it and return to frontend
+      throw new Error(errorMessage)
     }
 
     return sessionId
