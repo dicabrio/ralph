@@ -954,6 +954,179 @@
         "Test: relative/path blijft ongewijzigd",
         "E2E test: project toevoegen met ~ pad via UI"
       ]
+    },
+    {
+      "id": "DB-005",
+      "title": "Schema: Gestructureerde acceptance criteria",
+      "description": "Breid de story structuur uit met gestructureerde acceptance criteria die automatisch geverifieerd kunnen worden door de runner.",
+      "priority": 47,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": ["DB-002"],
+      "recommendedSkills": ["database-design:postgresql"],
+      "acceptanceCriteria": [
+        "AcceptanceCriterion type met: category, description, enabled, completed, result",
+        "Category enum: implementation, type_safety, linting, build, unit_tests, e2e_tests, documentation, code_review",
+        "Story interface uitbreiden met storyType en acceptanceCriteria array",
+        "Result object met: passed, output, timestamp",
+        "Backward compatible: bestaande stories zonder criteria blijven werken",
+        "prd.json schema documentatie bijwerken",
+        "Unit tests voor schema validatie"
+      ]
+    },
+    {
+      "id": "API-011",
+      "title": "Acceptance criteria API endpoints",
+      "description": "API endpoints voor het beheren en updaten van acceptance criteria per story.",
+      "priority": 48,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": ["DB-005", "API-004"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "tRPC procedure: stories.updateCriteria voor criteria toggle (enabled/disabled)",
+        "tRPC procedure: stories.setCriteriaResult voor runner resultaten",
+        "Automatisch alle enabled criteria op completed=false zetten bij story start",
+        "Validatie: alleen runner kan criteria results updaten",
+        "Story status automatisch naar 'done' als alle enabled criteria completed",
+        "Story status naar 'failed' als een criterium faalt en runner stopt",
+        "Unit tests voor criteria state transitions"
+      ]
+    },
+    {
+      "id": "UI-022",
+      "title": "Brainstorm exploration en story generatie flow",
+      "description": "Verbeter de brainstorm UI met een exploration fase gevolgd door story generatie met acceptance criteria checklist.",
+      "priority": 49,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-019", "DB-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Exploration fase: vrije chat tussen user en Claude",
+        "Claude vraagt door om requirements te verduidelijken",
+        "Generate Story button altijd zichtbaar tijdens chat",
+        "Claude kan suggereren: 'Zal ik een story genereren?' na voldoende context",
+        "Story preview card met titel, type, beschrijving",
+        "Acceptance criteria checklist met toggles per criterium",
+        "Specifieke beschrijving per criterium (niet generiek)",
+        "Criteria gebaseerd op story type (feature/bugfix/refactor/docs/config)",
+        "User kan criteria aan/uit zetten voor de story",
+        "User kan criteria beschrijving aanpassen",
+        "Approve voegt story toe aan backlog met criteria",
+        "Discard verwijdert story preview",
+        "Unit tests voor criteria toggle logic",
+        "E2E test: volledige flow van exploration tot story approval"
+      ]
+    },
+    {
+      "id": "UI-023",
+      "title": "Story detail met acceptance criteria checklist",
+      "description": "Toon acceptance criteria checklist in story detail modal met voortgang en resultaten.",
+      "priority": 50,
+      "status": "backlog",
+      "epic": "Kanban",
+      "dependencies": ["UI-009", "DB-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Acceptance Criteria sectie in story detail modal",
+        "Per criterium: status icon (pending/passed/failed/skipped)",
+        "Per criterium: category label en specifieke beschrijving",
+        "Expandable: toon command output bij failed criteria",
+        "Toon timestamp van laatste verificatie",
+        "Code review feedback apart weergeven (kan langer zijn)",
+        "Skipped criteria (enabled=false) gemarkeerd met streep",
+        "Criteria kunnen niet handmatig worden afgevinkt (alleen door runner)",
+        "Unit tests voor criteria status weergave"
+      ]
+    },
+    {
+      "id": "UI-024",
+      "title": "Kanban card criteria voortgang",
+      "description": "Toon acceptance criteria voortgang op kanban story cards.",
+      "priority": 51,
+      "status": "backlog",
+      "epic": "Kanban",
+      "dependencies": ["UI-007", "DB-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Progress bar onder story title: X/Y criteria",
+        "Alleen enabled criteria tellen mee",
+        "Kleur: groen bij 100%, oranje bij in progress, rood bij failures",
+        "Compact weergave: alleen bar, geen tekst bij collapsed view",
+        "Tooltip met criteria breakdown bij hover",
+        "Unit tests voor progress berekening"
+      ]
+    },
+    {
+      "id": "RUNNER-005",
+      "title": "Runner automatische criteria verificatie",
+      "description": "Runner voert automatisch alle checks uit na implementatie en update criteria status.",
+      "priority": 52,
+      "status": "backlog",
+      "epic": "Runner",
+      "dependencies": ["RUNNER-001", "API-011"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Na implementatie: runner voert checks uit in volgorde",
+        "Type Safety check: npm run typecheck (tsc --noEmit)",
+        "Linting check: npm run lint",
+        "Build check: npm run build",
+        "Unit Tests check: npm run test",
+        "E2E Tests check: npm run e2e",
+        "Documentation check: detecteer README wijzigingen indien criterium enabled",
+        "Per check: update criterium result via API",
+        "Bij failure: log output opslaan in result.output",
+        "Bij failure: runner probeert te fixen, max 3 pogingen",
+        "Na max pogingen: story status naar 'failed'",
+        "Alle checks groen: story status naar 'done'",
+        "Unit tests voor check execution logic"
+      ]
+    },
+    {
+      "id": "RUNNER-006",
+      "title": "Runner automatische code review",
+      "description": "Runner voert automatische code review uit via Claude om patronen, security en best practices te checken.",
+      "priority": 53,
+      "status": "backlog",
+      "epic": "Runner",
+      "dependencies": ["RUNNER-005"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Code review als laatste stap na alle andere checks",
+        "Review scope: alleen gewijzigde files in deze story",
+        "Check op: herhalende patronen die gerefactored kunnen worden",
+        "Check op: inconsistentie met bestaande codebase conventies",
+        "Check op: potentiële performance issues",
+        "Check op: security vulnerabilities (OWASP top 10)",
+        "Check op: ontbrekende error handling",
+        "Feedback als structured output: category, severity, suggestion",
+        "Bij critical issues: criterium faalt, runner probeert te fixen",
+        "Bij warnings: criterium slaagt, feedback opgeslagen voor visibility",
+        "Review feedback zichtbaar in story detail modal",
+        "Unit tests voor review prompt en output parsing"
+      ]
+    },
+    {
+      "id": "E2E-005",
+      "title": "E2E: Acceptance criteria flow",
+      "description": "End-to-end tests voor acceptance criteria in brainstorm en story management.",
+      "priority": 54,
+      "status": "backlog",
+      "epic": "Testing",
+      "dependencies": ["SETUP-004", "UI-022", "UI-023"],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Test: Brainstorm exploration tot story generatie",
+        "Test: Criteria checklist weergave in story preview",
+        "Test: Criteria toggle aan/uit",
+        "Test: Criteria beschrijving aanpassen",
+        "Test: Story approve met criteria naar backlog",
+        "Test: Story detail toont criteria status",
+        "Test: Kanban card toont criteria progress bar",
+        "Test: Criteria resultaten na runner execution (mocked)",
+        "Alle tests draaien headless in CI"
+      ]
     }
   ]
 }
