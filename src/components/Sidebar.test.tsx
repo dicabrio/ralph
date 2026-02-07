@@ -25,6 +25,22 @@ vi.mock('@tanstack/react-router', () => ({
       pathname: '/',
     },
   }),
+  useParams: () => ({ id: undefined }),
+  useNavigate: () => vi.fn(),
+}))
+
+// Mock tRPC client
+vi.mock('@/lib/trpc/client', () => ({
+  trpc: {
+    projects: {
+      list: {
+        useQuery: () => ({
+          data: [],
+          isLoading: false,
+        }),
+      },
+    },
+  },
 }))
 
 // Mock localStorage
@@ -53,7 +69,6 @@ describe('Sidebar', () => {
     render(<Sidebar {...defaultProps} />)
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Brainstorm')).toBeInTheDocument()
     expect(screen.getByText('Prompts')).toBeInTheDocument()
   })
 

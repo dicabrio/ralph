@@ -915,7 +915,7 @@
       "title": "Project navigatie edge cases en tests",
       "description": "Afhandeling van edge cases in project navigatie en unit tests voor ProjectSelector component.",
       "priority": 45,
-      "status": "pending",
+      "status": "done",
       "epic": "Dashboard",
       "dependencies": ["UI-018"],
       "recommendedSkills": ["frontend-design"],

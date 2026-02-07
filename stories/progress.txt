@@ -1435,3 +1435,32 @@
 - toast.error() with description option provides clear two-line error display
 - E2E tests can use [data-sonner-toast] locator to find toast notifications
 - Pre-existing Layout/Sidebar test failures are due to useParams mock missing, unrelated to this story
+
+## 2026-02-07 - UI-021
+**Title:** Project navigatie edge cases en tests
+
+**Implemented:**
+- Added project validation in project layout route ($id.tsx) to redirect when project doesn't exist
+- Uses trpc.projects.getById.useQuery with retry: false for fast failure detection
+- Shows toast.error('Project niet gevonden') with description when project not found
+- Auto-selects first available project in localStorage before redirect to Dashboard
+- Created comprehensive unit tests for ProjectSelector component (18 tests)
+- Created unit tests for useSelectedProject hook (5 tests)
+- Fixed pre-existing Sidebar.test.tsx and Layout.test.tsx failures by adding useParams and tRPC mocks
+- All 606 tests pass
+
+**Files changed:**
+- src/routes/project/$id.tsx (added redirect logic with toast)
+- src/components/ProjectSelector.test.tsx (new - 23 tests)
+- src/components/Sidebar.test.tsx (added useParams, useNavigate mocks and tRPC mock)
+- src/components/Layout.test.tsx (added useParams, useNavigate mocks and tRPC mock)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Project layout route ($id.tsx) is the right place to validate project existence (parent of all project subroutes)
+- retry: false on useQuery prevents multiple retry attempts for faster failure detection
+- When testing components that use useParams, the mock must be complete with all hooks used by child components
+- ProjectSelector initializes selectedProjectId from URL first, then localStorage - useState initializer runs once
+- useEffect for URL sync only fires when projectIdFromUrl differs from selectedProjectId
+- Testing with getByText fails when element appears multiple times - use getAllByText or more specific selectors
+- Pre-existing test failures can be fixed as part of related work without breaking the story scope

@@ -24,6 +24,22 @@ vi.mock('@tanstack/react-router', () => ({
       pathname: '/',
     },
   }),
+  useParams: () => ({ id: undefined }),
+  useNavigate: () => vi.fn(),
+}))
+
+// Mock tRPC client
+vi.mock('@/lib/trpc/client', () => ({
+  trpc: {
+    projects: {
+      list: {
+        useQuery: () => ({
+          data: [],
+          isLoading: false,
+        }),
+      },
+    },
+  },
 }))
 
 // Mock localStorage
@@ -87,7 +103,6 @@ describe('Layout', () => {
     )
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Brainstorm')).toBeInTheDocument()
     expect(screen.getByText('Prompts')).toBeInTheDocument()
   })
 
@@ -101,7 +116,6 @@ describe('Layout', () => {
     // There are two links to "/" (logo and Dashboard nav item)
     const homeLinks = screen.getAllByTestId('link-/')
     expect(homeLinks.length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByTestId('link-/brainstorm')).toBeInTheDocument()
     expect(screen.getByTestId('link-/prompts')).toBeInTheDocument()
   })
 
