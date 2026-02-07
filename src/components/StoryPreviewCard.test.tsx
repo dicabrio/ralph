@@ -302,4 +302,69 @@ describe('StoryPreviewCard', () => {
       expect(screen.queryByTestId('toggle-criteria')).not.toBeInTheDocument()
     })
   })
+
+  describe('Discard functionality', () => {
+    it('renders discard button when onDiscard is provided', () => {
+      render(
+        <StoryPreviewCard
+          story={mockStory}
+          onEdit={vi.fn()}
+          onApprove={vi.fn()}
+          onDiscard={vi.fn()}
+        />,
+      )
+      expect(screen.getByTestId('discard-button')).toBeInTheDocument()
+    })
+
+    it('does not render discard button when onDiscard is not provided', () => {
+      render(
+        <StoryPreviewCard
+          story={mockStory}
+          onEdit={vi.fn()}
+          onApprove={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('discard-button')).not.toBeInTheDocument()
+    })
+
+    it('calls onDiscard when discard button is clicked', () => {
+      const onDiscard = vi.fn()
+      render(
+        <StoryPreviewCard
+          story={mockStory}
+          onEdit={vi.fn()}
+          onApprove={vi.fn()}
+          onDiscard={onDiscard}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('discard-button'))
+      expect(onDiscard).toHaveBeenCalledTimes(1)
+    })
+
+    it('returns null when isDiscarded is true', () => {
+      const { container } = render(
+        <StoryPreviewCard
+          story={mockStory}
+          onEdit={vi.fn()}
+          onApprove={vi.fn()}
+          onDiscard={vi.fn()}
+          isDiscarded={true}
+        />,
+      )
+      expect(container.firstChild).toBeNull()
+    })
+
+    it('hides discard button when isApproved is true', () => {
+      render(
+        <StoryPreviewCard
+          story={mockStory}
+          onEdit={vi.fn()}
+          onApprove={vi.fn()}
+          onDiscard={vi.fn()}
+          isApproved={true}
+        />,
+      )
+      expect(screen.queryByTestId('discard-button')).not.toBeInTheDocument()
+    })
+  })
 })

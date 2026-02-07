@@ -8,7 +8,7 @@
  * - Message queueing during disconnection
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ClientMessage, ServerMessage } from './types'
+import type { ClientMessage, ServerMessage, GeneratedStory } from './types'
 
 /**
  * Calculate exponential backoff delay with jitter
@@ -42,6 +42,16 @@ export interface UseWebSocketOptions {
   reconnectAttempts?: number
   /** Base reconnection interval in ms (default: 1000) */
   reconnectInterval?: number
+  /** Called when a brainstorm session starts */
+  onBrainstormStart?: (data: { sessionId: string; projectId: string }) => void
+  /** Called when a brainstorm chunk is received (streaming text) */
+  onBrainstormChunk?: (data: { sessionId: string; content: string }) => void
+  /** Called when brainstorm stories are parsed */
+  onBrainstormStories?: (data: { sessionId: string; stories: GeneratedStory[] }) => void
+  /** Called when a brainstorm session completes */
+  onBrainstormComplete?: (data: { sessionId: string; content: string; stories: GeneratedStory[] }) => void
+  /** Called when a brainstorm session errors */
+  onBrainstormError?: (data: { sessionId: string; error: string }) => void
 }
 
 export interface UseWebSocketReturn {
@@ -78,6 +88,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     reconnect = true,
     reconnectAttempts = 10,
     reconnectInterval = 1000,
+    onBrainstormStart,
+    onBrainstormChunk,
+    onBrainstormStories,
+    onBrainstormComplete,
+    onBrainstormError,
   } = options
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -210,9 +225,29 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           console.error(`[WS Client] Server error: ${message.payload.message}`)
           onError?.(message.payload.message)
           break
+
+        case 'brainstorm_start':
+          onBrainstormStart?.(message.payload)
+          break
+
+        case 'brainstorm_chunk':
+          onBrainstormChunk?.(message.payload)
+          break
+
+        case 'brainstorm_stories':
+          onBrainstormStories?.(message.payload)
+          break
+
+        case 'brainstorm_complete':
+          onBrainstormComplete?.(message.payload)
+          break
+
+        case 'brainstorm_error':
+          onBrainstormError?.(message.payload)
+          break
       }
     }
-  }, [url, reconnect, reconnectAttempts, reconnectInterval, onConnect, onDisconnect, onLog, onError])
+  }, [url, reconnect, reconnectAttempts, reconnectInterval, onConnect, onDisconnect, onLog, onError, onBrainstormStart, onBrainstormChunk, onBrainstormStories, onBrainstormComplete, onBrainstormError])
 
   /**
    * Subscribe to project logs

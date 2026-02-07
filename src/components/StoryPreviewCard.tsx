@@ -7,6 +7,7 @@ import {
   Pencil,
   ListChecks,
   Sparkles,
+  X,
 } from 'lucide-react'
 
 // Generated story type (before approval, no status)
@@ -25,22 +26,31 @@ export interface StoryPreviewCardProps {
   story: GeneratedStory
   onEdit: () => void
   onApprove: () => void
+  onDiscard?: () => void
   isApproving?: boolean
   isApproved?: boolean
+  isDiscarded?: boolean
 }
 
 export function StoryPreviewCard({
   story,
   onEdit,
   onApprove,
+  onDiscard,
   isApproving = false,
   isApproved = false,
+  isDiscarded = false,
 }: StoryPreviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const hasCriteria = story.acceptanceCriteria.length > 0
   const hasSkills = story.recommendedSkills.length > 0
   const hasDependencies = story.dependencies.length > 0
+
+  // Don't render discarded stories
+  if (isDiscarded) {
+    return null
+  }
 
   return (
     <div
@@ -85,6 +95,21 @@ export function StoryPreviewCard({
         {/* Action buttons */}
         {!isApproved && (
           <div className="flex items-center gap-2">
+            {onDiscard && (
+              <button
+                type="button"
+                onClick={onDiscard}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 text-xs rounded',
+                  'border border-border text-muted-foreground',
+                  'hover:text-destructive hover:border-destructive/50 transition-colors',
+                )}
+                data-testid="discard-button"
+              >
+                <X className="w-3 h-3" />
+                Discard
+              </button>
+            )}
             <button
               type="button"
               onClick={onEdit}

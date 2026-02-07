@@ -10,22 +10,18 @@ import {
   ArrowDown,
   Sparkles,
   CheckCheck,
+  X,
+  AlertCircle,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { StoryPreviewCard, type GeneratedStory } from '@/components/StoryPreviewCard'
 import { StoryEditModal } from '@/components/StoryEditModal'
+import { useBrainstormChat, type BrainstormMessage } from '@/lib/hooks/useBrainstormChat'
 
 export const Route = createFileRoute('/brainstorm')({ component: BrainstormPage })
-
-// Message type
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  generatedStories?: GeneratedStory[]
-}
 
 // Project type
 interface Project {
@@ -38,115 +34,9 @@ interface Project {
   updatedAt: Date
 }
 
-// Generate unique ID for messages
-function generateId(): string {
-  return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
 // Format timestamp
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-// Mock story generator - will be replaced by API-008
-function generateMockStories(userMessage: string, projectName: string): GeneratedStory[] {
-  // Simple heuristic to generate mock stories based on keywords
-  const lowerMessage = userMessage.toLowerCase()
-
-  const stories: GeneratedStory[] = []
-  const timestamp = Date.now()
-
-  if (lowerMessage.includes('auth') || lowerMessage.includes('login') || lowerMessage.includes('user')) {
-    stories.push({
-      id: `AUTH-${timestamp.toString(36).slice(-4).toUpperCase()}`,
-      title: 'User Authentication Flow',
-      description: 'Implement secure user authentication with login, logout, and session management.',
-      priority: stories.length + 1,
-      epic: 'Authentication',
-      dependencies: [],
-      recommendedSkills: ['backend-development:api-design-principles'],
-      acceptanceCriteria: [
-        'Users can log in with email and password',
-        'Sessions are stored securely with JWT tokens',
-        'Login attempts are rate-limited',
-        'Password requirements are validated',
-      ],
-    })
-  }
-
-  if (lowerMessage.includes('dashboard') || lowerMessage.includes('overview') || lowerMessage.includes('home')) {
-    stories.push({
-      id: `DASH-${timestamp.toString(36).slice(-4).toUpperCase()}`,
-      title: 'Dashboard Overview Page',
-      description: 'Create a main dashboard page showing key metrics and recent activity.',
-      priority: stories.length + 1,
-      epic: 'Dashboard',
-      dependencies: [],
-      recommendedSkills: ['frontend-design'],
-      acceptanceCriteria: [
-        'Dashboard displays summary cards for key metrics',
-        'Recent activity is shown in a timeline',
-        'Data refreshes automatically every 30 seconds',
-        'Responsive layout for mobile and desktop',
-      ],
-    })
-  }
-
-  if (lowerMessage.includes('api') || lowerMessage.includes('endpoint') || lowerMessage.includes('backend')) {
-    stories.push({
-      id: `API-${timestamp.toString(36).slice(-4).toUpperCase()}`,
-      title: 'RESTful API Endpoints',
-      description: 'Design and implement RESTful API endpoints for core resources.',
-      priority: stories.length + 1,
-      epic: 'Core API',
-      dependencies: [],
-      recommendedSkills: ['backend-development:api-design-principles', 'database-design:postgresql'],
-      acceptanceCriteria: [
-        'Endpoints follow RESTful conventions',
-        'Input validation using Zod schemas',
-        'Error responses are consistent and informative',
-        'API documentation generated with OpenAPI spec',
-      ],
-    })
-  }
-
-  if (lowerMessage.includes('test') || lowerMessage.includes('testing') || lowerMessage.includes('coverage')) {
-    stories.push({
-      id: `TEST-${timestamp.toString(36).slice(-4).toUpperCase()}`,
-      title: 'Test Coverage Setup',
-      description: 'Configure testing infrastructure with unit, integration, and E2E tests.',
-      priority: stories.length + 1,
-      epic: 'Testing',
-      dependencies: [],
-      recommendedSkills: [],
-      acceptanceCriteria: [
-        'Unit tests configured with Vitest',
-        'Integration tests for API endpoints',
-        'E2E tests with Playwright',
-        'Coverage reports generated automatically',
-      ],
-    })
-  }
-
-  // If no specific keywords matched, generate a generic story
-  if (stories.length === 0) {
-    stories.push({
-      id: `FEAT-${timestamp.toString(36).slice(-4).toUpperCase()}`,
-      title: 'Feature Implementation',
-      description: `Implement the requested feature for ${projectName}: ${userMessage.slice(0, 100)}`,
-      priority: 1,
-      epic: 'Features',
-      dependencies: [],
-      recommendedSkills: ['frontend-design'],
-      acceptanceCriteria: [
-        'Feature meets the described requirements',
-        'Unit tests cover core functionality',
-        'Documentation updated with usage instructions',
-      ],
-    })
-  }
-
-  return stories
 }
 
 // Project selector component
@@ -278,13 +168,16 @@ function ProjectSelector({
 
 // Message bubble component
 interface MessageBubbleProps {
-  message: Message
+  message: BrainstormMessage
   projectId: number | null
   onEditStory: (story: GeneratedStory, messageId: string, storyIndex: number) => void
   onApproveStory: (story: GeneratedStory, messageId: string, storyIndex: number) => void
+  onDiscardStory: (storyId: string, messageId: string) => void
   onBulkApprove: (stories: GeneratedStory[], messageId: string) => void
+  onBulkDiscard: (storyIds: string[], messageId: string) => void
   approvingStoryIds: Set<string>
   approvedStoryIds: Set<string>
+  discardedStoryIds: Set<string>
 }
 
 function MessageBubble({
@@ -292,15 +185,24 @@ function MessageBubble({
   projectId,
   onEditStory,
   onApproveStory,
+  onDiscardStory,
   onBulkApprove,
+  onBulkDiscard,
   approvingStoryIds,
   approvedStoryIds,
+  discardedStoryIds,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const hasStories = message.generatedStories && message.generatedStories.length > 0
-  const unapprovedStories = message.generatedStories?.filter(
-    (s) => !approvedStoryIds.has(`${message.id}:${s.id}`)
+
+  // Filter out discarded stories
+  const visibleStories = message.generatedStories?.filter(
+    (s) => !discardedStoryIds.has(`${message.id}:${s.id}`)
   ) || []
+
+  const unapprovedStories = visibleStories.filter(
+    (s) => !approvedStoryIds.has(`${message.id}:${s.id}`)
+  )
 
   return (
     <div
@@ -329,44 +231,70 @@ function MessageBubble({
               : 'bg-muted text-foreground rounded-bl-md',
           )}
         >
-          {message.content}
+          {message.content || (message.isStreaming ? '' : '')}
+          {message.isStreaming && !message.content && (
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </span>
+          )}
         </div>
 
         {/* Generated stories preview */}
-        {hasStories && projectId && (
+        {hasStories && projectId && visibleStories.length > 0 && (
           <div className="w-full mt-3 space-y-3" data-testid="generated-stories">
-            {/* Story header with bulk approve */}
-            <div className="flex items-center justify-between">
+            {/* Story header with bulk actions */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Sparkles className="w-4 h-4 text-primary" />
-                <span>{message.generatedStories!.length} stories generated</span>
+                <span>{visibleStories.length} stories generated</span>
               </div>
-              {unapprovedStories.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onBulkApprove(unapprovedStories, message.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg',
-                    'bg-primary text-primary-foreground',
-                    'hover:bg-primary/90 transition-colors',
-                  )}
-                  data-testid="bulk-approve-button"
-                >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  Approve All ({unapprovedStories.length})
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {unapprovedStories.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onBulkDiscard(unapprovedStories.map(s => s.id), message.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg',
+                        'border border-border text-muted-foreground',
+                        'hover:text-destructive hover:border-destructive/50 transition-colors',
+                      )}
+                      data-testid="bulk-discard-button"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Discard All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onBulkApprove(unapprovedStories, message.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg',
+                        'bg-primary text-primary-foreground',
+                        'hover:bg-primary/90 transition-colors',
+                      )}
+                      data-testid="bulk-approve-button"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      Approve All ({unapprovedStories.length})
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Story cards */}
-            {message.generatedStories!.map((story, index) => (
+            {visibleStories.map((story, index) => (
               <StoryPreviewCard
                 key={`${message.id}:${story.id}`}
                 story={story}
                 onEdit={() => onEditStory(story, message.id, index)}
                 onApprove={() => onApproveStory(story, message.id, index)}
+                onDiscard={() => onDiscardStory(story.id, message.id)}
                 isApproving={approvingStoryIds.has(`${message.id}:${story.id}`)}
                 isApproved={approvedStoryIds.has(`${message.id}:${story.id}`)}
+                isDiscarded={discardedStoryIds.has(`${message.id}:${story.id}`)}
               />
             ))}
           </div>
@@ -388,18 +316,8 @@ function TypingIndicator() {
         <Bot className="w-4 h-4" />
       </div>
       <div className="flex items-center gap-1.5 px-4 py-3 bg-muted rounded-2xl rounded-bl-md">
-        <span
-          className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-          style={{ animationDelay: '0ms' }}
-        />
-        <span
-          className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-          style={{ animationDelay: '150ms' }}
-        />
-        <span
-          className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
-          style={{ animationDelay: '300ms' }}
-        />
+        <span className="text-xs text-muted-foreground mr-2">Starting Claude...</span>
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
       </div>
     </div>
   )
@@ -424,14 +342,42 @@ function ChatEmptyState({ hasProject }: { hasProject: boolean }) {
   )
 }
 
+// Connection status indicator
+function ConnectionStatus({
+  isConnected,
+  isReconnecting,
+}: {
+  isConnected: boolean
+  isReconnecting: boolean
+}) {
+  if (isConnected) return null
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs',
+        isReconnecting ? 'bg-amber-500/10 text-amber-600' : 'bg-destructive/10 text-destructive',
+      )}
+    >
+      {isReconnecting ? (
+        <>
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          Reconnecting...
+        </>
+      ) : (
+        <>
+          <WifiOff className="w-3.5 h-3.5" />
+          Disconnected
+        </>
+      )}
+    </div>
+  )
+}
+
 function BrainstormPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const [approvingStoryIds, setApprovingStoryIds] = useState<Set<string>>(new Set())
-  const [approvedStoryIds, setApprovedStoryIds] = useState<Set<string>>(new Set())
   const [editingStory, setEditingStory] = useState<{
     story: GeneratedStory
     messageId: string
@@ -446,11 +392,31 @@ function BrainstormPage() {
   const { data: projects = [], isLoading: isLoadingProjects } =
     trpc.projects.list.useQuery(undefined, { staleTime: 30000 })
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId)
+  // Use a safe projectId for the hook (0 when no project selected, hook won't make API calls)
+  const safeProjectId = selectedProjectId || 0
 
-  // Add stories mutation
-  const addStoriesMutation = trpc.stories.addStories.useMutation()
-  const utils = trpc.useUtils()
+  // Brainstorm chat hook
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    error,
+    isConnected,
+    isReconnecting,
+    sendMessage,
+    cancelSession,
+    retry,
+    clearError,
+    clearMessages,
+    approvingStoryIds,
+    approvedStoryIds,
+    discardedStoryIds,
+    approveStory,
+    bulkApprove,
+    discardStory,
+    bulkDiscard,
+    updateStoryInMessage,
+  } = useBrainstormChat({ projectId: safeProjectId })
 
   // Scroll to bottom function
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -473,12 +439,20 @@ function BrainstormPage() {
     if (isAtBottom) {
       scrollToBottom()
     }
-  }, [messages, isTyping, isAtBottom, scrollToBottom])
+  }, [messages, isLoading, isAtBottom, scrollToBottom])
 
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  // Clear messages when project changes
+  const handleProjectSelect = useCallback((projectId: number | null) => {
+    if (projectId !== selectedProjectId) {
+      clearMessages()
+    }
+    setSelectedProjectId(projectId)
+  }, [selectedProjectId, clearMessages])
 
   // Handle story edit
   const handleEditStory = useCallback(
@@ -492,124 +466,53 @@ function BrainstormPage() {
   const handleSaveEditedStory = useCallback(
     (updatedStory: GeneratedStory) => {
       if (!editingStory) return
-
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id === editingStory.messageId && msg.generatedStories) {
-            const newStories = [...msg.generatedStories]
-            newStories[editingStory.storyIndex] = updatedStory
-            return { ...msg, generatedStories: newStories }
-          }
-          return msg
-        }),
-      )
+      updateStoryInMessage(editingStory.messageId, editingStory.storyIndex, updatedStory)
     },
-    [editingStory],
+    [editingStory, updateStoryInMessage],
   )
 
   // Handle approve single story
   const handleApproveStory = useCallback(
     async (story: GeneratedStory, messageId: string, _storyIndex: number) => {
       if (!selectedProjectId) return
-
-      const storyKey = `${messageId}:${story.id}`
-      setApprovingStoryIds((prev) => new Set([...prev, storyKey]))
-
-      try {
-        await addStoriesMutation.mutateAsync({
-          projectId: selectedProjectId,
-          stories: [story],
-        })
-
-        setApprovedStoryIds((prev) => new Set([...prev, storyKey]))
-        utils.stories.listByProject.invalidate({ projectId: selectedProjectId })
-      } catch (error) {
-        console.error('Failed to approve story:', error)
-      } finally {
-        setApprovingStoryIds((prev) => {
-          const next = new Set(prev)
-          next.delete(storyKey)
-          return next
-        })
-      }
+      await approveStory(story, messageId)
     },
-    [selectedProjectId, addStoriesMutation, utils],
+    [selectedProjectId, approveStory],
+  )
+
+  // Handle discard single story
+  const handleDiscardStory = useCallback(
+    (storyId: string, messageId: string) => {
+      discardStory(storyId, messageId)
+    },
+    [discardStory],
   )
 
   // Handle bulk approve
   const handleBulkApprove = useCallback(
     async (stories: GeneratedStory[], messageId: string) => {
       if (!selectedProjectId) return
-
-      // Mark all as approving
-      const storyKeys = stories.map((s) => `${messageId}:${s.id}`)
-      setApprovingStoryIds((prev) => new Set([...prev, ...storyKeys]))
-
-      try {
-        await addStoriesMutation.mutateAsync({
-          projectId: selectedProjectId,
-          stories,
-        })
-
-        setApprovedStoryIds((prev) => new Set([...prev, ...storyKeys]))
-        utils.stories.listByProject.invalidate({ projectId: selectedProjectId })
-      } catch (error) {
-        console.error('Failed to bulk approve stories:', error)
-      } finally {
-        setApprovingStoryIds((prev) => {
-          const next = new Set(prev)
-          storyKeys.forEach((key) => next.delete(key))
-          return next
-        })
-      }
+      await bulkApprove(stories, messageId)
     },
-    [selectedProjectId, addStoriesMutation, utils],
+    [selectedProjectId, bulkApprove],
+  )
+
+  // Handle bulk discard
+  const handleBulkDiscard = useCallback(
+    (storyIds: string[], messageId: string) => {
+      bulkDiscard(storyIds, messageId)
+    },
+    [bulkDiscard],
   )
 
   // Handle sending a message
   const handleSendMessage = useCallback(async () => {
     const trimmedInput = inputValue.trim()
-    if (!trimmedInput) return
+    if (!trimmedInput || !selectedProjectId) return
 
-    // Add user message
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content: trimmedInput,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
     setInputValue('')
-    setIsTyping(true)
-
-    // Simulate AI response (placeholder until API-008 is implemented)
-    // TODO: Replace with actual API call when API-008 is done
-    await new Promise((resolve) => setTimeout(resolve, 1500 + Math.random() * 1000))
-
-    // Generate mock stories based on user message
-    const generatedStories = selectedProject
-      ? generateMockStories(trimmedInput, selectedProject.name)
-      : []
-
-    const hasStories = generatedStories.length > 0
-    const contentText = selectedProjectId
-      ? hasStories
-        ? `Based on your request, I've generated ${generatedStories.length} user ${generatedStories.length === 1 ? 'story' : 'stories'} for ${selectedProject?.name}. You can review, edit, and approve them below.`
-        : `I understand you want to work on the project. Here's what I can help you with:\n\n1. Generate user stories based on your requirements\n2. Refine acceptance criteria\n3. Suggest dependencies between stories\n4. Recommend skills for implementation\n\nWhat would you like to explore?`
-      : `Please select a project first to start brainstorming user stories. The project selector is at the top of the page.`
-
-    const assistantMessage: Message = {
-      id: generateId(),
-      role: 'assistant',
-      content: contentText,
-      timestamp: new Date(),
-      generatedStories: hasStories ? generatedStories : undefined,
-    }
-
-    setMessages((prev) => [...prev, assistantMessage])
-    setIsTyping(false)
-  }, [inputValue, selectedProjectId, selectedProject])
+    await sendMessage(trimmedInput)
+  }, [inputValue, selectedProjectId, sendMessage])
 
   // Handle input key down (Enter to send, Shift+Enter for new line)
   const handleKeyDown = useCallback(
@@ -636,6 +539,7 @@ function BrainstormPage() {
   )
 
   const hasMessages = messages.length > 0
+  const isBusy = isLoading || isStreaming
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -649,15 +553,48 @@ function BrainstormPage() {
                 Generate and refine user stories with AI assistance
               </p>
             </div>
-            <ProjectSelector
-              projects={projects}
-              selectedProjectId={selectedProjectId}
-              onSelect={setSelectedProjectId}
-              isLoading={isLoadingProjects}
-            />
+            <div className="flex items-center gap-3">
+              <ConnectionStatus isConnected={isConnected} isReconnecting={isReconnecting} />
+              <ProjectSelector
+                projects={projects}
+                selectedProjectId={selectedProjectId}
+                onSelect={handleProjectSelect}
+                isLoading={isLoadingProjects}
+              />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex-shrink-0 bg-destructive/10 border-b border-destructive/20">
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={clearError}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages area */}
       <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
@@ -673,12 +610,15 @@ function BrainstormPage() {
                   projectId={selectedProjectId}
                   onEditStory={handleEditStory}
                   onApproveStory={handleApproveStory}
+                  onDiscardStory={handleDiscardStory}
                   onBulkApprove={handleBulkApprove}
+                  onBulkDiscard={handleBulkDiscard}
                   approvingStoryIds={approvingStoryIds}
                   approvedStoryIds={approvedStoryIds}
+                  discardedStoryIds={discardedStoryIds}
                 />
               ))}
-              {isTyping && <TypingIndicator />}
+              {isLoading && !isStreaming && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -720,7 +660,7 @@ function BrainstormPage() {
                     ? 'Describe the features or stories you want to create...'
                     : 'Select a project to start brainstorming...'
                 }
-                disabled={isTyping}
+                disabled={isBusy || !selectedProjectId}
                 rows={1}
                 className={cn(
                   'w-full px-4 py-3 pr-12 rounded-xl border bg-background resize-none',
@@ -732,25 +672,37 @@ function BrainstormPage() {
                 data-testid="message-input"
               />
             </div>
-            <button
-              type="button"
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isTyping}
-              className={cn(
-                'p-3 rounded-xl shrink-0',
-                'bg-primary text-primary-foreground',
-                'hover:bg-primary/90 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-              aria-label="Send message"
-              data-testid="send-button"
-            >
-              {isTyping ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
+            {isBusy ? (
+              <button
+                type="button"
+                onClick={cancelSession}
+                className={cn(
+                  'p-3 rounded-xl shrink-0',
+                  'bg-destructive text-destructive-foreground',
+                  'hover:bg-destructive/90 transition-colors',
+                )}
+                aria-label="Cancel"
+                data-testid="cancel-button"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || !selectedProjectId}
+                className={cn(
+                  'p-3 rounded-xl shrink-0',
+                  'bg-primary text-primary-foreground',
+                  'hover:bg-primary/90 transition-colors',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                )}
+                aria-label="Send message"
+                data-testid="send-button"
+              >
                 <Send className="w-5 h-5" />
-              )}
-            </button>
+              </button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
             Press Enter to send, Shift+Enter for new line
