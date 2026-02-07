@@ -936,7 +936,7 @@
       "title": "Tilde expansie voor project paden",
       "description": "Ondersteun ~ als shortcut voor de home directory bij het toevoegen en valideren van project paden.",
       "priority": 46,
-      "status": "pending",
+      "status": "done",
       "epic": "Projects",
       "dependencies": ["API-001"],
       "recommendedSkills": ["backend-development:api-design-principles"],

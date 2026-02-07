@@ -8,6 +8,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
+import { expandPath } from '@/lib/utils'
 
 /**
  * Schema for prd.json validation
@@ -40,9 +41,11 @@ export interface DiscoveryResult {
 
 /**
  * Get the PROJECTS_ROOT path from environment
+ * Expands ~ to home directory
  */
 function getProjectsRoot(): string {
-  return process.env.PROJECTS_ROOT || './projects'
+  const projectsRoot = process.env.PROJECTS_ROOT || './projects'
+  return expandPath(projectsRoot)
 }
 
 /**
@@ -136,19 +139,22 @@ export async function discoverProjects(): Promise<DiscoveryResult> {
 
 /**
  * Check if a specific path is a valid project (has prd.json)
+ * Expands ~ to home directory
  */
 export function isValidProjectPath(projectPath: string): boolean {
-  if (!existsSync(projectPath)) {
+  const expandedPath = expandPath(projectPath)
+
+  if (!existsSync(expandedPath)) {
     return false
   }
 
   try {
-    if (!statSync(projectPath).isDirectory()) {
+    if (!statSync(expandedPath).isDirectory()) {
       return false
     }
   } catch {
     return false
   }
 
-  return hasPrdJson(projectPath)
+  return hasPrdJson(expandedPath)
 }

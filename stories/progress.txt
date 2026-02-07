@@ -1464,3 +1464,34 @@
 - useEffect for URL sync only fires when projectIdFromUrl differs from selectedProjectId
 - Testing with getByText fails when element appears multiple times - use getAllByText or more specific selectors
 - Pre-existing test failures can be fixed as part of related work without breaking the story scope
+
+## 2026-02-07 - API-010
+**Title:** Tilde expansie voor project paden
+
+**Implemented:**
+- Created expandPath() helper function in src/lib/utils.ts
+- Function expands ~ to homedir() using node:os module
+- Applied expandPath in validatePathExists() for path validation
+- Applied expandPath in projects.create - stores expanded path in database
+- Applied expandPath in projects.update - stores expanded path when path changes
+- Applied expandPath in projects.validatePath - returns expandedPath for UI feedback
+- Applied expandPath in projectDiscovery service (getProjectsRoot, isValidProjectPath)
+- Unit tests for expandPath() covering 13 test cases (19 total tests in utils.test.ts)
+- E2E tests for adding projects with tilde paths
+
+**Files changed:**
+- src/lib/utils.ts (added expandPath function)
+- src/lib/utils.test.ts (added 13 expandPath tests)
+- src/lib/trpc/routers/projects.ts (import expandPath, apply in validatePathExists, create, update, validatePath)
+- src/lib/services/projectDiscovery.ts (import expandPath, apply in getProjectsRoot, isValidProjectPath)
+- e2e/project-management.spec.ts (added 2 tests for tilde path handling)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- node:os homedir() returns the user's home directory cross-platform
+- expandPath handles three cases: ~ alone, ~/path prefix, and passthrough for other paths
+- Store expanded paths in database to avoid tilde normalization issues on retrieval
+- validatePath returns expandedPath so UI can show the resolved path to users
+- Testing with dynamic homedir: use actual homedir() value in test expectations
+- vi.mock for node:os requires importOriginal pattern to preserve other exports
+- Pre-existing TypeScript errors in demo files don't affect actual functionality

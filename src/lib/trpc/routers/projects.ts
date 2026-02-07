@@ -14,6 +14,7 @@ import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
 import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
+import { expandPath } from '@/lib/utils'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -102,9 +103,11 @@ async function syncProjectWithPrd(project: Project): Promise<Project> {
 
 /**
  * Validates that a path exists on the filesystem
+ * Expands ~ to home directory before checking
  */
 function validatePathExists(path: string): void {
-  if (!existsSync(path)) {
+  const expandedPath = expandPath(path)
+  if (!existsSync(expandedPath)) {
     throw new TRPCError({
       code: 'BAD_REQUEST',
       message: `Path does not exist: ${path}`,
@@ -153,15 +156,19 @@ export const projectsRouter = router({
   /**
    * Create a new project
    * Validates that the path exists on filesystem
+   * Expands ~ to home directory and stores the expanded path
    */
   create: publicProcedure
     .input(createProjectSchema)
     .mutation(async ({ input }) => {
+      // Expand ~ to home directory
+      const expandedPath = expandPath(input.path)
+
       // Validate path exists
-      validatePathExists(input.path)
+      validatePathExists(expandedPath)
 
       // Try to read prd.json for initial metadata
-      const prdData = await readPrdJson(input.path)
+      const prdData = await readPrdJson(expandedPath)
 
       // Use prd.json values as defaults if not provided
       const name = input.name || prdData?.projectName || 'Untitled Project'
@@ -173,7 +180,7 @@ export const projectsRouter = router({
           .insert(projects)
           .values({
             name,
-            path: input.path,
+            path: expandedPath, // Store expanded path in database
             description,
             branchName,
           })
@@ -185,7 +192,7 @@ export const projectsRouter = router({
         if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: `A project with path "${input.path}" already exists`,
+            message: `A project with path "${expandedPath}" already exists`,
           })
         }
         throw error
@@ -195,11 +202,15 @@ export const projectsRouter = router({
   /**
    * Update an existing project
    * Validates that the new path exists if path is being changed
+   * Expands ~ to home directory and stores the expanded path
    */
   update: publicProcedure
     .input(updateProjectSchema)
     .mutation(async ({ input }) => {
       const { id, ...updates } = input
+
+      // Expand ~ in path if provided
+      const expandedPath = updates.path ? expandPath(updates.path) : undefined
 
       // Check if project exists
       const [existing] = await db
@@ -215,14 +226,14 @@ export const projectsRouter = router({
       }
 
       // Validate new path if being updated
-      if (updates.path && updates.path !== existing.path) {
-        validatePathExists(updates.path)
+      if (expandedPath && expandedPath !== existing.path) {
+        validatePathExists(expandedPath)
       }
 
       // Filter out undefined values
       const cleanUpdates: Partial<typeof projects.$inferInsert> = {}
       if (updates.name !== undefined) cleanUpdates.name = updates.name
-      if (updates.path !== undefined) cleanUpdates.path = updates.path
+      if (expandedPath !== undefined) cleanUpdates.path = expandedPath // Store expanded path
       if (updates.description !== undefined) cleanUpdates.description = updates.description
       if (updates.branchName !== undefined) cleanUpdates.branchName = updates.branchName
 
@@ -243,7 +254,7 @@ export const projectsRouter = router({
         if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
           throw new TRPCError({
             code: 'CONFLICT',
-            message: `A project with path "${updates.path}" already exists`,
+            message: `A project with path "${expandedPath}" already exists`,
           })
         }
         throw error
@@ -275,19 +286,23 @@ export const projectsRouter = router({
    * Validate a project path
    * Checks if the path exists and contains a prd.json file
    * Also reads prd.json for suggested project name
+   * Expands ~ to home directory for validation
    */
   validatePath: publicProcedure
     .input(z.object({ path: z.string().min(1, 'Path is required') }))
     .query(async ({ input }) => {
-      const pathExists = existsSync(input.path)
-      const hasPrd = pathExists && isValidProjectPath(input.path)
+      // Expand ~ to home directory
+      const expandedPath = expandPath(input.path)
+
+      const pathExists = existsSync(expandedPath)
+      const hasPrd = pathExists && isValidProjectPath(expandedPath)
 
       let suggestedName: string | null = null
       let description: string | null = null
       let branchName: string | null = null
 
       if (hasPrd) {
-        const prdData = await readPrdJson(input.path)
+        const prdData = await readPrdJson(expandedPath)
         if (prdData) {
           suggestedName = prdData.projectName || null
           description = prdData.projectDescription || null
@@ -295,9 +310,9 @@ export const projectsRouter = router({
         }
       }
 
-      // Check if project already exists in database
+      // Check if project already exists in database (compare expanded paths)
       const existingProjects = await db.select({ path: projects.path }).from(projects)
-      const isAlreadyAdded = existingProjects.some(p => p.path === input.path)
+      const isAlreadyAdded = existingProjects.some(p => p.path === expandedPath)
 
       return {
         pathExists,
@@ -306,6 +321,7 @@ export const projectsRouter = router({
         suggestedName,
         description,
         branchName,
+        expandedPath, // Return expanded path for UI to display
       }
     }),
 

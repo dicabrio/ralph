@@ -145,10 +145,29 @@ test.describe('Project Management Flow', () => {
 
   test.describe('Add Project via Manual Input', () => {
     let testProject: { path: string; name: string }
+    let tildeProject: { path: string; name: string; tildePath: string } | null = null
 
     test.beforeAll(async () => {
       testProject = await createTestProject('manual-test')
       testProjects.push(testProject.path)
+
+      // Create a project in the user's home directory temp folder
+      // This allows us to use a tilde path
+      const createdTildeProject = await createTestProject('tilde-test')
+      testProjects.push(createdTildeProject.path)
+      // Calculate the tilde path by replacing home directory with ~
+      const homeDir = os.homedir()
+      if (createdTildeProject.path.startsWith(homeDir)) {
+        tildeProject = {
+          ...createdTildeProject,
+          tildePath: createdTildeProject.path.replace(homeDir, '~'),
+        }
+      } else {
+        tildeProject = {
+          ...createdTildeProject,
+          tildePath: createdTildeProject.path, // Fallback if not in home dir
+        }
+      }
     })
 
     test('should open Add Project modal when clicking Add Project button', async ({ page }) => {
@@ -205,6 +224,77 @@ test.describe('Project Management Flow', () => {
       await page.waitForTimeout(1500)
 
       // Should show "already been added" error
+      await expect(dialog.locator('text=already been added')).toBeVisible({ timeout: 10000 })
+    })
+
+    test('should add project using tilde (~) path', async ({ page }) => {
+      await gotoDashboard(page)
+
+      // Skip if tildeProject wasn't created or doesn't have a valid tildePath
+      if (!tildeProject || !tildeProject.tildePath.startsWith('~')) {
+        test.skip()
+        return
+      }
+
+      // Check if project already exists
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${tildeProject.name}")`)
+      const projectExists = await projectCard.isVisible().catch(() => false)
+      if (projectExists) {
+        await expect(projectCard).toBeVisible()
+        return
+      }
+
+      // Open the add project modal
+      const dialog = await openAddProjectModal(page)
+
+      // Enter the tilde path
+      const pathInput = dialog.locator('input#project-path')
+      await pathInput.fill(tildeProject.tildePath)
+
+      // Wait for validation to complete
+      await page.waitForTimeout(500)
+
+      // Should show "Valid project found" - tilde path should be expanded correctly
+      await expect(dialog.locator('text=Valid project found')).toBeVisible({ timeout: 5000 })
+
+      // Submit the form
+      const submitButton = dialog.locator('button[type="submit"]')
+      await submitButton.click()
+
+      // Modal should close
+      await expect(dialog).not.toBeVisible({ timeout: 5000 })
+
+      // Project card should appear (with the project name, not the tilde path)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+    })
+
+    test('should show already added error when using tilde path for existing project', async ({ page }) => {
+      await gotoDashboard(page)
+
+      // Skip if tildeProject wasn't created or doesn't have a valid tildePath
+      if (!tildeProject || !tildeProject.tildePath.startsWith('~')) {
+        test.skip()
+        return
+      }
+
+      // Ensure project exists
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${tildeProject.name}")`)
+      const projectExists = await projectCard.isVisible().catch(() => false)
+      if (!projectExists) {
+        await addProjectViaPath(page, tildeProject.tildePath)
+        await page.waitForTimeout(1000)
+        await gotoDashboard(page)
+      }
+
+      // Try to add the same project again using tilde path
+      const dialog = await openAddProjectModal(page)
+      const pathInput = dialog.locator('input#project-path')
+      await pathInput.fill(tildeProject.tildePath)
+
+      // Wait for validation to complete
+      await page.waitForTimeout(1500)
+
+      // Should show "already been added" error (expanded path should match)
       await expect(dialog.locator('text=already been added')).toBeVisible({ timeout: 10000 })
     })
   })
