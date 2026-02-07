@@ -42,7 +42,7 @@ describe('expandPath utility', () => {
   let expandPath: (inputPath: string) => string
 
   beforeEach(async () => {
-    const utils = await import('./utils')
+    const utils = await import('./utils.server')
     expandPath = utils.expandPath
   })
 

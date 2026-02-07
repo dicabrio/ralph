@@ -8,7 +8,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { expandPath } from '@/lib/utils'
+import { expandPath } from '@/lib/utils.server'
 
 /**
  * Schema for prd.json validation

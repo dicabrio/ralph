@@ -14,7 +14,7 @@ import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
 import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
-import { expandPath } from '@/lib/utils'
+import { expandPath } from '@/lib/utils.server'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({

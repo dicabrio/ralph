@@ -12,6 +12,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { trpc } from '@/lib/trpc/client'
 import { ProjectSelector, useSelectedProject } from './ProjectSelector'
 
 interface NavItem {
@@ -53,6 +54,10 @@ export function Sidebar({
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
   const selectedProjectId = useSelectedProject()
+
+  // Fetch projects to check if any exist
+  const { data: projects = [] } = trpc.projects.list.useQuery()
+  const hasProjects = projects.length > 0
 
   // Check if a global nav item is active
   const isGlobalActive = (href: string) => {
@@ -215,8 +220,8 @@ export function Sidebar({
               onClose={onClose}
             />
 
-            {/* Project Sub-navigation */}
-            {selectedProjectId && (
+            {/* Project Sub-navigation - only show when projects exist */}
+            {selectedProjectId && hasProjects && (
               <ul className="mt-2 space-y-1">
                 {projectNavItems.map((item) => {
                   const Icon = item.icon
