@@ -48,7 +48,7 @@ import { readdir } from 'node:fs/promises'
 import { createCallerFactory } from '../trpc'
 import { brainstormRouter } from './brainstorm'
 import { db } from '@/db'
-import { projects } from '@/db/schema'
+import { projects, brainstormSessions, brainstormMessages } from '@/db/schema'
 import { parseStoriesFromResponse } from '@/lib/services/brainstormManager'
 
 const createCaller = createCallerFactory(brainstormRouter)
@@ -56,6 +56,8 @@ const createCaller = createCallerFactory(brainstormRouter)
 describe('brainstormRouter', () => {
   // Clean up database before each test
   beforeEach(async () => {
+    await db.delete(brainstormMessages)
+    await db.delete(brainstormSessions)
     await db.delete(projects)
     vi.clearAllMocks()
   })
@@ -363,5 +365,367 @@ These stories should help you get started with your project.
     expect(stories[0].dependencies).toEqual(['DEP-001'])
     expect(stories[0].recommendedSkills).toEqual(['skill-1'])
     expect(stories[0].acceptanceCriteria).toEqual(['criterion 1'])
+  })
+})
+
+// ========================================================================
+// Session Persistence Tests
+// ========================================================================
+
+describe('brainstormRouter - Session Persistence', () => {
+  // Clean up database before each test
+  beforeEach(async () => {
+    await db.delete(brainstormMessages)
+    await db.delete(brainstormSessions)
+    await db.delete(projects)
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  describe('createSession', () => {
+    it('should create a new session for existing project', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.createSession({
+        projectId: project.id,
+        title: 'My Brainstorm Session',
+      })
+
+      expect(result.id).toBeDefined()
+      expect(result.projectId).toBe(project.id)
+      expect(result.title).toBe('My Brainstorm Session')
+      expect(result.status).toBe('active')
+      expect(result.createdAt).toBeDefined()
+    })
+
+    it('should create session without title', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.createSession({
+        projectId: project.id,
+      })
+
+      expect(result.id).toBeDefined()
+      expect(result.title).toBeNull()
+      expect(result.status).toBe('active')
+    })
+
+    it('should throw error when project not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.createSession({ projectId: 999 })
+      ).rejects.toThrow('Project with id 999 not found')
+    })
+  })
+
+  describe('listSessionsByProject', () => {
+    it('should list sessions for a project', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      // Create sessions
+      await db.insert(brainstormSessions).values([
+        { projectId: project.id, title: 'Session 1', status: 'completed' },
+        { projectId: project.id, title: 'Session 2', status: 'active' },
+      ])
+
+      const caller = createCaller({})
+      const result = await caller.listSessionsByProject({
+        projectId: project.id,
+      })
+
+      expect(result.sessions).toHaveLength(2)
+      expect(result.total).toBe(2)
+      expect(result.hasMore).toBe(false)
+    })
+
+    it('should return empty list for project without sessions', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.listSessionsByProject({
+        projectId: project.id,
+      })
+
+      expect(result.sessions).toHaveLength(0)
+      expect(result.total).toBe(0)
+    })
+
+    it('should support pagination', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      // Create 5 sessions
+      for (let i = 0; i < 5; i++) {
+        await db.insert(brainstormSessions).values({
+          projectId: project.id,
+          title: `Session ${i}`,
+        })
+      }
+
+      const caller = createCaller({})
+      const result = await caller.listSessionsByProject({
+        projectId: project.id,
+        limit: 2,
+        offset: 0,
+      })
+
+      expect(result.sessions).toHaveLength(2)
+      expect(result.total).toBe(5)
+      expect(result.hasMore).toBe(true)
+    })
+
+    it('should throw error when project not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.listSessionsByProject({ projectId: 999 })
+      ).rejects.toThrow('Project with id 999 not found')
+    })
+  })
+
+  describe('getSessionHistory', () => {
+    it('should return session with messages', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'Test Session',
+      }).returning()
+
+      await db.insert(brainstormMessages).values([
+        { sessionId: session.id, role: 'user', content: 'Hello' },
+        { sessionId: session.id, role: 'assistant', content: 'Hi there!' },
+      ])
+
+      const caller = createCaller({})
+      const result = await caller.getSessionHistory({
+        sessionId: session.id,
+      })
+
+      expect(result.session.id).toBe(session.id)
+      expect(result.session.title).toBe('Test Session')
+      expect(result.messages).toHaveLength(2)
+      expect(result.messages[0].role).toBe('user')
+      expect(result.messages[0].content).toBe('Hello')
+      expect(result.messages[1].role).toBe('assistant')
+    })
+
+    it('should parse generated stories from messages', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'Test Session',
+      }).returning()
+
+      const stories = [
+        { id: 'UI-001', title: 'Story 1', description: '', priority: 1, epic: 'UI', dependencies: [], recommendedSkills: [], acceptanceCriteria: [] },
+      ]
+
+      await db.insert(brainstormMessages).values({
+        sessionId: session.id,
+        role: 'assistant',
+        content: 'Here are stories',
+        generatedStories: JSON.stringify(stories),
+      })
+
+      const caller = createCaller({})
+      const result = await caller.getSessionHistory({
+        sessionId: session.id,
+      })
+
+      expect(result.messages[0].generatedStories).toHaveLength(1)
+      expect(result.messages[0].generatedStories![0].id).toBe('UI-001')
+    })
+
+    it('should throw error when session not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.getSessionHistory({ sessionId: 999 })
+      ).rejects.toThrow('Session with id 999 not found')
+    })
+  })
+
+  describe('addMessage', () => {
+    it('should add user message to session', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.addMessage({
+        sessionId: session.id,
+        role: 'user',
+        content: 'Help me create stories',
+      })
+
+      expect(result.id).toBeDefined()
+      expect(result.sessionId).toBe(session.id)
+      expect(result.role).toBe('user')
+      expect(result.content).toBe('Help me create stories')
+    })
+
+    it('should auto-generate title from first user message', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+      }).returning()
+
+      const caller = createCaller({})
+      await caller.addMessage({
+        sessionId: session.id,
+        role: 'user',
+        content: 'I want to build an authentication system',
+      })
+
+      // Check the session was updated with title
+      const history = await caller.getSessionHistory({ sessionId: session.id })
+      expect(history.session.title).toBe('I want to build an authentication system')
+    })
+
+    it('should add assistant message with stories', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'Existing Title',
+      }).returning()
+
+      const stories = [
+        { id: 'AUTH-001', title: 'Login', description: 'Login feature', priority: 1, epic: 'Auth', dependencies: [], recommendedSkills: [], acceptanceCriteria: ['Can login'] },
+      ]
+
+      const caller = createCaller({})
+      const result = await caller.addMessage({
+        sessionId: session.id,
+        role: 'assistant',
+        content: 'Here are stories for authentication',
+        generatedStories: stories,
+      })
+
+      expect(result.generatedStories).toHaveLength(1)
+      expect(result.generatedStories![0].id).toBe('AUTH-001')
+    })
+
+    it('should throw error when session not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.addMessage({
+          sessionId: 999,
+          role: 'user',
+          content: 'Test',
+        })
+      ).rejects.toThrow('Session with id 999 not found')
+    })
+  })
+
+  describe('updateSessionStatus', () => {
+    it('should update session status', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        status: 'active',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.updateSessionStatus({
+        sessionId: session.id,
+        status: 'completed',
+      })
+
+      expect(result.status).toBe('completed')
+    })
+
+    it('should throw error when session not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.updateSessionStatus({
+          sessionId: 999,
+          status: 'completed',
+        })
+      ).rejects.toThrow('Session with id 999 not found')
+    })
+  })
+
+  describe('deleteSession', () => {
+    it('should delete session and cascade messages', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test',
+      }).returning()
+
+      const [session] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'To Delete',
+      }).returning()
+
+      await db.insert(brainstormMessages).values([
+        { sessionId: session.id, role: 'user', content: 'Message 1' },
+        { sessionId: session.id, role: 'assistant', content: 'Message 2' },
+      ])
+
+      const caller = createCaller({})
+      const result = await caller.deleteSession({ sessionId: session.id })
+
+      expect(result.success).toBe(true)
+
+      // Verify session is gone
+      await expect(
+        caller.getSessionHistory({ sessionId: session.id })
+      ).rejects.toThrow('Session with id')
+    })
+
+    it('should throw error when session not found', async () => {
+      const caller = createCaller({})
+
+      await expect(
+        caller.deleteSession({ sessionId: 999 })
+      ).rejects.toThrow('Session with id 999 not found')
+    })
   })
 })

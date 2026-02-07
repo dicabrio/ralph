@@ -1328,3 +1328,39 @@
 - Multiple empty states possible: "No skills found" vs "No matching skills" depending on context
 - Test fixture cleanup: use afterAll with cleanupDir helper for temporary directories
 - Serial test execution prevents flaky tests from shared project state
+
+## 2026-02-07 - API-009
+**Title:** Brainstorm sessies per project opslaan
+
+**Implemented:**
+- Created brainstorm_sessions table with project_id FK, title, status, generated_stories
+- Created brainstorm_messages table with session_id FK, role, content, generated_stories
+- Added indexes for efficient queries (project_id, session_id, created_at)
+- Added listSessionsByProject procedure with pagination (limit, offset, total, hasMore)
+- Added getSessionHistory procedure returning session + messages with parsed stories
+- Added createSession procedure with optional title
+- Added addMessage procedure supporting user/assistant roles and generated stories JSON
+- Added updateSessionStatus procedure for session lifecycle (active/completed/cancelled/error)
+- Added deleteSession procedure with cascade delete
+- Auto-generates session title from first user message (truncated to 100 chars)
+- Stores generatedStories as JSON strings in both sessions and messages tables
+- 18 new unit tests covering all session persistence endpoints
+
+**Files changed:**
+- src/db/schema/brainstorm_sessions.ts (new)
+- src/db/schema/brainstorm_messages.ts (new)
+- src/db/schema/index.ts (added exports)
+- drizzle/0003_worthless_texas_twister.sql (new migration)
+- src/lib/trpc/routers/brainstorm.ts (added 6 new procedures)
+- src/lib/trpc/routers/brainstorm.test.ts (added 18 tests)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- SQLite with Drizzle: use integer('field', { mode: 'timestamp' }) for timestamps
+- Drizzle $count method with filter returns count in a subquery, need to handle empty results
+- When using db.$count(), query result may be undefined if no rows match - use ?? 0 fallback
+- JSON storage for generated stories works well for SQLite, parse on read with JSON.parse()
+- Session persistence pattern: create session first, then add messages incrementally
+- Auto-title from first message provides good UX without requiring user input
+- Foreign key with onDelete: 'cascade' ensures messages are deleted with session
+- Pre-existing test failures in Sidebar/Layout tests due to useParams mock missing - unrelated to this story
