@@ -19,6 +19,7 @@ import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { SkillDetailModal } from '@/components/SkillDetailModal'
 import { SkillOverrideModal } from '@/components/SkillOverrideModal'
+import { AgentPromptCard, AgentPromptModal } from '@/components/AgentPromptCard'
 
 export const Route = createFileRoute('/project/$id/prompts')({
   component: ProjectPrompts,
@@ -310,6 +311,7 @@ function ProjectPrompts() {
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null)
   const [overrideSkill, setOverrideSkill] = useState<Skill | null>(null)
   const [togglingSkills, setTogglingSkills] = useState<Set<string>>(new Set())
+  const [showAgentPromptModal, setShowAgentPromptModal] = useState(false)
 
   const utils = trpc.useUtils()
 
@@ -453,6 +455,19 @@ function ProjectPrompts() {
         <FilterTabs currentFilter={filter} onFilterChange={setFilter} counts={filterCounts} />
       </div>
 
+      {/* Agent Prompt Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Agent Prompt</h2>
+        <div className="max-w-md">
+          <AgentPromptCard projectId={projectId} onEdit={() => setShowAgentPromptModal(true)} />
+        </div>
+      </div>
+
+      {/* Skills Section */}
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Skills</h2>
+      </div>
+
       {/* Search bar */}
       <div className="relative mb-8">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -587,6 +602,14 @@ function ProjectPrompts() {
           onSaved={() => {
             utils.skills.listByProject.invalidate({ projectId })
           }}
+        />
+      )}
+
+      {/* Agent Prompt modal */}
+      {showAgentPromptModal && (
+        <AgentPromptModal
+          projectId={projectId}
+          onClose={() => setShowAgentPromptModal(false)}
         />
       )}
     </div>

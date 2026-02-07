@@ -87,7 +87,8 @@ export type ServerMessage =
         projectId: string
         status: 'idle' | 'running' | 'stopping'
         storyId?: string
-        containerId?: string
+        containerId?: string  // Docker container ID (legacy)
+        pid?: number          // Process ID (CLI mode)
         exitCode?: number
       }
       timestamp: number

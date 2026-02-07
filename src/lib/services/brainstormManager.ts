@@ -1,93 +1,100 @@
 /**
  * Brainstorm Manager Service
  *
- * Manages Claude Docker containers for brainstorming sessions.
+ * Manages brainstorming sessions using OpenAI API.
  * Handles starting brainstorm sessions, streaming responses, and parsing stories.
- *
- * Uses Docker-out-of-Docker (DooD) pattern - spawns containers on the host
- * via the mounted Docker socket.
  */
-import { spawn } from 'node:child_process'
-import { join } from 'node:path'
-import { readFile, readdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import type { GeneratedStory } from '../websocket/types'
+import { join } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import type { GeneratedStory } from "../websocket/types";
+import { streamChatCompletion, isOpenAIConfigured } from "./openaiService";
+import { loadProjectContext, formatProjectContext } from "./projectContextLoader";
 
 // Environment variables
-const SKILLS_PATH = process.env.SKILLS_PATH || './skills'
+const SKILLS_PATH = process.env.SKILLS_PATH || "./skills";
 
 /**
  * Session state for a brainstorm session
  */
 export interface BrainstormSession {
-  sessionId: string
-  projectId: number
-  projectPath: string
-  containerId?: string
-  status: 'starting' | 'running' | 'completed' | 'error'
-  startedAt: Date
-  content: string
-  stories: GeneratedStory[]
+  sessionId: string;
+  projectId: number;
+  projectPath: string;
+  status: "starting" | "running" | "completed" | "error" | "cancelled";
+  startedAt: Date;
+  content: string;
+  stories: GeneratedStory[];
+  // AbortController for cancelling the OpenAI request
+  abortController?: AbortController;
 }
 
 /**
  * Callback for streaming updates
  */
 export interface BrainstormCallbacks {
-  onStart?: (sessionId: string) => void
-  onChunk?: (sessionId: string, content: string) => void
-  onStories?: (sessionId: string, stories: GeneratedStory[]) => void
-  onComplete?: (sessionId: string, content: string, stories: GeneratedStory[]) => void
-  onError?: (sessionId: string, error: string) => void
+  onStart?: (sessionId: string) => void;
+  onChunk?: (sessionId: string, content: string) => void;
+  onStories?: (sessionId: string, stories: GeneratedStory[]) => void;
+  onComplete?: (
+    sessionId: string,
+    content: string,
+    stories: GeneratedStory[],
+  ) => void;
+  onError?: (sessionId: string, error: string) => void;
 }
 
 /**
  * Parse YAML frontmatter from SKILL.md content
  */
-function parseFrontmatter(content: string): { name: string; description: string } | null {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
-  if (!match) return null
+function parseFrontmatter(
+  content: string,
+): { name: string; description: string } | null {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) return null;
 
-  const [, frontmatterYaml] = match
-  const frontmatter: Record<string, string> = {}
+  const [, frontmatterYaml] = match;
+  const frontmatter: Record<string, string> = {};
 
-  for (const line of frontmatterYaml.split('\n')) {
-    const colonIndex = line.indexOf(':')
+  for (const line of frontmatterYaml.split("\n")) {
+    const colonIndex = line.indexOf(":");
     if (colonIndex > 0) {
-      const key = line.slice(0, colonIndex).trim()
-      const value = line.slice(colonIndex + 1).trim()
-      frontmatter[key] = value
+      const key = line.slice(0, colonIndex).trim();
+      const value = line.slice(colonIndex + 1).trim();
+      frontmatter[key] = value;
     }
   }
 
-  if (!frontmatter.name || !frontmatter.description) return null
-  return { name: frontmatter.name, description: frontmatter.description }
+  if (!frontmatter.name || !frontmatter.description) return null;
+  return { name: frontmatter.name, description: frontmatter.description };
 }
 
 /**
  * Load available skills from SKILLS_PATH
  */
-async function loadAvailableSkills(): Promise<{ id: string; name: string; description: string }[]> {
-  if (!existsSync(SKILLS_PATH)) return []
+async function loadAvailableSkills(): Promise<
+  { id: string; name: string; description: string }[]
+> {
+  if (!existsSync(SKILLS_PATH)) return [];
 
-  const skills: { id: string; name: string; description: string }[] = []
+  const skills: { id: string; name: string; description: string }[] = [];
 
   try {
-    const entries = await readdir(SKILLS_PATH, { withFileTypes: true })
+    const entries = await readdir(SKILLS_PATH, { withFileTypes: true });
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const skillMdPath = join(SKILLS_PATH, entry.name, 'SKILL.md')
+        const skillMdPath = join(SKILLS_PATH, entry.name, "SKILL.md");
         if (existsSync(skillMdPath)) {
           try {
-            const content = await readFile(skillMdPath, 'utf-8')
-            const frontmatter = parseFrontmatter(content)
+            const content = await readFile(skillMdPath, "utf-8");
+            const frontmatter = parseFrontmatter(content);
             if (frontmatter) {
               skills.push({
                 id: entry.name,
                 name: frontmatter.name,
                 description: frontmatter.description,
-              })
+              });
             }
           } catch {
             // Skip invalid skills
@@ -96,31 +103,35 @@ async function loadAvailableSkills(): Promise<{ id: string; name: string; descri
       }
     }
   } catch {
-    return []
+    return [];
   }
 
-  return skills
+  return skills;
 }
 
 /**
  * Read existing stories from prd.json
  */
-async function loadExistingStories(projectPath: string): Promise<{ id: string; title: string; status: string; epic: string }[]> {
-  const prdPath = join(projectPath, 'stories', 'prd.json')
+async function loadExistingStories(
+  projectPath: string,
+): Promise<{ id: string; title: string; status: string; epic: string }[]> {
+  const prdPath = join(projectPath, "stories", "prd.json");
 
-  if (!existsSync(prdPath)) return []
+  if (!existsSync(prdPath)) return [];
 
   try {
-    const content = await readFile(prdPath, 'utf-8')
-    const data = JSON.parse(content)
-    return (data.userStories || []).map((s: { id: string; title: string; status: string; epic: string }) => ({
-      id: s.id,
-      title: s.title,
-      status: s.status,
-      epic: s.epic,
-    }))
+    const content = await readFile(prdPath, "utf-8");
+    const data = JSON.parse(content);
+    return (data.userStories || []).map(
+      (s: { id: string; title: string; status: string; epic: string }) => ({
+        id: s.id,
+        title: s.title,
+        status: s.status,
+        epic: s.epic,
+      }),
+    );
   } catch {
-    return []
+    return [];
   }
 }
 
@@ -131,27 +142,36 @@ export async function generateSystemPrompt(
   projectPath: string,
   projectName: string,
 ): Promise<string> {
-  // Load available skills and existing stories
-  const [availableSkills, existingStories] = await Promise.all([
+  // Load available skills, existing stories, and project context
+  const [availableSkills, existingStories, projectContext] = await Promise.all([
     loadAvailableSkills(),
     loadExistingStories(projectPath),
-  ])
+    loadProjectContext(projectPath),
+  ]);
 
-  const skillsContext = availableSkills.length > 0
-    ? `Available skills that can be recommended:
-${availableSkills.map(s => `- ${s.id}: ${s.name} - ${s.description}`).join('\n')}`
-    : 'No skills currently configured.'
+  const skillsContext =
+    availableSkills.length > 0
+      ? `Available skills that can be recommended:
+${availableSkills.map((s) => `- ${s.id}: ${s.name} - ${s.description}`).join("\n")}`
+      : "No skills currently configured.";
 
-  const existingStoriesContext = existingStories.length > 0
-    ? `Existing stories in the project (for reference and dependencies):
-${existingStories.map(s => `- ${s.id}: ${s.title} [${s.status}] (Epic: ${s.epic})`).join('\n')}`
-    : 'No existing stories in the project.'
+  const existingStoriesContext =
+    existingStories.length > 0
+      ? `Existing stories in the project (for reference and dependencies):
+${existingStories.map((s) => `- ${s.id}: ${s.title} [${s.status}] (Epic: ${s.epic})`).join("\n")}`
+      : "No existing stories in the project.";
+
+  const projectContextSection = formatProjectContext(projectContext);
 
   return `You are a story generation assistant for the project "${projectName}".
 
 Your role is to help users brainstorm and create well-structured user stories based on their requirements.
 
-## Context
+## Project Context
+
+${projectContextSection}
+
+## Available Resources
 
 ${skillsContext}
 
@@ -160,7 +180,7 @@ ${existingStoriesContext}
 ## Task
 
 When the user describes a feature or requirement:
-1. Analyze the codebase (you have access to /workspace) to understand the existing architecture
+1. Analyze the project structure and existing code patterns shown above
 2. Generate appropriate user stories with clear acceptance criteria
 3. Suggest dependencies on existing stories when relevant
 4. Recommend skills that would help implement the story
@@ -204,165 +224,77 @@ Examples: AUTH-001, UI-002, API-003, DB-001
 3. Acceptance criteria should be specific and testable
 4. Consider existing stories for dependencies
 5. Only recommend skills that exist in the available skills list
-6. Analyze the codebase to suggest appropriate implementation approaches
+6. Use the project structure to suggest appropriate implementation approaches
 7. Priority should reflect logical order of implementation (1 = highest priority)
 
-Focus on creating actionable, well-defined stories that a developer can start working on immediately.`
+Focus on creating actionable, well-defined stories that a developer can start working on immediately.`;
 }
 
 /**
- * Parse stories from Claude's response
+ * Parse stories from OpenAI's response
  */
 export function parseStoriesFromResponse(content: string): GeneratedStory[] {
   // Find JSON block in the response
-  const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/)
+  const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
 
   if (!jsonMatch) {
-    return []
+    return [];
   }
 
   try {
-    const parsed = JSON.parse(jsonMatch[1])
+    const parsed = JSON.parse(jsonMatch[1]);
 
     if (!Array.isArray(parsed)) {
-      return []
+      return [];
     }
 
     // Validate and normalize each story
     return parsed
-      .filter((s): s is Record<string, unknown> =>
-        typeof s === 'object' &&
-        s !== null &&
-        typeof s.id === 'string' &&
-        typeof s.title === 'string'
+      .filter(
+        (s): s is Record<string, unknown> =>
+          typeof s === "object" &&
+          s !== null &&
+          typeof s.id === "string" &&
+          typeof s.title === "string",
       )
       .map((s) => ({
         id: String(s.id),
         title: String(s.title),
-        description: String(s.description || ''),
-        priority: typeof s.priority === 'number' ? s.priority : 1,
-        epic: String(s.epic || 'Features'),
+        description: String(s.description || ""),
+        priority: typeof s.priority === "number" ? s.priority : 1,
+        epic: String(s.epic || "Features"),
         dependencies: Array.isArray(s.dependencies)
-          ? s.dependencies.filter((d): d is string => typeof d === 'string')
+          ? s.dependencies.filter((d): d is string => typeof d === "string")
           : [],
         recommendedSkills: Array.isArray(s.recommendedSkills)
-          ? s.recommendedSkills.filter((sk): sk is string => typeof sk === 'string')
+          ? s.recommendedSkills.filter(
+              (sk): sk is string => typeof sk === "string",
+            )
           : [],
         acceptanceCriteria: Array.isArray(s.acceptanceCriteria)
-          ? s.acceptanceCriteria.filter((c): c is string => typeof c === 'string')
+          ? s.acceptanceCriteria.filter(
+              (c): c is string => typeof c === "string",
+            )
           : [],
-      }))
+      }));
   } catch {
-    return []
+    return [];
   }
-}
-
-/**
- * Format Docker errors into user-friendly messages
- */
-function formatDockerError(stderr: string, exitCode: number | null): string {
-  const lowerStderr = stderr.toLowerCase()
-
-  // Image pull errors
-  if (lowerStderr.includes('pull access denied') || lowerStderr.includes('repository does not exist')) {
-    return 'De Claude Code Docker image kon niet worden opgehaald. Controleer of je toegang hebt tot de image of probeer: docker pull anthropics/claude-code:latest'
-  }
-
-  // Docker daemon not running
-  if (lowerStderr.includes('cannot connect to the docker daemon') || lowerStderr.includes('is the docker daemon running')) {
-    return 'Docker is niet actief. Start Docker Desktop en probeer opnieuw.'
-  }
-
-  // Docker not installed or not in PATH
-  if (lowerStderr.includes('docker: command not found') || lowerStderr.includes('docker not found')) {
-    return 'Docker is niet geïnstalleerd of niet gevonden in het systeem PATH.'
-  }
-
-  // Permission denied
-  if (lowerStderr.includes('permission denied') && lowerStderr.includes('docker.sock')) {
-    return 'Geen toegang tot Docker. Controleer of je gebruiker in de docker groep zit.'
-  }
-
-  // Volume mount errors
-  if (lowerStderr.includes('mounts denied') || lowerStderr.includes('is not shared')) {
-    return 'Docker heeft geen toegang tot de project folder. Controleer je Docker file sharing instellingen.'
-  }
-
-  // Container already exists
-  if (lowerStderr.includes('is already in use by container')) {
-    return 'Er draait al een brainstorm sessie. Wacht tot deze is voltooid of annuleer hem.'
-  }
-
-  // Authentication errors in Claude
-  if (lowerStderr.includes('invalid_api_key') || lowerStderr.includes('authentication')) {
-    return 'Claude authenticatie mislukt. Controleer je ANTHROPIC_API_KEY of Claude configuratie.'
-  }
-
-  // Timeout errors
-  if (lowerStderr.includes('timeout') || lowerStderr.includes('timed out')) {
-    return 'De verbinding met Claude is verlopen. Probeer opnieuw.'
-  }
-
-  // Network errors
-  if (lowerStderr.includes('network') && (lowerStderr.includes('unreachable') || lowerStderr.includes('failed'))) {
-    return 'Netwerkfout bij het verbinden met Claude. Controleer je internetverbinding.'
-  }
-
-  // Out of memory
-  if (lowerStderr.includes('out of memory') || lowerStderr.includes('oom')) {
-    return 'Onvoldoende geheugen om Claude te starten. Sluit andere applicaties en probeer opnieuw.'
-  }
-
-  // Default: show exit code with first line of stderr if available
-  const firstLine = stderr.trim().split('\n')[0] || ''
-  if (firstLine) {
-    // Truncate long messages
-    const truncated = firstLine.length > 150 ? firstLine.slice(0, 150) + '...' : firstLine
-    return `Claude kon niet worden gestart: ${truncated}`
-  }
-
-  return `Claude container is gestopt met foutcode ${exitCode}. Controleer de logs voor meer details.`
-}
-
-/**
- * Format spawn errors (e.g., docker not installed)
- */
-function formatSpawnError(error: Error): string {
-  if (error.message.includes('ENOENT')) {
-    return 'Docker is niet geïnstalleerd of niet gevonden in het systeem PATH.'
-  }
-
-  if (error.message.includes('EACCES')) {
-    return 'Geen toegang om Docker te starten. Controleer je rechten.'
-  }
-
-  if (error.message.includes('EPERM')) {
-    return 'Onvoldoende rechten om Docker te starten.'
-  }
-
-  return `Kon Docker niet starten: ${error.message}`
 }
 
 /**
  * BrainstormManager class
  *
- * Manages brainstorm sessions with Claude containers.
+ * Manages brainstorm sessions with OpenAI API.
  */
 class BrainstormManager {
-  private sessions: Map<string, BrainstormSession> = new Map()
+  private sessions: Map<string, BrainstormSession> = new Map();
 
   /**
    * Generate a unique session ID
    */
   private generateSessionId(): string {
-    return `brainstorm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  }
-
-  /**
-   * Get container name for a session
-   */
-  private getContainerName(sessionId: string): string {
-    return `claude-brainstorm-${sessionId.slice(0, 16)}`
+    return `brainstorm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -370,10 +302,11 @@ class BrainstormManager {
    *
    * @param projectId - Database ID of the project
    * @param projectPath - Filesystem path to the project
+   * @param projectName - Name of the project
    * @param userMessage - The user's message/request
    * @param callbacks - Callbacks for streaming updates
    * @returns The session ID
-   * @throws Error if Docker fails to start within the initial timeout
+   * @throws Error if OpenAI is not configured or fails
    */
   async startSession(
     projectId: number,
@@ -382,234 +315,139 @@ class BrainstormManager {
     userMessage: string,
     callbacks: BrainstormCallbacks,
   ): Promise<string> {
-    const sessionId = this.generateSessionId()
-    const containerName = this.getContainerName(sessionId)
+    const sessionId = this.generateSessionId();
+
+    // Check OpenAI configuration
+    if (!isOpenAIConfigured()) {
+      throw new Error(
+        "OPENAI_API_KEY is niet geconfigureerd. Stel deze in om de brainstorm functie te gebruiken.",
+      );
+    }
 
     // Initialize session
     const session: BrainstormSession = {
       sessionId,
       projectId,
       projectPath,
-      status: 'starting',
+      status: "starting",
       startedAt: new Date(),
-      content: '',
+      content: "",
       stories: [],
-    }
-    this.sessions.set(sessionId, session)
+    };
+    this.sessions.set(sessionId, session);
 
     // Notify start
-    callbacks.onStart?.(sessionId)
+    callbacks.onStart?.(sessionId);
 
-    // Get environment variables for container
-    const hostProjectsRoot = process.env.HOST_PROJECTS_ROOT || process.env.PROJECTS_ROOT || '/projects'
-    const hostSkillsPath = process.env.HOST_SKILLS_PATH || process.env.SKILLS_PATH || '/skills'
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY
-    const hostClaudeConfig = process.env.HOST_CLAUDE_CONFIG
+    // Generate system prompt with project context
+    const systemPrompt = await generateSystemPrompt(projectPath, projectName);
 
-    // Require at least one authentication method
-    if (!anthropicApiKey && !hostClaudeConfig) {
-      session.status = 'error'
-      callbacks.onError?.(sessionId, 'Either ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG must be set for Claude authentication')
-      return sessionId
-    }
+    // Track accumulated content for story parsing
+    let outputBuffer = "";
 
-    try {
-      // Generate system prompt with context
-      const systemPrompt = await generateSystemPrompt(projectPath, projectName)
+    // Update session status
+    session.status = "running";
 
-      // Extract relative project path from absolute path
-      const projectsRoot = process.env.PROJECTS_ROOT || '/projects'
-      let relativeProjectPath = projectPath
-      if (projectPath.startsWith(projectsRoot)) {
-        relativeProjectPath = projectPath.slice(projectsRoot.length).replace(/^\//, '')
+    // Start streaming from OpenAI in background (fire-and-forget)
+    // This allows the mutation to return immediately with the sessionId
+    streamChatCompletion(systemPrompt, userMessage, {
+      onChunk: (chunk) => {
+        // Check if session was cancelled
+        if (session.status === "cancelled") return;
+
+        outputBuffer += chunk;
+        session.content = outputBuffer;
+
+        // Send chunk to client
+        callbacks.onChunk?.(sessionId, chunk);
+
+        // Try to parse stories as we receive data
+        const stories = parseStoriesFromResponse(outputBuffer);
+        if (stories.length > session.stories.length) {
+          session.stories = stories;
+          callbacks.onStories?.(sessionId, stories);
+        }
+      },
+      onComplete: (fullContent) => {
+        // Check if session was cancelled
+        if (session.status === "cancelled") return;
+
+        session.status = "completed";
+        session.content = fullContent;
+
+        // Parse final stories
+        const finalStories = parseStoriesFromResponse(fullContent);
+        session.stories = finalStories;
+
+        callbacks.onComplete?.(sessionId, fullContent, finalStories);
+      },
+      onError: (errorMessage) => {
+        // Check if session was cancelled
+        if (session.status === "cancelled") return;
+
+        session.status = "error";
+        callbacks.onError?.(sessionId, errorMessage);
+      },
+    }).catch((error) => {
+      // Handle any unhandled errors from the streaming
+      if (session.status !== "cancelled") {
+        session.status = "error";
+        const errorMsg = error instanceof Error ? error.message : "Onbekende fout";
+        callbacks.onError?.(sessionId, errorMsg);
       }
-      const hostProjectPath = `${hostProjectsRoot}/${relativeProjectPath}`
+    });
 
-      // Build the prompt with user message
-      const fullPrompt = `${systemPrompt}\n\n---\n\nUser request: ${userMessage}`
-
-      // Spawn Claude container with the prompt
-      // Using docker run with -i for stdin and streaming stdout
-      const dockerArgs = [
-        'run',
-        '--rm', // Remove container when done
-        '-i', // Interactive (for stdin)
-        '--name', containerName,
-      ]
-
-      // Add authentication: prefer config file over API key
-      if (hostClaudeConfig) {
-        // Use Claude Max/Pro subscription via config file
-        dockerArgs.push('-v', `${hostClaudeConfig}:/root/.claude.json:ro`)
-      } else if (anthropicApiKey) {
-        // Use API key
-        dockerArgs.push('-e', `ANTHROPIC_API_KEY=${anthropicApiKey}`)
-      }
-
-      // Add volume mounts, working directory, and command
-      dockerArgs.push(
-        '-v', `${hostProjectPath}:/workspace`,
-        '-v', `${hostSkillsPath}:/skills:ro`,
-        '-w', '/workspace',
-        'anthropics/claude-code:latest',
-        '--print', // Print mode for non-interactive output
-        fullPrompt,
-      )
-
-      const docker = spawn('docker', dockerArgs)
-      session.containerId = containerName
-
-      let outputBuffer = ''
-      let stderrBuffer = ''
-      let hasStartedStreaming = false
-      let earlyFailure: string | null = null
-
-      // Create a promise that resolves when Docker starts successfully or rejects on early failure
-      const startupPromise = new Promise<void>((resolve, reject) => {
-        const startupTimeout = setTimeout(() => {
-          // If we haven't received any output and haven't failed, assume it's working
-          if (!earlyFailure) {
-            resolve()
-          }
-        }, 5000) // 5 second timeout for early failures
-
-        // Handle stdout (streaming response)
-        docker.stdout.on('data', (data: Buffer) => {
-          const chunk = data.toString()
-          outputBuffer += chunk
-          session.content = outputBuffer
-
-          // First output means Docker started successfully
-          if (!hasStartedStreaming) {
-            hasStartedStreaming = true
-            session.status = 'running'
-            clearTimeout(startupTimeout)
-            resolve()
-          }
-
-          callbacks.onChunk?.(sessionId, chunk)
-
-          // Try to parse stories as we receive data
-          const stories = parseStoriesFromResponse(outputBuffer)
-          if (stories.length > session.stories.length) {
-            session.stories = stories
-            callbacks.onStories?.(sessionId, stories)
-          }
-        })
-
-        // Handle stderr - capture for error messages
-        docker.stderr.on('data', (data: Buffer) => {
-          const chunk = data.toString()
-          stderrBuffer += chunk
-          console.error(`[Brainstorm ${sessionId}] stderr:`, chunk)
-        })
-
-        // Handle process completion
-        docker.on('close', (code) => {
-          clearTimeout(startupTimeout)
-
-          if (code === 0) {
-            session.status = 'completed'
-            const finalStories = parseStoriesFromResponse(session.content)
-            session.stories = finalStories
-            callbacks.onComplete?.(sessionId, session.content, finalStories)
-          } else {
-            session.status = 'error'
-            const userFriendlyError = formatDockerError(stderrBuffer, code)
-
-            // If we haven't started streaming, this is an early failure - reject the promise
-            if (!hasStartedStreaming) {
-              earlyFailure = userFriendlyError
-              reject(new Error(userFriendlyError))
-            } else {
-              // Late failure - use callback
-              callbacks.onError?.(sessionId, userFriendlyError)
-            }
-          }
-        })
-
-        // Handle process error (e.g., docker not installed)
-        docker.on('error', (error) => {
-          clearTimeout(startupTimeout)
-          session.status = 'error'
-          const userFriendlyError = formatSpawnError(error)
-
-          if (!hasStartedStreaming) {
-            earlyFailure = userFriendlyError
-            reject(new Error(userFriendlyError))
-          } else {
-            callbacks.onError?.(sessionId, userFriendlyError)
-          }
-        })
-      })
-
-      // Wait for Docker to start or fail early
-      await startupPromise
-
-    } catch (error) {
-      session.status = 'error'
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      // Re-throw so tRPC can catch it and return to frontend
-      throw new Error(errorMessage)
-    }
-
-    return sessionId
+    return sessionId;
   }
 
   /**
    * Get session by ID
    */
   getSession(sessionId: string): BrainstormSession | undefined {
-    return this.sessions.get(sessionId)
+    return this.sessions.get(sessionId);
   }
 
   /**
    * Get all active sessions for a project
    */
   getSessionsByProject(projectId: number): BrainstormSession[] {
-    return Array.from(this.sessions.values())
-      .filter(s => s.projectId === projectId && s.status === 'running')
+    return Array.from(this.sessions.values()).filter(
+      (s) => s.projectId === projectId && s.status === "running",
+    );
   }
 
   /**
    * Cancel a running session
    */
   async cancelSession(sessionId: string): Promise<boolean> {
-    const session = this.sessions.get(sessionId)
-    if (!session || !session.containerId) {
-      return false
+    const session = this.sessions.get(sessionId);
+    if (!session || session.status !== "running") {
+      return false;
     }
 
-    try {
-      // Kill the container
-      const kill = spawn('docker', ['kill', session.containerId])
-      await new Promise<void>((resolve) => {
-        kill.on('close', () => resolve())
-        kill.on('error', () => resolve())
-      })
+    // Mark session as cancelled
+    session.status = "cancelled";
 
-      session.status = 'error'
-      return true
-    } catch {
-      return false
-    }
+    // Note: OpenAI streaming doesn't support true cancellation,
+    // but we mark the session as cancelled so callbacks are ignored
+    return true;
   }
 
   /**
    * Clean up old sessions
    */
   cleanupOldSessions(maxAgeMs: number = 3600000): void {
-    const now = Date.now()
+    const now = Date.now();
     for (const [sessionId, session] of this.sessions) {
       if (now - session.startedAt.getTime() > maxAgeMs) {
-        this.sessions.delete(sessionId)
+        this.sessions.delete(sessionId);
       }
     }
   }
 }
 
 // Export singleton instance
-export const brainstormManager = new BrainstormManager()
+export const brainstormManager = new BrainstormManager();
 
 // Export type for external use
-export type { BrainstormManager }
+export type { BrainstormManager };

@@ -1527,3 +1527,48 @@
 - DependencyConfirmDialog pattern: PendingDrop interface stores story, targetColumnId, unmetDependencies
 - E2E drag & drop tests use page.mouse.down/move/up for simulating DnD interactions
 - Lock icon uses data-testid="column-lock-icon" for E2E verification
+
+## 2026-02-07 - PROMPT-001
+**Title:** Agent Prompt template beheer
+
+**Implemented:**
+- Created promptTemplate.ts service with default agent prompt template
+- Template contains generic agent instructions that reference prd.json for project-specific config
+- Created tRPC prompts router with API endpoints:
+  - getDefaultTemplate: Returns default template (read-only)
+  - updateDefaultTemplate: Throws FORBIDDEN (default is read-only, override at project level)
+  - getProjectPrompt: Returns project prompt or default if not exists
+  - updateProjectPrompt: Writes to {projectPath}/stories/prompt.md
+  - resetProjectPrompt: Deletes stories/prompt.md to revert to default
+  - getPromptDiff: Returns diff between default and project prompt
+  - hasCustomPrompt: Checks if project has custom prompt
+- Added AgentPromptCard and AgentPromptModal components
+- Central Prompts page (/prompts) shows default template in read-only view
+- Project Prompts page shows project-specific prompt with edit/reset/diff capabilities
+- "Using default" or "Customized" badges show prompt status
+- Diff view with side-by-side comparison when project prompt differs from default
+- Updated claudeLoopService.generatePrompt() to use getEffectivePrompt()
+- Runner now reads from stories/prompt.md if it exists, otherwise uses default template
+- Added unit tests for promptTemplate service (32 tests)
+- Added unit tests for prompts router
+- Added E2E tests for agent prompt management flow
+
+**Files changed:**
+- src/lib/services/promptTemplate.ts (new - default template and file operations)
+- src/lib/services/promptTemplate.test.ts (new - 32 unit tests)
+- src/lib/trpc/routers/prompts.ts (new - API endpoints)
+- src/lib/trpc/routers/prompts.test.ts (new - unit tests)
+- src/lib/trpc/routers/index.ts (added prompts router)
+- src/components/AgentPromptCard.tsx (new - card and modal components)
+- src/routes/prompts.tsx (added Agent Prompt section)
+- src/routes/project/$id/prompts.tsx (added Agent Prompt section with edit)
+- src/lib/services/claudeLoopService.ts (updated generatePrompt to use promptTemplate)
+- e2e/agent-prompt.spec.ts (new - E2E tests)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Project prompts are stored in {projectPath}/stories/prompt.md for easy version control
+- Default template is read-only in central page, projects customize at their level
+- Using getEffectivePrompt() abstracts the fallback logic for runner
+- Diff view uses simple line-by-line comparison with +/- markers
+- Content validation prevents dangerous patterns like command substitution

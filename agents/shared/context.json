@@ -1,0 +1,68 @@
+{
+  "project": "Ibiza Marketplace",
+  "description": "Multi-platform marketplace application for Ibiza",
+  "technology_stack": {
+    "api": {
+      "framework": "Express.js",
+      "language": "TypeScript",
+      "orm": "Knex.js",
+      "database": "PostgreSQL 17",
+      "validation": "Valibot",
+      "location": "Api/"
+    },
+    "web": {
+      "framework": "Next.js 15",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS v4",
+      "state": "React Query (@tanstack/react-query)",
+      "auth": "next-auth",
+      "i18n": "next-intl",
+      "validation": "Zod",
+      "location": "Web/"
+    },
+    "mobile": {
+      "framework": "React Native 0.81",
+      "expo": "Expo SDK 54 (ExpoApp/)",
+      "navigation": "React Navigation 7",
+      "state": "React Query (@tanstack/react-query)",
+      "ui": "React Native Elements (@rneui)",
+      "maps": "@rnmapbox/maps",
+      "ads": "react-native-google-mobile-ads",
+      "push": "react-native-onesignal",
+      "validation": "Valibot",
+      "locations": ["App/", "ExpoApp/"]
+    },
+    "infrastructure": {
+      "containerization": "Docker",
+      "deployment": "AWS Copilot",
+      "search": "Meilisearch",
+      "storage": "AWS S3",
+      "email": "Nodemailer"
+    }
+  },
+  "active_agents": [],
+  "team": {
+    "product_owner": "Robert Cabri",
+    "agents": [
+      "backend-developer",
+      "web-developer",
+      "mobile-developer",
+      "database-engineer",
+      "devops-engineer",
+      "test-engineer",
+      "qa-specialist"
+    ]
+  },
+  "key_modules": {
+    "api": [
+      "advertisement",
+      "authorize",
+      "bans",
+      "category",
+      "favorite",
+      "messages",
+      "offer",
+      "user"
+    ]
+  }
+}

@@ -304,19 +304,24 @@ export function createWebSocketServer(options: {
   }
 }
 
-// Global server instance (for use across the application)
-let globalWsServer: WebSocketServerInstance | null = null
+// Global server instance key
+const WS_SERVER_KEY = '__RALPH_WS_SERVER__' as const
+
+// Extend globalThis type
+declare global {
+  var [WS_SERVER_KEY]: WebSocketServerInstance | undefined
+}
 
 /**
  * Get or create the global WebSocket server instance
  */
 export function getWebSocketServer(): WebSocketServerInstance | null {
-  return globalWsServer
+  return globalThis[WS_SERVER_KEY] ?? null
 }
 
 /**
  * Set the global WebSocket server instance
  */
 export function setWebSocketServer(server: WebSocketServerInstance) {
-  globalWsServer = server
+  globalThis[WS_SERVER_KEY] = server
 }

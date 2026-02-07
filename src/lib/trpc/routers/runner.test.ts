@@ -4,14 +4,14 @@
  * Runner Router Tests
  *
  * Unit tests for the runner tRPC endpoints.
- * Uses mocked runnerManager service and in-memory SQLite for isolation.
+ * Uses mocked claudeLoopService and in-memory SQLite for isolation.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TRPCError } from '@trpc/server'
 
-// Mock the runnerManager service
-vi.mock('@/lib/services/runnerManager', () => ({
-  runnerManager: {
+// Mock the claudeLoopService
+vi.mock('@/lib/services/claudeLoopService', () => ({
+  claudeLoopService: {
     start: vi.fn(),
     stop: vi.fn(),
     getStatus: vi.fn(),
@@ -25,7 +25,7 @@ import { createCallerFactory } from '../trpc'
 import { runnerRouter } from './runner'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
-import { runnerManager } from '@/lib/services/runnerManager'
+import { claudeLoopService } from '@/lib/services/claudeLoopService'
 
 const createCaller = createCallerFactory(runnerRouter)
 
@@ -48,11 +48,11 @@ describe('runnerRouter', () => {
         path: '/projects/test-project',
       }).returning()
 
-      vi.mocked(runnerManager.start).mockResolvedValue({
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
         status: 'running',
         projectId: project.id,
         storyId: 'STORY-001',
-        containerId: 'abc123',
+        pid: 12345,
         startedAt: new Date(),
       })
 
@@ -65,30 +65,28 @@ describe('runnerRouter', () => {
       expect(result.status).toBe('running')
       expect(result.projectId).toBe(project.id)
       expect(result.storyId).toBe('STORY-001')
-      expect(runnerManager.start).toHaveBeenCalledWith(project.id, 'test-project', 'STORY-001')
+      // CLI uses full project path, not relative
+      expect(claudeLoopService.start).toHaveBeenCalledWith(project.id, '/projects/test-project', 'STORY-001')
     })
 
-    it('extracts relative path from absolute path', async () => {
-      process.env.PROJECTS_ROOT = '/host/projects'
-
+    it('uses full project path for CLI', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
-        path: '/host/projects/my-project',
+        path: '/home/user/projects/my-project',
       }).returning()
 
-      vi.mocked(runnerManager.start).mockResolvedValue({
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
         status: 'running',
         projectId: project.id,
-        containerId: 'abc123',
+        pid: 12345,
         startedAt: new Date(),
       })
 
       const caller = createCaller({})
       await caller.start({ projectId: project.id })
 
-      expect(runnerManager.start).toHaveBeenCalledWith(project.id, 'my-project', undefined)
-
-      delete process.env.PROJECTS_ROOT
+      // CLI uses full path directly
+      expect(claudeLoopService.start).toHaveBeenCalledWith(project.id, '/home/user/projects/my-project', undefined)
     })
 
     it('throws NOT_FOUND for non-existent project', async () => {
@@ -100,20 +98,20 @@ describe('runnerRouter', () => {
       })
     })
 
-    it('throws INTERNAL_SERVER_ERROR when runnerManager fails', async () => {
+    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.start).mockRejectedValue(new Error('Docker not available'))
+      vi.mocked(claudeLoopService.start).mockRejectedValue(new Error('Claude CLI not available'))
 
       const caller = createCaller({})
 
       await expect(caller.start({ projectId: project.id })).rejects.toThrow(TRPCError)
       await expect(caller.start({ projectId: project.id })).rejects.toMatchObject({
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'Docker not available',
+        message: 'Claude CLI not available',
       })
     })
 
@@ -130,10 +128,10 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.start).mockResolvedValue({
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
         status: 'running',
         projectId: project.id,
-        containerId: 'abc123',
+        pid: 12345,
         startedAt: new Date(),
       })
 
@@ -152,7 +150,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.stop).mockResolvedValue({
+      vi.mocked(claudeLoopService.stop).mockResolvedValue({
         status: 'idle',
         projectId: project.id,
       })
@@ -162,16 +160,16 @@ describe('runnerRouter', () => {
 
       expect(result.status).toBe('idle')
       expect(result.projectId).toBe(project.id)
-      expect(runnerManager.stop).toHaveBeenCalledWith(project.id, false)
+      expect(claudeLoopService.stop).toHaveBeenCalledWith(project.id, false)
     })
 
-    it('passes force flag to runnerManager', async () => {
+    it('passes force flag to claudeLoopService', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.stop).mockResolvedValue({
+      vi.mocked(claudeLoopService.stop).mockResolvedValue({
         status: 'idle',
         projectId: project.id,
       })
@@ -179,7 +177,7 @@ describe('runnerRouter', () => {
       const caller = createCaller({})
       await caller.stop({ projectId: project.id, force: true })
 
-      expect(runnerManager.stop).toHaveBeenCalledWith(project.id, true)
+      expect(claudeLoopService.stop).toHaveBeenCalledWith(project.id, true)
     })
 
     it('throws NOT_FOUND for non-existent project', async () => {
@@ -191,13 +189,13 @@ describe('runnerRouter', () => {
       })
     })
 
-    it('throws INTERNAL_SERVER_ERROR when runnerManager fails', async () => {
+    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.stop).mockRejectedValue(new Error('Container not responding'))
+      vi.mocked(claudeLoopService.stop).mockRejectedValue(new Error('Container not responding'))
 
       const caller = createCaller({})
 
@@ -214,7 +212,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.stop).mockResolvedValue({
+      vi.mocked(claudeLoopService.stop).mockResolvedValue({
         status: 'idle',
         projectId: project.id,
       })
@@ -222,7 +220,7 @@ describe('runnerRouter', () => {
       const caller = createCaller({})
       await caller.stop({ projectId: project.id })
 
-      expect(runnerManager.stop).toHaveBeenCalledWith(project.id, false)
+      expect(claudeLoopService.stop).toHaveBeenCalledWith(project.id, false)
     })
   })
 
@@ -234,11 +232,11 @@ describe('runnerRouter', () => {
       }).returning()
 
       const startedAt = new Date()
-      vi.mocked(runnerManager.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
         status: 'running',
         projectId: project.id,
         storyId: 'STORY-001',
-        containerId: 'abc123',
+        pid: 12345,
         startedAt,
       })
 
@@ -248,7 +246,7 @@ describe('runnerRouter', () => {
       expect(result.status).toBe('running')
       expect(result.projectId).toBe(project.id)
       expect(result.storyId).toBe('STORY-001')
-      expect(result.containerId).toBe('abc123')
+      expect(result.pid).toBe(12345)
       expect(result.startedAt).toEqual(startedAt)
     })
 
@@ -258,7 +256,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
         status: 'idle',
         projectId: project.id,
       })
@@ -268,7 +266,7 @@ describe('runnerRouter', () => {
 
       expect(result.status).toBe('idle')
       expect(result.storyId).toBeUndefined()
-      expect(result.containerId).toBeUndefined()
+      expect(result.pid).toBeUndefined()
     })
 
     it('returns stopping status', async () => {
@@ -277,7 +275,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
         status: 'stopping',
         projectId: project.id,
       })
@@ -297,13 +295,13 @@ describe('runnerRouter', () => {
       })
     })
 
-    it('throws INTERNAL_SERVER_ERROR when runnerManager fails', async () => {
+    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.getStatus).mockRejectedValue(new Error('Failed to query Docker'))
+      vi.mocked(claudeLoopService.getStatus).mockRejectedValue(new Error('Failed to query Docker'))
 
       const caller = createCaller({})
 
@@ -316,7 +314,7 @@ describe('runnerRouter', () => {
 
   describe('getAllStatus', () => {
     it('returns empty array when no runners', async () => {
-      vi.mocked(runnerManager.getAllStatus).mockResolvedValue([])
+      vi.mocked(claudeLoopService.getAllStatus).mockResolvedValue([])
 
       const caller = createCaller({})
       const result = await caller.getAllStatus()
@@ -326,12 +324,12 @@ describe('runnerRouter', () => {
 
     it('returns status for all tracked runners', async () => {
       const startedAt = new Date()
-      vi.mocked(runnerManager.getAllStatus).mockResolvedValue([
+      vi.mocked(claudeLoopService.getAllStatus).mockResolvedValue([
         {
           status: 'running',
           projectId: 1,
           storyId: 'STORY-001',
-          containerId: 'abc123',
+          pid: 12345,
           startedAt,
         },
         {
@@ -350,8 +348,8 @@ describe('runnerRouter', () => {
       expect(result[1].projectId).toBe(2)
     })
 
-    it('throws INTERNAL_SERVER_ERROR when runnerManager fails', async () => {
-      vi.mocked(runnerManager.getAllStatus).mockRejectedValue(new Error('Docker daemon error'))
+    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
+      vi.mocked(claudeLoopService.getAllStatus).mockRejectedValue(new Error('Docker daemon error'))
 
       const caller = createCaller({})
 
@@ -377,7 +375,7 @@ describe('runnerRouter', () => {
 
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(true)
-      expect(runnerManager.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
     })
 
     it('disables auto-restart for an existing project', async () => {
@@ -394,7 +392,7 @@ describe('runnerRouter', () => {
 
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(false)
-      expect(runnerManager.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
     })
 
     it('throws NOT_FOUND for non-existent project', async () => {
@@ -418,14 +416,14 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(true)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })
 
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(true)
-      expect(runnerManager.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
+      expect(claudeLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
     })
 
     it('returns false when auto-restart is not enabled', async () => {
@@ -434,7 +432,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(runnerManager.isAutoRestartEnabled).mockReturnValue(false)
+      vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(false)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })

@@ -3,6 +3,8 @@
  *
  * API endpoints for managing Claude runners.
  * Handles starting, stopping, and querying runner status.
+ *
+ * Uses Claude Code CLI directly (not Docker) with `claude login` authentication.
  */
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
@@ -10,7 +12,8 @@ import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
-import { runnerManager } from '@/lib/services/runnerManager'
+import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { expandPath } from '@/lib/utils.server'
 
 // Input schemas
 const startRunnerSchema = z.object({
@@ -31,20 +34,6 @@ const setAutoRestartSchema = z.object({
   projectId: z.number().int().positive(),
   enabled: z.boolean(),
 })
-
-/**
- * Get the relative project path from the full path
- * The project path stored in DB is absolute, we need the relative path
- * from PROJECTS_ROOT for container mounting
- */
-function getRelativeProjectPath(fullPath: string): string {
-  const projectsRoot = process.env.PROJECTS_ROOT || '/projects'
-  if (fullPath.startsWith(projectsRoot)) {
-    return fullPath.substring(projectsRoot.length).replace(/^\//, '')
-  }
-  // If not starting with PROJECTS_ROOT, use the last path component
-  return fullPath.split('/').filter(Boolean).pop() || fullPath
-}
 
 export const runnerRouter = router({
   /**
@@ -69,8 +58,9 @@ export const runnerRouter = router({
       }
 
       try {
-        const relativePath = getRelativeProjectPath(project.path)
-        const state = await runnerManager.start(projectId, relativePath, storyId)
+        // Ensure absolute path - CLI runs directly on filesystem
+        const absolutePath = expandPath(project.path)
+        const state = await claudeLoopService.start(projectId, absolutePath, storyId)
         return state
       } catch (error) {
         throw new TRPCError({
@@ -102,7 +92,7 @@ export const runnerRouter = router({
       }
 
       try {
-        const state = await runnerManager.stop(projectId, force)
+        const state = await claudeLoopService.stop(projectId, force)
         return state
       } catch (error) {
         throw new TRPCError({
@@ -134,7 +124,7 @@ export const runnerRouter = router({
       }
 
       try {
-        const state = await runnerManager.getStatus(projectId)
+        const state = await claudeLoopService.getStatus(projectId)
         return state
       } catch (error) {
         throw new TRPCError({
@@ -149,7 +139,7 @@ export const runnerRouter = router({
    */
   getAllStatus: publicProcedure.query(async () => {
     try {
-      const states = await runnerManager.getAllStatus()
+      const states = await claudeLoopService.getAllStatus()
       return states
     } catch (error) {
       throw new TRPCError({
@@ -180,7 +170,7 @@ export const runnerRouter = router({
         })
       }
 
-      runnerManager.setAutoRestart(projectId, enabled)
+      claudeLoopService.setAutoRestart(projectId, enabled)
 
       return {
         projectId,
@@ -211,7 +201,7 @@ export const runnerRouter = router({
 
       return {
         projectId,
-        autoRestartEnabled: runnerManager.isAutoRestartEnabled(projectId),
+        autoRestartEnabled: claudeLoopService.isAutoRestartEnabled(projectId),
       }
     }),
 })

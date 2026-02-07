@@ -15,6 +15,7 @@ import {
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { SkillDetailModal } from '@/components/SkillDetailModal'
+import { AgentPromptCard, AgentPromptModal } from '@/components/AgentPromptCard'
 
 export const Route = createFileRoute('/prompts')({ component: PromptsPage })
 
@@ -167,6 +168,7 @@ function CategoryGroup({ category, skills, defaultExpanded = true, onSkillClick 
 function PromptsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null)
+  const [showAgentPromptModal, setShowAgentPromptModal] = useState(false)
 
   // Fetch central skills
   const {
@@ -240,6 +242,19 @@ function PromptsPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Agent Prompt Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Agent Prompt</h2>
+        <div className="max-w-md">
+          <AgentPromptCard onEdit={() => setShowAgentPromptModal(true)} />
+        </div>
+      </div>
+
+      {/* Skills Section */}
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Skills</h2>
       </div>
 
       {/* Search bar */}
@@ -343,6 +358,11 @@ function PromptsPage() {
             // The modal will invalidate the cache
           }}
         />
+      )}
+
+      {/* Agent Prompt modal */}
+      {showAgentPromptModal && (
+        <AgentPromptModal onClose={() => setShowAgentPromptModal(false)} />
       )}
     </div>
   )

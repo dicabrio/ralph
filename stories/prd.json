@@ -1165,7 +1165,7 @@
       "title": "Agent Prompt template beheer",
       "description": "Voeg een bewerkbare Agent Prompt toe aan de Prompts pagina's. Centrale Prompts toont de default template, Project Prompts toont project-specifieke override met diff view en reset mogelijkheid. De runner gebruikt deze prompt bij het starten van Claude.",
       "priority": 56,
-      "status": "pending",
+      "status": "done",
       "epic": "Skills",
       "dependencies": ["UI-013", "UI-015", "RUNNER-001"],
       "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],

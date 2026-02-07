@@ -200,8 +200,9 @@ export function useBrainstormChat({
       streamedContentRef.current = ''
     }, []),
 
-    onError: useCallback((err: Event | string) => {
-      console.error('[Brainstorm] WebSocket error:', err)
+    onError: useCallback(() => {
+      // WebSocket errors are handled by the client's reconnection logic
+      // No need to log here as it creates noise during normal reconnection
     }, []),
   })
 

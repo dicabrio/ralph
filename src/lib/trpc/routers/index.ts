@@ -11,6 +11,7 @@ import { storiesRouter } from './stories'
 import { skillsRouter } from './skills'
 import { runnerRouter } from './runner'
 import { brainstormRouter } from './brainstorm'
+import { promptsRouter } from './prompts'
 
 /**
  * Main application router
@@ -23,6 +24,7 @@ export const appRouter = router({
   skills: skillsRouter,
   runner: runnerRouter,
   brainstorm: brainstormRouter,
+  prompts: promptsRouter,
 })
 
 /**

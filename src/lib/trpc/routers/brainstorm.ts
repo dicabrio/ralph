@@ -65,7 +65,6 @@ export const brainstormRouter = router({
 
       try {
         // Start brainstorm session with callbacks
-        // This will throw if Docker fails to start (e.g., image not found)
         const sessionId = await brainstormManager.startSession(
           input.projectId,
           project.path,
