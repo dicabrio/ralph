@@ -7,8 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  FolderKanban,
+  Home,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ProjectSelector, useSelectedProject } from './ProjectSelector'
 
 interface NavItem {
   label: string
@@ -16,10 +20,19 @@ interface NavItem {
   icon: React.ElementType
 }
 
-const navItems: NavItem[] = [
+// Global navigation items (always visible)
+const globalNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Brainstorm', href: '/brainstorm', icon: MessageSquareText },
   { label: 'Prompts', href: '/prompts', icon: FileCode2 },
+]
+
+// Project-specific navigation items
+const projectNavItems: { label: string; path: string; icon: React.ElementType }[] = [
+  { label: 'Overview', path: '', icon: Home },
+  { label: 'Kanban', path: '/kanban', icon: FolderKanban },
+  { label: 'Brainstorm', path: '/brainstorm', icon: MessageSquareText },
+  { label: 'Prompts', path: '/prompts', icon: FileCode2 },
+  { label: 'Settings', path: '/settings', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -39,12 +52,31 @@ export function Sidebar({
 }: SidebarProps) {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
+  const selectedProjectId = useSelectedProject()
 
-  const isActive = (href: string) => {
+  // Check if a global nav item is active
+  const isGlobalActive = (href: string) => {
     if (href === '/') {
       return currentPath === '/'
     }
-    return currentPath.startsWith(href)
+    // For global prompts, check if we're on /prompts but NOT on /project/:id/prompts
+    if (href === '/prompts') {
+      return currentPath === '/prompts'
+    }
+    return false
+  }
+
+  // Check if a project sub-nav item is active
+  const isProjectNavActive = (path: string) => {
+    if (!selectedProjectId) return false
+    const projectBasePath = `/project/${selectedProjectId}`
+
+    if (path === '') {
+      // Overview is active when we're exactly on /project/:id
+      return currentPath === projectBasePath
+    }
+    // For other items, check if path matches
+    return currentPath === `${projectBasePath}${path}`
   }
 
   if (isMobile && !isOpen) {
@@ -99,67 +131,156 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-2 overflow-y-auto">
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.href)
+        <nav className="flex-1 py-4 overflow-y-auto">
+          {/* Global Navigation */}
+          <div className="px-2 mb-4">
+            {!isCollapsed && !isMobile && (
+              <div className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                Algemeen
+              </div>
+            )}
+            <ul className="space-y-1">
+              {globalNavItems.map((item) => {
+                const Icon = item.icon
+                const active = isGlobalActive(item.href)
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    onClick={isMobile ? onClose : undefined}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg',
-                      'transition-all duration-150',
-                      'group relative',
-                      active
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-                    )}
-                  >
-                    <Icon
+                return (
+                  <li key={item.href}>
+                    <Link
+                      to={item.href}
+                      onClick={isMobile ? onClose : undefined}
                       className={cn(
-                        'w-5 h-5 shrink-0 transition-colors',
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg',
+                        'transition-all duration-150',
+                        'group relative',
                         active
-                          ? 'text-sidebar-primary'
-                          : 'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'whitespace-nowrap transition-opacity duration-200',
-                        !isMobile && isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                          : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                       )}
                     >
-                      {item.label}
-                    </span>
-
-                    {/* Active indicator */}
-                    {active && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-sidebar-primary" />
-                    )}
-
-                    {/* Tooltip for collapsed state */}
-                    {!isMobile && isCollapsed && (
-                      <div
+                      <Icon
                         className={cn(
-                          'absolute left-full ml-2 px-2 py-1 rounded-md',
-                          'bg-popover text-popover-foreground text-sm font-medium',
-                          'opacity-0 invisible group-hover:opacity-100 group-hover:visible',
-                          'transition-all duration-150 whitespace-nowrap',
-                          'shadow-lg border border-border z-50'
+                          'w-5 h-5 shrink-0 transition-colors',
+                          active
+                            ? 'text-sidebar-primary'
+                            : 'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          'whitespace-nowrap transition-opacity duration-200',
+                          !isMobile && isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
                         )}
                       >
                         {item.label}
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+                      </span>
+
+                      {/* Active indicator */}
+                      {active && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-sidebar-primary" />
+                      )}
+
+                      {/* Tooltip for collapsed state */}
+                      {!isMobile && isCollapsed && (
+                        <div
+                          className={cn(
+                            'absolute left-full ml-2 px-2 py-1 rounded-md',
+                            'bg-popover text-popover-foreground text-sm font-medium',
+                            'opacity-0 invisible group-hover:opacity-100 group-hover:visible',
+                            'transition-all duration-150 whitespace-nowrap',
+                            'shadow-lg border border-border z-50'
+                          )}
+                        >
+                          {item.label}
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          {/* Project Section */}
+          <div className="px-2">
+            {!isCollapsed && !isMobile && (
+              <div className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                Project
+              </div>
+            )}
+
+            {/* Project Selector */}
+            <ProjectSelector
+              isCollapsed={!isMobile && isCollapsed}
+              onClose={onClose}
+            />
+
+            {/* Project Sub-navigation */}
+            {selectedProjectId && (
+              <ul className="mt-2 space-y-1">
+                {projectNavItems.map((item) => {
+                  const Icon = item.icon
+                  const active = isProjectNavActive(item.path)
+                  const href = `/project/${selectedProjectId}${item.path}`
+
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={href}
+                        onClick={isMobile ? onClose : undefined}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-lg',
+                          'transition-all duration-150',
+                          'group relative',
+                          !isMobile && !isCollapsed && 'ml-2',
+                          active
+                            ? 'text-sidebar-accent-foreground font-semibold'
+                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            'w-4 h-4 shrink-0 transition-colors',
+                            active
+                              ? 'text-sidebar-primary'
+                              : 'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            'whitespace-nowrap transition-opacity duration-200 text-sm',
+                            !isMobile && isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+                          )}
+                        >
+                          {item.label}
+                        </span>
+
+                        {/* Active indicator line */}
+                        {active && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-sidebar-primary" />
+                        )}
+
+                        {/* Tooltip for collapsed state */}
+                        {!isMobile && isCollapsed && (
+                          <div
+                            className={cn(
+                              'absolute left-full ml-2 px-2 py-1 rounded-md',
+                              'bg-popover text-popover-foreground text-sm font-medium',
+                              'opacity-0 invisible group-hover:opacity-100 group-hover:visible',
+                              'transition-all duration-150 whitespace-nowrap',
+                              'shadow-lg border border-border z-50'
+                            )}
+                          >
+                            {item.label}
+                          </div>
+                        )}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
         </nav>
 
         {/* Collapse toggle - only on desktop */}

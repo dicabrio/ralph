@@ -17,6 +17,9 @@ services:
       # Docker socket mount - allows Ralph to spawn Claude containers
       # This enables Docker-out-of-Docker (DooD) pattern
       - /var/run/docker.sock:/var/run/docker.sock
+      # Claude config file (optional - for using Claude Max/Pro subscription)
+      # Uncomment the line below to use your local Claude plan instead of API key
+      # - ~/.claude.json:/root/.claude.json:ro
     environment:
       - NODE_ENV=production
       - PORT=9000
@@ -30,8 +33,12 @@ services:
       # Host paths for Claude container mounts (used by runner to pass to Claude)
       - HOST_PROJECTS_ROOT=${PROJECTS_ROOT:-./projects}
       - HOST_SKILLS_PATH=${SKILLS_PATH:-./skills}
-      # Anthropic API key for Claude integration
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Claude authentication (choose ONE method):
+      # Method 1: API Key (for API access)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Method 2: Claude config file path on HOST (for Claude Max/Pro subscription)
+      # Set this to ~/.claude.json to use your local Claude plan
+      - HOST_CLAUDE_CONFIG=${HOST_CLAUDE_CONFIG:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9000/"]
@@ -45,9 +52,19 @@ services:
   # Instead, it serves as documentation for how Ralph spawns Claude containers
   # The ralph-app container uses the Docker API to start claude-runner instances dynamically
   #
-  # Example docker run command used by Ralph:
+  # Authentication: Ralph supports TWO methods for Claude authentication:
+  #
+  # Method 1: API Key (for API access)
   #   docker run --name claude-runner-<project-id> \
   #     -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  #     -v /host/path/to/project:/workspace \
+  #     -v /host/path/to/skills:/skills:ro \
+  #     -w /workspace \
+  #     -it anthropics/claude-code:latest
+  #
+  # Method 2: Claude Config (for Claude Max/Pro subscription)
+  #   docker run --name claude-runner-<project-id> \
+  #     -v ~/.claude.json:/root/.claude.json:ro \
   #     -v /host/path/to/project:/workspace \
   #     -v /host/path/to/skills:/skills:ro \
   #     -w /workspace \
@@ -62,11 +79,15 @@ services:
     # Volumes are mounted dynamically by Ralph based on project configuration:
     # - Project folder with read/write access for code changes
     # - Skills folder for agent prompts
+    # - Claude config (optional, for Max/Pro subscription)
     # Note: PROJECT_PATH is set dynamically when starting the container
     volumes:
       - ${PROJECT_PATH:-/tmp/placeholder}:/workspace
       - ${SKILLS_PATH:-./skills}:/skills:ro
+      # Uncomment for Claude Max/Pro subscription:
+      # - ${HOST_CLAUDE_CONFIG:-~/.claude.json}:/root/.claude.json:ro
     environment:
+      # Only needed for API key auth, leave empty for config file auth
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     working_dir: /workspace
     # Container runs interactively and exits when done

@@ -78,6 +78,7 @@ describe('RunnerManager', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     delete process.env.ANTHROPIC_API_KEY
+    delete process.env.HOST_CLAUDE_CONFIG
     delete process.env.HOST_PROJECTS_ROOT
     delete process.env.HOST_SKILLS_PATH
   })
@@ -192,14 +193,71 @@ describe('RunnerManager', () => {
       expect(rmCalled).toBe(true)
     })
 
-    it('throws error when ANTHROPIC_API_KEY is not set', async () => {
+    it('throws error when no authentication is configured', async () => {
       delete process.env.ANTHROPIC_API_KEY
+      delete process.env.HOST_CLAUDE_CONFIG
 
       const manager = await createTestManager()
 
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
 
-      await expect(manager.start(1, 'my-project')).rejects.toThrow('ANTHROPIC_API_KEY')
+      await expect(manager.start(1, 'my-project')).rejects.toThrow('Either ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG must be set')
+    })
+
+    it('uses HOST_CLAUDE_CONFIG when API key is not set', async () => {
+      delete process.env.ANTHROPIC_API_KEY
+      process.env.HOST_CLAUDE_CONFIG = '/home/user/.claude.json'
+
+      const manager = await createTestManager()
+
+      let dockerRunCmd = ''
+      mockExecAsync.mockImplementation(async (cmd: string) => {
+        if (cmd.includes('docker ps -a') && cmd.includes('--format {{.Names}}')) {
+          return { stdout: '', stderr: '' }
+        }
+        if (cmd.includes('docker ps') && cmd.includes('--format {{.Names}}')) {
+          return { stdout: '', stderr: '' }
+        }
+        if (cmd.includes('docker run')) {
+          dockerRunCmd = cmd
+          return { stdout: 'abc123def456', stderr: '' }
+        }
+        return { stdout: '', stderr: '' }
+      })
+
+      await manager.start(1, 'my-project')
+
+      // Should mount claude.json instead of passing API key
+      expect(dockerRunCmd).toContain('/home/user/.claude.json:/root/.claude.json:ro')
+      expect(dockerRunCmd).not.toContain('ANTHROPIC_API_KEY')
+    })
+
+    it('prefers HOST_CLAUDE_CONFIG over ANTHROPIC_API_KEY when both are set', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-api-key'
+      process.env.HOST_CLAUDE_CONFIG = '/home/user/.claude.json'
+
+      const manager = await createTestManager()
+
+      let dockerRunCmd = ''
+      mockExecAsync.mockImplementation(async (cmd: string) => {
+        if (cmd.includes('docker ps -a') && cmd.includes('--format {{.Names}}')) {
+          return { stdout: '', stderr: '' }
+        }
+        if (cmd.includes('docker ps') && cmd.includes('--format {{.Names}}')) {
+          return { stdout: '', stderr: '' }
+        }
+        if (cmd.includes('docker run')) {
+          dockerRunCmd = cmd
+          return { stdout: 'abc123def456', stderr: '' }
+        }
+        return { stdout: '', stderr: '' }
+      })
+
+      await manager.start(1, 'my-project')
+
+      // Should prefer config file over API key
+      expect(dockerRunCmd).toContain('/home/user/.claude.json:/root/.claude.json:ro')
+      expect(dockerRunCmd).not.toContain('ANTHROPIC_API_KEY')
     })
 
     it('throws error when docker run fails', async () => {

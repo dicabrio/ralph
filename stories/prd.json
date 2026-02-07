@@ -4,6 +4,12 @@
   "projectDescription": "Een Docker-based dashboard voor het beheren van AI-gestuurde development met Ralph loops. Centrale plek voor projecten, stories, skills en runners.",
   "implementationGuides": [
     {
+      "name": "Getting Started",
+      "path": "docs/getting-started.md",
+      "description": "Installatie, configuratie en het starten van de Ralph Dashboard applicatie",
+      "topics": ["Installation", "Docker Setup", "Environment Variables", "Database", "Testing"]
+    },
+    {
       "name": "React Best Practices 2025",
       "path": "docs/react-best-practices.md",
       "description": "Performance optimalisatie, state management (Zustand, TanStack Query), hooks patterns, en component design",
@@ -114,7 +120,7 @@
         "Volume mount configuratie voor projecten folder (PROJECTS_ROOT)",
         "Volume mount configuratie voor skills folder (SKILLS_PATH)",
         "Volume mount configuratie voor database folder (DATA_PATH voor SQLite)",
-        "Environment variables: ANTHROPIC_API_KEY, PROJECTS_ROOT, SKILLS_PATH, DATA_PATH",
+        "Environment variables: ANTHROPIC_API_KEY of HOST_CLAUDE_CONFIG, PROJECTS_ROOT, SKILLS_PATH, DATA_PATH",
         "Container start succesvol en UI bereikbaar op localhost:9000"
       ]
     },
@@ -131,7 +137,7 @@
         "Docker-in-Docker of Docker socket mount geconfigureerd",
         "Claude container definitie in docker-compose (voor reference)",
         "Script/helper om Claude container te starten met project mount",
-        "ANTHROPIC_API_KEY wordt doorgegeven aan Claude container",
+        "Claude authenticatie via ANTHROPIC_API_KEY of ~/.claude.json mount wordt doorgegeven aan Claude container",
         "Test: handmatig Claude container starten via ralph container werkt"
       ]
     },
@@ -343,7 +349,7 @@
       "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Layout component met sidebar en main content area",
-        "Navigatie items: Dashboard, Brainstorm, Prompts",
+        "Navigatie items: Dashboard, Prompts (Brainstorm is project-specifiek, zie UI-017)",
         "Active state styling voor huidige route",
         "Responsive: sidebar collapsed op mobile",
         "Dark mode support (system preference)",
@@ -782,6 +788,75 @@
         "Test: Diff view toont verschillen",
         "Test: Override verwijderen (revert)",
         "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "UI-017",
+      "title": "Brainstorm per project",
+      "description": "Verplaats de Brainstorm functionaliteit van een globale pagina naar een project-specifieke pagina. Brainstorm wordt onderdeel van de project context in plaats van een overkoepelende feature.",
+      "priority": 40,
+      "status": "pending",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-011", "UI-012", "UI-005"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Route wijzigen van /brainstorm naar /project/:id/brainstorm",
+        "Verwijder project selector uit brainstorm pagina (project komt uit URL)",
+        "Project header met naam en back-link naar project pagina",
+        "Brainstorm link toevoegen aan project pagina (UI-005)",
+        "Brainstorm link toevoegen aan project navigatie/tabs (naast Kanban, Prompts)",
+        "Chat history wordt opgeslagen per project (niet globaal)",
+        "Bestaande brainstorm sessies migreren naar project context",
+        "Globale /brainstorm route redirect naar dashboard of verwijderen",
+        "Update sidebar navigatie: verwijder globale Brainstorm link",
+        "Breadcrumbs tonen: Dashboard > Project > Brainstorm"
+      ]
+    },
+    {
+      "id": "API-009",
+      "title": "Brainstorm sessies per project opslaan",
+      "description": "Database schema en API uitbreiden om brainstorm sessies en chat history per project op te slaan",
+      "priority": 41,
+      "status": "pending",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-017", "DB-002"],
+      "recommendedSkills": ["database-design:postgresql", "backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Schema: brainstorm_sessions tabel met project_id foreign key",
+        "Schema: brainstorm_messages tabel voor chat history",
+        "API: listSessionsByProject procedure",
+        "API: getSessionHistory procedure",
+        "API: createSession procedure met project_id",
+        "Sessies worden automatisch opgeslagen bij brainstorm interactie",
+        "Oude sessies kunnen worden hervat of bekeken",
+        "Unit tests voor nieuwe API procedures"
+      ]
+    },
+    {
+      "id": "UI-018",
+      "title": "Sidebar met project-context navigatie",
+      "description": "Herontwerp de sidebar zodat het actieve project duidelijk zichtbaar is met een zoekbare project selector en context-aware sub-navigatie voor project-specifieke pagina's.",
+      "priority": 42,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["UI-001", "UI-017"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Sidebar structuur: globale items bovenaan (Dashboard, Prompts), project sectie eronder",
+        "Zoekbare project dropdown met autofocus bij openen",
+        "Dropdown toont alle projecten met checkmark bij geselecteerde",
+        "Typen filtert projecten direct, Enter/klik selecteert",
+        "Bij eerste bezoek: automatisch eerste project selecteren",
+        "Geselecteerd project heeft gekleurde achtergrond (bg-accent)",
+        "Project sub-items verschijnen na selectie: Overview, Kanban, Brainstorm, Prompts",
+        "Actieve sub-pagina heeft verticale accent-lijn links + semi-bold tekst",
+        "Bij project wissel via dropdown: navigeer naar Overview van nieuwe project",
+        "URL is bron van waarheid voor geselecteerd project",
+        "localStorage onthoudt laatst geselecteerde project voor globale pagina's",
+        "Project in URL bestaat niet: redirect naar Dashboard, selecteer eerste project",
+        "Geen projecten: toon 'Geen projecten' met 'Project toevoegen' knop",
+        "Collapsed sidebar: toon alleen iconen, project dropdown als icon-button",
+        "Unit tests voor project selectie state en navigatie gedrag"
       ]
     }
   ]

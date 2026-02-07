@@ -4,8 +4,14 @@
 #
 # Usage: ./start-claude-runner.sh <project_path> <project_id> [prompt_file]
 #
-# Environment variables (required):
-#   ANTHROPIC_API_KEY     - API key for Claude
+# Authentication (choose ONE):
+#   Option 1 - API Key:
+#     ANTHROPIC_API_KEY     - API key for Claude
+#
+#   Option 2 - Claude Config (for Max/Pro subscription):
+#     HOST_CLAUDE_CONFIG    - Path to .claude.json file (e.g., ~/.claude.json)
+#
+# Other environment variables:
 #   HOST_PROJECTS_ROOT    - Host path to projects folder
 #   HOST_SKILLS_PATH      - Host path to skills folder
 #
@@ -20,8 +26,11 @@ set -e
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Usage: $0 <project_path> <project_id> [prompt_file]"
     echo ""
-    echo "Required environment variables:"
+    echo "Authentication (choose ONE):"
     echo "  ANTHROPIC_API_KEY     - Anthropic API key"
+    echo "  HOST_CLAUDE_CONFIG    - Path to .claude.json (for Max/Pro subscription)"
+    echo ""
+    echo "Other environment variables:"
     echo "  HOST_PROJECTS_ROOT    - Host path to projects folder"
     echo "  HOST_SKILLS_PATH      - Host path to skills folder"
     exit 1
@@ -31,9 +40,12 @@ PROJECT_PATH="$1"
 PROJECT_ID="$2"
 PROMPT_FILE="${3:-}"
 
-# Validate required environment variables
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY environment variable is not set"
+# Validate at least one authentication method is set
+if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$HOST_CLAUDE_CONFIG" ]; then
+    echo "Error: Either ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG must be set"
+    echo ""
+    echo "For API access:      export ANTHROPIC_API_KEY=sk-ant-..."
+    echo "For Max/Pro plan:    export HOST_CLAUDE_CONFIG=~/.claude.json"
     exit 1
 fi
 
@@ -76,7 +88,30 @@ echo "Host project path: ${HOST_PROJECT_PATH}"
 # Build docker run command
 DOCKER_CMD="docker run"
 DOCKER_CMD="${DOCKER_CMD} --name ${CONTAINER_NAME}"
-DOCKER_CMD="${DOCKER_CMD} -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+
+# Add authentication (prefer config file over API key)
+if [ -n "$HOST_CLAUDE_CONFIG" ]; then
+    echo "Using Claude config file: ${HOST_CLAUDE_CONFIG}"
+    # Expand ~ to home directory if present
+    EXPANDED_CONFIG=$(eval echo "$HOST_CLAUDE_CONFIG")
+    if [ -f "$EXPANDED_CONFIG" ]; then
+        DOCKER_CMD="${DOCKER_CMD} -v ${EXPANDED_CONFIG}:/root/.claude.json:ro"
+    else
+        echo "Warning: Claude config file not found: ${EXPANDED_CONFIG}"
+        echo "Falling back to API key if available..."
+        if [ -n "$ANTHROPIC_API_KEY" ]; then
+            DOCKER_CMD="${DOCKER_CMD} -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+        else
+            echo "Error: No valid authentication method available"
+            exit 1
+        fi
+    fi
+elif [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo "Using API key authentication"
+    DOCKER_CMD="${DOCKER_CMD} -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+fi
+
+# Mount project folder
 DOCKER_CMD="${DOCKER_CMD} -v ${HOST_PROJECT_PATH}:/workspace"
 
 # Mount skills folder if available

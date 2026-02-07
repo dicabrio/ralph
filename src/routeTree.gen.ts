@@ -20,8 +20,10 @@ import { Route as DemoDbChatApiRouteImport } from './routes/demo/db-chat-api'
 import { Route as DemoDbChatRouteImport } from './routes/demo/db-chat'
 import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
 import { Route as ProjectIdIndexRouteImport } from './routes/project/$id/index'
+import { Route as ProjectIdSettingsRouteImport } from './routes/project/$id/settings'
 import { Route as ProjectIdPromptsRouteImport } from './routes/project/$id/prompts'
 import { Route as ProjectIdKanbanRouteImport } from './routes/project/$id/kanban'
+import { Route as ProjectIdBrainstormRouteImport } from './routes/project/$id/brainstorm'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
@@ -88,6 +90,11 @@ const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProjectIdRoute,
 } as any)
+const ProjectIdSettingsRoute = ProjectIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ProjectIdRoute,
+} as any)
 const ProjectIdPromptsRoute = ProjectIdPromptsRouteImport.update({
   id: '/prompts',
   path: '/prompts',
@@ -96,6 +103,11 @@ const ProjectIdPromptsRoute = ProjectIdPromptsRouteImport.update({
 const ProjectIdKanbanRoute = ProjectIdKanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
+  getParentRoute: () => ProjectIdRoute,
+} as any)
+const ProjectIdBrainstormRoute = ProjectIdBrainstormRouteImport.update({
+  id: '/brainstorm',
+  path: '/brainstorm',
   getParentRoute: () => ProjectIdRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
@@ -166,8 +178,10 @@ export interface FileRoutesByFullPath {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id/settings': typeof ProjectIdSettingsRoute
   '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -190,8 +204,10 @@ export interface FileRoutesByTo {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id/settings': typeof ProjectIdSettingsRoute
   '/project/$id': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -216,8 +232,10 @@ export interface FileRoutesById {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
+  '/project/$id/settings': typeof ProjectIdSettingsRoute
   '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -243,8 +261,10 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id/settings'
     | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -267,8 +287,10 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id/settings'
     | '/project/$id'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -292,8 +314,10 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
+    | '/project/$id/settings'
     | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -403,6 +427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdIndexRouteImport
       parentRoute: typeof ProjectIdRoute
     }
+    '/project/$id/settings': {
+      id: '/project/$id/settings'
+      path: '/settings'
+      fullPath: '/project/$id/settings'
+      preLoaderRoute: typeof ProjectIdSettingsRouteImport
+      parentRoute: typeof ProjectIdRoute
+    }
     '/project/$id/prompts': {
       id: '/project/$id/prompts'
       path: '/prompts'
@@ -415,6 +446,13 @@ declare module '@tanstack/react-router' {
       path: '/kanban'
       fullPath: '/project/$id/kanban'
       preLoaderRoute: typeof ProjectIdKanbanRouteImport
+      parentRoute: typeof ProjectIdRoute
+    }
+    '/project/$id/brainstorm': {
+      id: '/project/$id/brainstorm'
+      path: '/brainstorm'
+      fullPath: '/project/$id/brainstorm'
+      preLoaderRoute: typeof ProjectIdBrainstormRouteImport
       parentRoute: typeof ProjectIdRoute
     }
     '/demo/start/server-funcs': {
@@ -491,14 +529,18 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProjectIdRouteChildren {
+  ProjectIdBrainstormRoute: typeof ProjectIdBrainstormRoute
   ProjectIdKanbanRoute: typeof ProjectIdKanbanRoute
   ProjectIdPromptsRoute: typeof ProjectIdPromptsRoute
+  ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
 }
 
 const ProjectIdRouteChildren: ProjectIdRouteChildren = {
+  ProjectIdBrainstormRoute: ProjectIdBrainstormRoute,
   ProjectIdKanbanRoute: ProjectIdKanbanRoute,
   ProjectIdPromptsRoute: ProjectIdPromptsRoute,
+  ProjectIdSettingsRoute: ProjectIdSettingsRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
 }
 

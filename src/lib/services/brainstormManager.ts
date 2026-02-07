@@ -317,10 +317,12 @@ class BrainstormManager {
     const hostProjectsRoot = process.env.HOST_PROJECTS_ROOT || process.env.PROJECTS_ROOT || '/projects'
     const hostSkillsPath = process.env.HOST_SKILLS_PATH || process.env.SKILLS_PATH || '/skills'
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY
+    const hostClaudeConfig = process.env.HOST_CLAUDE_CONFIG
 
-    if (!anthropicApiKey) {
+    // Require at least one authentication method
+    if (!anthropicApiKey && !hostClaudeConfig) {
       session.status = 'error'
-      callbacks.onError?.(sessionId, 'ANTHROPIC_API_KEY environment variable is not set')
+      callbacks.onError?.(sessionId, 'Either ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG must be set for Claude authentication')
       return sessionId
     }
 
@@ -346,14 +348,26 @@ class BrainstormManager {
         '--rm', // Remove container when done
         '-i', // Interactive (for stdin)
         '--name', containerName,
-        '-e', `ANTHROPIC_API_KEY=${anthropicApiKey}`,
+      ]
+
+      // Add authentication: prefer config file over API key
+      if (hostClaudeConfig) {
+        // Use Claude Max/Pro subscription via config file
+        dockerArgs.push('-v', `${hostClaudeConfig}:/root/.claude.json:ro`)
+      } else if (anthropicApiKey) {
+        // Use API key
+        dockerArgs.push('-e', `ANTHROPIC_API_KEY=${anthropicApiKey}`)
+      }
+
+      // Add volume mounts, working directory, and command
+      dockerArgs.push(
         '-v', `${hostProjectPath}:/workspace`,
         '-v', `${hostSkillsPath}:/skills:ro`,
         '-w', '/workspace',
         'anthropics/claude-code:latest',
         '--print', // Print mode for non-interactive output
         fullPrompt,
-      ]
+      )
 
       session.status = 'running'
 
