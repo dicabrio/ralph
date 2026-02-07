@@ -1364,3 +1364,74 @@
 - Auto-title from first message provides good UX without requiring user input
 - Foreign key with onDelete: 'cascade' ensures messages are deleted with session
 - Pre-existing test failures in Sidebar/Layout tests due to useParams mock missing - unrelated to this story
+
+## 2026-02-07 - UI-019
+**Title:** Brainstorm frontend integratie met Claude
+
+**Implemented:**
+- Removed generateMockStories() mock function from both brainstorm routes
+- Created useBrainstormChat hook at src/lib/hooks/useBrainstormChat.ts
+- Extended useWebSocket hook with brainstorm event handlers (start, chunk, stories, complete, error)
+- Integrated trpc.brainstorm.chat mutation for starting brainstorm sessions
+- WebSocket streaming shows real-time Claude responses with typing indicator
+- Added loading states: "Starting Claude..." typing indicator while mutation in flight
+- Added error banner with Retry and Dismiss buttons
+- Added Cancel button (red X) to stop active brainstorm sessions
+- Added Connection status indicator (Connected/Reconnecting/Disconnected)
+- Added Discard functionality to StoryPreviewCard (isDiscarded prop, onDiscard callback)
+- Added Bulk Discard All button for discarding multiple stories at once
+- Applied all changes to both /brainstorm and /project/$id/brainstorm routes
+- Updated StoryPreviewCard.test.tsx with 5 new tests for discard functionality
+- Created client.test.ts with 10 tests for brainstorm message structures
+- All my tests pass (38 tests in 2 files)
+
+**Files changed:**
+- src/lib/hooks/useBrainstormChat.ts (new)
+- src/lib/websocket/client.ts (added brainstorm event handlers)
+- src/lib/websocket/client.test.ts (new)
+- src/components/StoryPreviewCard.tsx (added onDiscard, isDiscarded props)
+- src/components/StoryPreviewCard.test.tsx (added discard tests)
+- src/routes/brainstorm.tsx (complete rewrite with useBrainstormChat)
+- src/routes/project/$id/brainstorm.tsx (complete rewrite with useBrainstormChat)
+
+**Learnings:**
+- useBrainstormChat hook centralizes all chat state and WebSocket event handling
+- WebSocket callbacks need typed parameters to satisfy TypeScript strict mode
+- ProjectId filtering in onBrainstormStart prevents cross-project message leaks
+- streamedContentRef.current accumulates chunks for building final message content
+- Discard is client-side only (no API call), using discardedStoryIds Set for tracking
+- TypeScript requires explicit typing for useCallback parameters in hook options
+- Pre-existing demo route TypeScript errors don't affect build or functionality
+- Pre-existing test failures in stories router are unrelated to this implementation
+
+## 2026-02-07 - UI-020
+**Title:** Runner error handling met toast notificaties
+
+**Implemented:**
+- Installed Sonner toast library for rich toast notifications
+- Added Toaster component to root layout (__root.tsx) with theme="system" support
+- Created getRunnerErrorMessage() helper to parse errors into user-friendly messages
+- Added onError handlers to startRunner and stopRunner mutations in project page
+- Added onError handlers to startRunner and stopRunner mutations in kanban page
+- Added success toasts for runner start/stop operations
+- Error messages handle: auth not configured, Docker not available, currently stopping, project not found, path not found, timeout
+- Toast styling uses system theme preference (dark/light mode)
+- Added E2E tests for error toast display on both project and kanban pages
+
+**Files changed:**
+- package.json (added sonner dependency)
+- pnpm-lock.yaml (updated)
+- src/routes/__root.tsx (added Toaster component)
+- src/routes/project/$id/index.tsx (added toast import, error handler helper, onError/onSuccess handlers)
+- src/routes/project/$id/kanban.tsx (added toast import, error handler helper, onError/onSuccess handlers)
+- e2e/runner-flow.spec.ts (added Runner Error Toasts test describe with 2 tests)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Sonner toast library integrates easily with React and supports richColors and closeButton props
+- theme="system" prop follows user's system dark/light mode preference automatically
+- toastOptions.style can set fontFamily to inherit from app fonts
+- Error parsing helper function centralizes error message transformation
+- toast.error() with description option provides clear two-line error display
+- E2E tests can use [data-sonner-toast] locator to find toast notifications
+- Pre-existing Layout/Sidebar test failures are due to useParams mock missing, unrelated to this story

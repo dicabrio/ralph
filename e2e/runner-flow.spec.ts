@@ -563,4 +563,53 @@ test.describe('Runner Flow', () => {
       }
     })
   })
+
+  test.describe('Runner Error Toasts', () => {
+    test('should show error toast when runner fails to start', async ({ page }) => {
+      await gotoProjectPage(page, testProject)
+
+      // Check if we're in idle state
+      const isIdle = await page.locator('text=/idle/i').first().isVisible().catch(() => false)
+
+      if (isIdle) {
+        const startButton = page.getByRole('button', { name: /start runner/i })
+        await expect(startButton).toBeVisible()
+
+        // Click start button - this should fail because Docker/auth is not configured in test env
+        await startButton.click()
+
+        // Wait for the error toast to appear
+        // Sonner toasts appear in a toast container
+        const toastLocator = page.locator('[data-sonner-toast]')
+        await expect(toastLocator.first()).toBeVisible({ timeout: 10000 })
+
+        // Check that the toast contains error-related content
+        const toastContent = await toastLocator.first().textContent()
+        expect(toastContent).toContain('Failed to start runner')
+      }
+    })
+
+    test('should show error toast on kanban page when runner fails to start', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Check if we're in idle state
+      const isIdle = await page.locator('text=/idle/i').first().isVisible().catch(() => false)
+
+      if (isIdle) {
+        const startButton = page.getByRole('button', { name: /^start$/i })
+        await expect(startButton).toBeVisible()
+
+        // Click start button - this should fail because Docker/auth is not configured in test env
+        await startButton.click()
+
+        // Wait for the error toast to appear
+        const toastLocator = page.locator('[data-sonner-toast]')
+        await expect(toastLocator.first()).toBeVisible({ timeout: 10000 })
+
+        // Check that the toast contains error-related content
+        const toastContent = await toastLocator.first().textContent()
+        expect(toastContent).toContain('Failed to start runner')
+      }
+    })
+  })
 })

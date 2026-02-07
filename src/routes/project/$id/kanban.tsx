@@ -24,11 +24,40 @@ import {
   Clock,
   GripVertical,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
 import { RunnerLogModal } from '@/components/RunnerLogModal'
+
+// Parse runner errors into user-friendly messages
+function getRunnerErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+
+  // Check for common error patterns
+  if (message.includes('ANTHROPIC_API_KEY') || message.includes('HOST_CLAUDE_CONFIG') || message.includes('authentication')) {
+    return 'No authentication configured. Set ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG environment variable.'
+  }
+  if (message.includes('Failed to start container') || message.includes('docker')) {
+    return 'Docker is not available or not running. Make sure Docker is installed and running.'
+  }
+  if (message.includes('currently stopping')) {
+    return 'Runner is currently stopping. Please wait and try again.'
+  }
+  if (message.includes('not found') || message.includes('NOT_FOUND')) {
+    return 'Project not found. It may have been deleted.'
+  }
+  if (message.includes('path') && (message.includes('exist') || message.includes('found'))) {
+    return 'Project path does not exist. Check if the folder exists on the filesystem.'
+  }
+  if (message.includes('timeout')) {
+    return 'Container start timeout. Docker may be overloaded or the image is still downloading.'
+  }
+
+  // Return a generic message if no pattern matches
+  return message || 'An unexpected error occurred'
+}
 
 export const Route = createFileRoute('/project/$id/kanban')({
   component: KanbanBoard,
@@ -552,12 +581,24 @@ function KanbanBoard() {
   const startRunner = trpc.runner.start.useMutation({
     onSuccess: () => {
       utils.runner.getStatus.invalidate({ projectId })
+      toast.success('Runner started successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to start runner', {
+        description: getRunnerErrorMessage(error),
+      })
     },
   })
 
   const stopRunner = trpc.runner.stop.useMutation({
     onSuccess: () => {
       utils.runner.getStatus.invalidate({ projectId })
+      toast.success('Runner stopped successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to stop runner', {
+        description: getRunnerErrorMessage(error),
+      })
     },
   })
 

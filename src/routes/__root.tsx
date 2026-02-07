@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { Toaster } from 'sonner'
 
 import Layout from '../components/Layout'
 
@@ -51,6 +52,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <Layout>{children}</Layout>
+        <Toaster
+          richColors
+          closeButton
+          position="top-right"
+          theme="system"
+          toastOptions={{
+            style: {
+              fontFamily: 'inherit',
+            },
+          }}
+        />
         <TanStackDevtools
           config={{
             position: 'bottom-right',

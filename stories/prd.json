@@ -864,7 +864,7 @@
       "title": "Brainstorm frontend integratie met Claude",
       "description": "Koppel de Brainstorm UI aan de bestaande brainstorm tRPC API (API-008) met ondersteuning voor zowel Claude Code (subscription via ~/.claude.json) als Claude API (ANTHROPIC_API_KEY).",
       "priority": 43,
-      "status": "pending",
+      "status": "done",
       "epic": "Brainstorm",
       "dependencies": ["API-008", "UI-017"],
       "recommendedSkills": ["frontend-design"],
@@ -892,7 +892,7 @@
       "title": "Runner error handling met toast notificaties",
       "description": "Verbeter de foutafhandeling bij het starten/stoppen van de runner met duidelijke toast notificaties via Sonner (shadcn).",
       "priority": 44,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["RUNNER-001"],
       "recommendedSkills": ["frontend-design"],
@@ -929,6 +929,30 @@
         "Test: URL sync met geselecteerd project",
         "Test: localStorage fallback voor globale pagina's",
         "Test: auto-select eerste project wanneer geen selectie"
+      ]
+    },
+    {
+      "id": "API-010",
+      "title": "Tilde expansie voor project paden",
+      "description": "Ondersteun ~ als shortcut voor de home directory bij het toevoegen en valideren van project paden.",
+      "priority": 46,
+      "status": "pending",
+      "epic": "Projects",
+      "dependencies": ["API-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Helper functie expandPath() die ~ vervangt door homedir()",
+        "Toepassen in validatePathExists()",
+        "Toepassen in projects.create procedure",
+        "Toepassen in projects.update procedure (bij path wijziging)",
+        "Toepassen in projects.validatePath procedure",
+        "Toepassen in projectDiscovery service",
+        "Opslaan van geëxpandeerde path in database (niet met ~)",
+        "Unit tests voor expandPath() met verschillende inputs",
+        "Test: ~/Projects/app wordt correct geëxpandeerd",
+        "Test: /absolute/path blijft ongewijzigd",
+        "Test: relative/path blijft ongewijzigd",
+        "E2E test: project toevoegen met ~ pad via UI"
       ]
     }
   ]
