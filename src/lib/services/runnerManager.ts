@@ -204,8 +204,7 @@ class RunnerManager {
     }
 
     // Build and start the container
-    const hostProjectsRoot = process.env.HOST_PROJECTS_ROOT || process.env.PROJECTS_ROOT || '/projects'
-    const hostSkillsPath = process.env.HOST_SKILLS_PATH || process.env.SKILLS_PATH || '/skills'
+    const hostSkillsPath = process.env.HOST_SKILLS_PATH || process.env.SKILLS_PATH || './skills'
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY
     const hostClaudeConfig = process.env.HOST_CLAUDE_CONFIG
 
@@ -214,7 +213,18 @@ class RunnerManager {
       throw new Error('Either ANTHROPIC_API_KEY or HOST_CLAUDE_CONFIG must be set for Claude authentication')
     }
 
-    const hostProjectPath = `${hostProjectsRoot}/${projectPath}`
+    // Determine the host path for Docker volume mount
+    // If running locally (projectPath is absolute and no PROJECTS_ROOT), use it directly
+    // If running in container, transform path using HOST_PROJECTS_ROOT
+    let hostProjectPath: string
+    if (projectPath.startsWith('/') && !process.env.PROJECTS_ROOT) {
+      // Local development: projectPath is already the absolute host path
+      hostProjectPath = projectPath
+    } else {
+      // Container environment: transform path
+      const hostProjectsRoot = process.env.HOST_PROJECTS_ROOT || process.env.PROJECTS_ROOT || '/projects'
+      hostProjectPath = `${hostProjectsRoot}/${projectPath}`
+    }
 
     // Spawn the container in detached mode
     const dockerArgs = [
@@ -237,7 +247,7 @@ class RunnerManager {
       '-v', `${hostProjectPath}:/workspace`,
       '-v', `${hostSkillsPath}:/skills:ro`,
       '-w', '/workspace',
-      'anthropics/claude-code:latest',
+      'claude-sandbox:latest',
     )
 
     const { stdout, stderr } = await this.dockerExec(dockerArgs)

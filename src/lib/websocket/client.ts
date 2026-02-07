@@ -100,6 +100,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const messageQueueRef = useRef<ClientMessage[]>([])
   const subscriptionsRef = useRef<Set<string>>(new Set())
+  const isReconnectingRef = useRef(false)
 
   const [isConnected, setIsConnected] = useState(false)
   const [isReconnecting, setIsReconnecting] = useState(false)
@@ -132,6 +133,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       console.log('[WS Client] Connected')
       setIsConnected(true)
       setIsReconnecting(false)
+      isReconnectingRef.current = false
       reconnectAttemptsRef.current = 0
 
       // Send queued messages
@@ -174,6 +176,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       // Attempt reconnection
       if (reconnect && reconnectAttemptsRef.current < reconnectAttempts) {
         setIsReconnecting(true)
+        isReconnectingRef.current = true
         const delay = calculateBackoff(reconnectAttemptsRef.current, reconnectInterval)
 
         console.log(`[WS Client] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`)
@@ -185,9 +188,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       }
     }
 
-    ws.onerror = (error) => {
-      console.error('[WS Client] Error:', error)
-      onError?.(error)
+    ws.onerror = () => {
+      // Connection errors are expected during reconnection attempts
+      // Only log if this is the first connection attempt
+      if (!isReconnectingRef.current && reconnectAttemptsRef.current === 0) {
+        console.debug('[WS Client] Initial connection failed - will retry')
+      }
+      // Note: onerror is always followed by onclose, so reconnection happens there
     }
 
     wsRef.current = ws
@@ -290,6 +297,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     }
     reconnectAttemptsRef.current = reconnectAttempts // Prevent reconnect
     setIsReconnecting(false)
+    isReconnectingRef.current = false
     wsRef.current?.close(1000, 'Client disconnect')
   }, [reconnectAttempts])
 

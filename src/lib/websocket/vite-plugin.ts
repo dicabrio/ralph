@@ -21,21 +21,50 @@ export function webSocketPlugin(options: WebSocketPluginOptions = {}): Plugin {
     name: 'ralph-websocket',
     apply: 'serve', // Only run during development
 
-    configureServer() {
-      const wsServer = createWebSocketServer({ port })
-      setWebSocketServer(wsServer)
+    configureServer(server) {
+      const startWsServer = () => {
+        try {
+          const wsServer = createWebSocketServer({ port })
+          setWebSocketServer(wsServer)
 
-      console.log(`[Ralph] WebSocket server started on ws://localhost:${port}/ws`)
+          wsServer.wss.on('listening', () => {
+            console.log(`[Ralph] WebSocket server listening on ws://localhost:${port}/ws`)
+          })
 
-      if (verbose) {
-        console.log('[Ralph] WebSocket server ready for connections')
+          wsServer.wss.on('error', (err) => {
+            console.error(`[Ralph] WebSocket server error:`, err)
+          })
+
+          if (verbose) {
+            console.log('[Ralph] WebSocket server initializing...')
+          }
+
+          // Clean up on Vite server close
+          server.httpServer?.on('close', () => {
+            wsServer.close()
+            console.log('[Ralph] WebSocket server closed')
+          })
+        } catch (err) {
+          console.error('[Ralph] Failed to start WebSocket server:', err)
+        }
       }
 
-      // Clean up on server close
-      return () => {
-        wsServer.close()
-        console.log('[Ralph] WebSocket server closed')
+      // Start WebSocket server - either when HTTP server is ready or immediately
+      if (server.httpServer) {
+        if (server.httpServer.listening) {
+          // HTTP server already listening
+          startWsServer()
+        } else {
+          // Wait for HTTP server to start
+          server.httpServer.once('listening', startWsServer)
+        }
+      } else {
+        // No HTTP server (e.g., middleware mode) - start immediately
+        console.log('[Ralph] No HTTP server detected, starting WebSocket server directly')
+        startWsServer()
       }
+
+      console.log(`[Ralph] WebSocket plugin configured (will start on port ${port})`)
     },
   }
 }

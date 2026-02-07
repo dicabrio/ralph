@@ -126,7 +126,8 @@ DOCKER_CMD="${DOCKER_CMD} -w /workspace"
 DOCKER_CMD="${DOCKER_CMD} -it"
 
 # Add the image
-DOCKER_CMD="${DOCKER_CMD} anthropics/claude-code:latest"
+DOCKER_CMD="${DOCKER_CMD} claude-sandbox"
+# DOCKER_CMD="${DOCKER_CMD} anthropics/claude-code:latest"
 
 # Execute the command
 echo "Executing: ${DOCKER_CMD}"
