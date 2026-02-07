@@ -1208,7 +1208,7 @@
       "title": "Claude permissions setup bij project aanmaken",
       "description": "Bij het toevoegen van een project aan Ralph, maak automatisch een .claude/settings.local.json aan met veilige default permissions. Dit beperkt wat Claude mag doen binnen het project.",
       "priority": 57,
-      "status": "pending",
+      "status": "done",
       "epic": "Project Setup",
       "dependencies": ["API-003"],
       "recommendedSkills": ["backend-development:api-design-principles"],

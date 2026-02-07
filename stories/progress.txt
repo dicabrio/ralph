@@ -1572,3 +1572,35 @@
 - Using getEffectivePrompt() abstracts the fallback logic for runner
 - Diff view uses simple line-by-line comparison with +/- markers
 - Content validation prevents dangerous patterns like command substitution
+
+## 2026-02-07 - SETUP-005
+**Title:** Claude permissions setup bij project aanmaken
+
+**Implemented:**
+- Created src/lib/services/claudePermissions.ts with default permissions template
+- Permissions allow list: Skill, WebSearch, WebFetch, Read, Edit, Write, MultiEdit, Bash
+- Permissions deny list: Bash(rm -rf:*), Bash(sudo:*), Bash(chmod 777:*), Bash(chown:*), Read(.env*), Read(~/.aws/**), Read(~/.ssh/**), Read(~/.gnupg/**), Write(.env*), Write(~/.aws/**), Write(~/.ssh/**)
+- ensureClaudePermissions(projectPath) utility function creates .claude folder and settings.local.json
+- Function respects existing settings.local.json (does not overwrite user customization)
+- Integrated with projects.create procedure in tRPC router
+- Error handling wraps ensureClaudePermissions in try-catch (logs but doesn't fail project creation)
+- 31 unit tests for claudePermissions service
+- 3 new unit tests for projects router integration
+- 2 E2E tests for .claude/settings.local.json creation
+
+**Files changed:**
+- src/lib/services/claudePermissions.ts (new - 138 lines)
+- src/lib/services/claudePermissions.test.ts (new - 31 unit tests)
+- src/lib/trpc/routers/projects.ts (import ensureClaudePermissions, call in create procedure)
+- src/lib/trpc/routers/projects.test.ts (added mock and 3 integration tests)
+- e2e/project-management.spec.ts (added 2 E2E tests in Claude Permissions Setup describe)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Claude Code settings.local.json structure: { permissions: { allow: [...], deny: [...] } }
+- mkdirSync with { recursive: true } ensures parent directories are created
+- vi.mock with vi.fn inside factory must not reference variables before initialization (hoisting issue)
+- Use vi.mocked(importedFunction).mockClear() instead of mockFn.mockClear() when using vi.mock factory
+- E2E tests may reuse existing dev server; use CI=true or restart server for fresh builds
+- Playwright reuseExistingServer setting affects test behavior significantly
+- Wrap filesystem operations in try-catch when they shouldn't fail the main operation

@@ -648,4 +648,76 @@ test.describe('Project Management Flow', () => {
       await expect(page.locator('a:has-text("Back to Dashboard")')).toBeVisible()
     })
   })
+
+  test.describe('Claude Permissions Setup', () => {
+    // Each test creates its own project for isolation
+    test.describe.configure({ mode: 'serial' })
+
+    test('should create .claude/settings.local.json when project is added', async ({ page }) => {
+      // Create a fresh project just for this test
+      const permissionsProject = await createTestProject('permissions-new')
+      testProjects.push(permissionsProject.path)
+
+      // Verify settings.local.json does NOT exist before adding project
+      const settingsPath = path.join(permissionsProject.path, '.claude', 'settings.local.json')
+      const existsBefore = fs.existsSync(settingsPath)
+      expect(existsBefore).toBe(false)
+
+      await gotoDashboard(page)
+
+      // Add the project
+      await addProjectViaPath(page, permissionsProject.path)
+
+      // Verify project card appears
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${permissionsProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+
+      // Verify .claude folder and settings.local.json now exist
+      const claudeFolderExists = fs.existsSync(path.join(permissionsProject.path, '.claude'))
+      const settingsFileExists = fs.existsSync(settingsPath)
+      expect(claudeFolderExists).toBe(true)
+      expect(settingsFileExists).toBe(true)
+
+      // Verify the settings content has correct structure
+      const settingsContent = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+      expect(settingsContent).toHaveProperty('permissions')
+      expect(settingsContent.permissions).toHaveProperty('allow')
+      expect(settingsContent.permissions).toHaveProperty('deny')
+      expect(Array.isArray(settingsContent.permissions.allow)).toBe(true)
+      expect(Array.isArray(settingsContent.permissions.deny)).toBe(true)
+    })
+
+    test('should not overwrite existing .claude/settings.local.json', async ({ page }) => {
+      // Create a project with pre-existing settings
+      const existingSettingsProject = await createTestProject('existing-settings')
+      testProjects.push(existingSettingsProject.path)
+
+      // Pre-create .claude folder with custom settings
+      const claudeFolder = path.join(existingSettingsProject.path, '.claude')
+      const settingsPath = path.join(claudeFolder, 'settings.local.json')
+      fs.mkdirSync(claudeFolder, { recursive: true })
+      const customSettings = {
+        permissions: {
+          allow: ['CustomPermission'],
+          deny: ['CustomDeny'],
+        },
+      }
+      fs.writeFileSync(settingsPath, JSON.stringify(customSettings, null, 2))
+
+      await gotoDashboard(page)
+
+      // Add the project
+      await addProjectViaPath(page, existingSettingsProject.path)
+
+      // Verify project card appears
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${existingSettingsProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+
+      // Verify the custom settings were NOT overwritten
+      const settingsContent = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+      expect(settingsContent).toEqual(customSettings)
+      expect(settingsContent.permissions.allow).toContain('CustomPermission')
+      expect(settingsContent.permissions.deny).toContain('CustomDeny')
+    })
+  })
 })

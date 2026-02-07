@@ -14,6 +14,7 @@ import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
 import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
+import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
 
 // Zod schemas for input validation
@@ -185,6 +186,15 @@ export const projectsRouter = router({
             branchName,
           })
           .returning()
+
+        // Ensure Claude permissions are set up for the project
+        // Creates .claude/settings.local.json with safe defaults if it doesn't exist
+        try {
+          ensureClaudePermissions(expandedPath)
+        } catch (e) {
+          // Log but don't fail project creation if permissions setup fails
+          console.error('Failed to set up Claude permissions:', e)
+        }
 
         return newProject
       } catch (error) {

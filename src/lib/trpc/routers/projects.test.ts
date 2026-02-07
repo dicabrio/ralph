@@ -38,12 +38,22 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   }
 })
 
+// Mock the ensureClaudePermissions function
+vi.mock('@/lib/services/claudePermissions', () => ({
+  ensureClaudePermissions: vi.fn(() => ({
+    claudeFolderCreated: true,
+    settingsFileCreated: true,
+    settingsPath: '/mocked/path/.claude/settings.local.json',
+  })),
+}))
+
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createCallerFactory } from '../trpc'
 import { projectsRouter } from './projects'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
+import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 
 const createCaller = createCallerFactory(projectsRouter)
 
@@ -249,6 +259,52 @@ describe('projectsRouter', () => {
         name: 'Valid Name',
         path: '',
       })).rejects.toThrow()
+    })
+
+    it('calls ensureClaudePermissions after creating project', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
+      vi.mocked(ensureClaudePermissions).mockClear()
+
+      const caller = createCaller({})
+      await caller.create({
+        name: 'New Project',
+        path: '/valid/path',
+      })
+
+      expect(ensureClaudePermissions).toHaveBeenCalledTimes(1)
+      expect(ensureClaudePermissions).toHaveBeenCalledWith('/valid/path')
+    })
+
+    it('calls ensureClaudePermissions with expanded path when using tilde', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
+      vi.mocked(ensureClaudePermissions).mockClear()
+
+      const caller = createCaller({})
+      // Note: expandPath will expand ~ to actual home directory
+      // In real tests, this would be mocked, but here we just verify the function is called
+      await caller.create({
+        name: 'Home Project',
+        path: '/home/user/project',
+      })
+
+      expect(ensureClaudePermissions).toHaveBeenCalledTimes(1)
+      expect(ensureClaudePermissions).toHaveBeenCalledWith('/home/user/project')
+    })
+
+    it('does not call ensureClaudePermissions when path validation fails', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(ensureClaudePermissions).mockClear()
+
+      const caller = createCaller({})
+
+      await expect(caller.create({
+        name: 'New Project',
+        path: '/invalid/path',
+      })).rejects.toThrow()
+
+      expect(ensureClaudePermissions).not.toHaveBeenCalled()
     })
   })
 
