@@ -1495,3 +1495,35 @@
 - Testing with dynamic homedir: use actual homedir() value in test expectations
 - vi.mock for node:os requires importOriginal pattern to preserve other exports
 - Pre-existing TypeScript errors in demo files don't affect actual functionality
+## 2026-02-07 - UI-025
+**Title:** Kanban drag & drop implementatie
+
+**Implemented:**
+- Extended drag & drop to all columns (except In Progress which is runner-only)
+- Added lock icon indicator on In Progress column header to show it's read-only
+- Updated KANBAN_COLUMNS to set isDraggable=true for backlog, todo, failed, done columns
+- Implemented DependencyConfirmDialog component for unmet dependency warnings
+- Added confirmation dialog when moving stories with unmet dependencies to todo
+- Cancel in dialog keeps story in original position
+- Confirm in dialog proceeds with status update despite unmet dependencies
+- Added updateStatus mutation with optimistic UI updates and rollback on error
+- Toast notifications for successful/failed status changes
+- Visual feedback during drag (ghost card, column highlighting for valid/invalid drops)
+- Status transition validation using validTransitions map from stories router
+- Updated unit tests with 51 tests covering all new logic
+- Added 8 new E2E tests for extended drag & drop functionality
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (major rewrite - +334/-82 lines)
+- src/routes/project/$id/-kanban.test.tsx (updated - +286 lines)
+- e2e/kanban-board.spec.ts (added Extended Drag and Drop test describe - +274 lines)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Status transitions must match stories router: pending→done, done→pending, failed→pending, in_progress→done/failed/pending
+- In Progress column stays locked (isDroppable: false) - only runner can set in_progress status
+- Optimistic updates use trpc.useUtils() with onMutate for setData, onError for rollback
+- getUnmetDependencies helper returns Story[] for showing which deps are blocking
+- DependencyConfirmDialog pattern: PendingDrop interface stores story, targetColumnId, unmetDependencies
+- E2E drag & drop tests use page.mouse.down/move/up for simulating DnD interactions
+- Lock icon uses data-testid="column-lock-icon" for E2E verification

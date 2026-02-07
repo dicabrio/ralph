@@ -3,8 +3,9 @@
  *
  * Tests for the drag & drop functionality of the Kanban board.
  * Tests cover:
- * - Transition validation (Backlog <-> Te doen)
- * - Blocked stories (unmet dependencies) cannot be moved to Te doen
+ * - Column transitions (all columns except In Progress)
+ * - Status transition validation
+ * - Dependency checking
  * - Column filtering logic
  */
 import { describe, it, expect } from 'vitest'
@@ -29,27 +30,65 @@ function getColumnForStory(story: Story, allStories: Story[]): string {
   return story.status
 }
 
-// Check if a story can be dropped in a target column
+// Get the target status for a column
+function getTargetStatusForColumn(columnId: string): StoryStatus | null {
+  switch (columnId) {
+    case 'backlog':
+    case 'todo':
+      return 'pending'
+    case 'in_progress':
+      return 'in_progress'
+    case 'done':
+      return 'done'
+    case 'failed':
+      return 'failed'
+    default:
+      return null
+  }
+}
+
+// Valid status transitions (from stories router)
+const validTransitions: Record<StoryStatus, StoryStatus[]> = {
+  pending: ['in_progress', 'done'],
+  in_progress: ['done', 'failed', 'pending'],
+  done: ['pending'],
+  failed: ['in_progress', 'pending'],
+}
+
+// Check if a status transition is valid
+function isValidStatusTransition(from: StoryStatus, to: StoryStatus): boolean {
+  if (from === to) return true // Same status is always valid (no-op)
+  return validTransitions[from].includes(to)
+}
+
+// Check if a story can be dropped in a target column (basic check)
 function canDropInColumn(
   story: Story,
   targetColumnId: string,
   allStories: Story[],
 ): boolean {
-  const droppableColumns = ['backlog', 'todo']
+  // Define droppable columns (all except in_progress)
+  const droppableColumns = ['backlog', 'todo', 'done', 'failed']
   if (!droppableColumns.includes(targetColumnId)) return false
 
-  // Can only move stories with pending status
-  if (story.status !== 'pending') return false
+  const sourceColumnId = getColumnForStory(story, allStories)
+  if (sourceColumnId === targetColumnId) return false // Same column
 
-  // Can always move to backlog
-  if (targetColumnId === 'backlog') return true
+  const targetStatus = getTargetStatusForColumn(targetColumnId)
+  if (!targetStatus) return false
 
-  // Can only move to todo if all dependencies are met
-  if (targetColumnId === 'todo') {
-    return hasAllDependenciesMet(story, allStories)
-  }
+  // in_progress can only be set by runner
+  if (targetColumnId === 'in_progress') return false
 
-  return false
+  // Check if status transition is valid
+  return isValidStatusTransition(story.status, targetStatus)
+}
+
+// Get unmet dependencies for a story
+function getUnmetDependencies(story: Story, allStories: Story[]): Story[] {
+  return story.dependencies
+    .map((depId) => allStories.find((s) => s.id === depId))
+    .filter((dep): dep is Story => dep !== undefined && dep.status !== 'done')
 }
 
 // Filter stories for a column
@@ -204,45 +243,85 @@ describe('Kanban Drag & Drop Logic', () => {
     })
   })
 
-  describe('canDropInColumn', () => {
-    describe('transition validation', () => {
-      it('allows dropping from backlog to todo when deps are met', () => {
-        const story = createStory({
-          id: 'STORY-1',
-          status: 'pending',
-          dependencies: [],
-        })
-        const allStories = [story]
-
-        expect(canDropInColumn(story, 'todo', allStories)).toBe(true)
-      })
-
-      it('allows dropping from todo to backlog', () => {
-        const story = createStory({
-          id: 'STORY-1',
-          status: 'pending',
-          dependencies: [],
-        })
-        const allStories = [story]
-
-        expect(canDropInColumn(story, 'backlog', allStories)).toBe(true)
-      })
-
-      it('blocks dropping to todo when deps are not met', () => {
-        const dep = createStory({ id: 'DEP-1', status: 'pending' })
-        const story = createStory({
-          id: 'STORY-1',
-          status: 'pending',
-          dependencies: ['DEP-1'],
-        })
-        const allStories = [dep, story]
-
-        expect(canDropInColumn(story, 'todo', allStories)).toBe(false)
-      })
+  describe('getTargetStatusForColumn', () => {
+    it('returns "pending" for backlog column', () => {
+      expect(getTargetStatusForColumn('backlog')).toBe('pending')
     })
 
-    describe('non-droppable columns', () => {
-      it('blocks dropping to in_progress column', () => {
+    it('returns "pending" for todo column', () => {
+      expect(getTargetStatusForColumn('todo')).toBe('pending')
+    })
+
+    it('returns "in_progress" for in_progress column', () => {
+      expect(getTargetStatusForColumn('in_progress')).toBe('in_progress')
+    })
+
+    it('returns "done" for done column', () => {
+      expect(getTargetStatusForColumn('done')).toBe('done')
+    })
+
+    it('returns "failed" for failed column', () => {
+      expect(getTargetStatusForColumn('failed')).toBe('failed')
+    })
+
+    it('returns null for unknown column', () => {
+      expect(getTargetStatusForColumn('unknown')).toBe(null)
+    })
+  })
+
+  describe('isValidStatusTransition', () => {
+    it('allows pending to done', () => {
+      expect(isValidStatusTransition('pending', 'done')).toBe(true)
+    })
+
+    it('allows done to pending (reopen)', () => {
+      expect(isValidStatusTransition('done', 'pending')).toBe(true)
+    })
+
+    it('allows failed to pending (retry)', () => {
+      expect(isValidStatusTransition('failed', 'pending')).toBe(true)
+    })
+
+    it('allows in_progress to done', () => {
+      expect(isValidStatusTransition('in_progress', 'done')).toBe(true)
+    })
+
+    it('allows in_progress to failed', () => {
+      expect(isValidStatusTransition('in_progress', 'failed')).toBe(true)
+    })
+
+    it('allows in_progress to pending', () => {
+      expect(isValidStatusTransition('in_progress', 'pending')).toBe(true)
+    })
+
+    it('blocks done to failed', () => {
+      expect(isValidStatusTransition('done', 'failed')).toBe(false)
+    })
+
+    it('blocks pending to failed', () => {
+      expect(isValidStatusTransition('pending', 'failed')).toBe(false)
+    })
+
+    it('allows same status (no-op)', () => {
+      expect(isValidStatusTransition('pending', 'pending')).toBe(true)
+      expect(isValidStatusTransition('done', 'done')).toBe(true)
+    })
+  })
+
+  describe('canDropInColumn', () => {
+    describe('from pending stories', () => {
+      it('allows dropping pending to done', () => {
+        const story = createStory({
+          id: 'STORY-1',
+          status: 'pending',
+          dependencies: [],
+        })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'done', allStories)).toBe(true)
+      })
+
+      it('blocks pending to in_progress (runner only)', () => {
         const story = createStory({
           id: 'STORY-1',
           status: 'pending',
@@ -253,18 +332,7 @@ describe('Kanban Drag & Drop Logic', () => {
         expect(canDropInColumn(story, 'in_progress', allStories)).toBe(false)
       })
 
-      it('blocks dropping to done column', () => {
-        const story = createStory({
-          id: 'STORY-1',
-          status: 'pending',
-          dependencies: [],
-        })
-        const allStories = [story]
-
-        expect(canDropInColumn(story, 'done', allStories)).toBe(false)
-      })
-
-      it('blocks dropping to failed column', () => {
+      it('blocks pending to failed (invalid transition)', () => {
         const story = createStory({
           id: 'STORY-1',
           status: 'pending',
@@ -274,32 +342,148 @@ describe('Kanban Drag & Drop Logic', () => {
 
         expect(canDropInColumn(story, 'failed', allStories)).toBe(false)
       })
-    })
 
-    describe('non-pending stories', () => {
-      it('blocks dropping in_progress stories', () => {
-        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+      it('blocks dropping to same column (todo to todo)', () => {
+        const story = createStory({
+          id: 'STORY-1',
+          status: 'pending',
+          dependencies: [],
+        })
         const allStories = [story]
-
-        expect(canDropInColumn(story, 'backlog', allStories)).toBe(false)
+        // Story with no unmet deps is in 'todo', so dropping to 'todo' is same column
         expect(canDropInColumn(story, 'todo', allStories)).toBe(false)
       })
+    })
 
-      it('blocks dropping done stories', () => {
+    describe('from done stories', () => {
+      it('allows done to pending (reopen)', () => {
         const story = createStory({ id: 'STORY-1', status: 'done' })
         const allStories = [story]
 
-        expect(canDropInColumn(story, 'backlog', allStories)).toBe(false)
-        expect(canDropInColumn(story, 'todo', allStories)).toBe(false)
+        expect(canDropInColumn(story, 'todo', allStories)).toBe(true)
+        expect(canDropInColumn(story, 'backlog', allStories)).toBe(true)
       })
 
-      it('blocks dropping failed stories', () => {
+      it('blocks done to failed', () => {
+        const story = createStory({ id: 'STORY-1', status: 'done' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'failed', allStories)).toBe(false)
+      })
+
+      it('blocks done to in_progress', () => {
+        const story = createStory({ id: 'STORY-1', status: 'done' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'in_progress', allStories)).toBe(false)
+      })
+    })
+
+    describe('from failed stories', () => {
+      it('allows failed to pending (retry)', () => {
         const story = createStory({ id: 'STORY-1', status: 'failed' })
         const allStories = [story]
 
-        expect(canDropInColumn(story, 'backlog', allStories)).toBe(false)
-        expect(canDropInColumn(story, 'todo', allStories)).toBe(false)
+        expect(canDropInColumn(story, 'todo', allStories)).toBe(true)
+        expect(canDropInColumn(story, 'backlog', allStories)).toBe(true)
       })
+
+      it('blocks failed to done (must go through in_progress or pending first)', () => {
+        const story = createStory({ id: 'STORY-1', status: 'failed' })
+        const allStories = [story]
+        // failed can only go to in_progress or pending, not directly to done
+        expect(canDropInColumn(story, 'done', allStories)).toBe(false)
+      })
+
+      it('blocks failed to in_progress (runner only)', () => {
+        const story = createStory({ id: 'STORY-1', status: 'failed' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'in_progress', allStories)).toBe(false)
+      })
+    })
+
+    describe('from in_progress stories', () => {
+      it('allows in_progress to done', () => {
+        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'done', allStories)).toBe(true)
+      })
+
+      it('allows in_progress to failed', () => {
+        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'failed', allStories)).toBe(true)
+      })
+
+      it('allows in_progress to pending', () => {
+        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+        const allStories = [story]
+
+        expect(canDropInColumn(story, 'todo', allStories)).toBe(true)
+        expect(canDropInColumn(story, 'backlog', allStories)).toBe(true)
+      })
+    })
+
+    describe('in_progress column is always blocked', () => {
+      it('blocks dropping any story to in_progress', () => {
+        const pendingStory = createStory({ id: 'S1', status: 'pending' })
+        const doneStory = createStory({ id: 'S2', status: 'done' })
+        const failedStory = createStory({ id: 'S3', status: 'failed' })
+        const allStories = [pendingStory, doneStory, failedStory]
+
+        expect(canDropInColumn(pendingStory, 'in_progress', allStories)).toBe(false)
+        expect(canDropInColumn(doneStory, 'in_progress', allStories)).toBe(false)
+        expect(canDropInColumn(failedStory, 'in_progress', allStories)).toBe(false)
+      })
+    })
+  })
+
+  describe('getUnmetDependencies', () => {
+    it('returns empty array when no dependencies', () => {
+      const story = createStory({ id: 'STORY-1', dependencies: [] })
+      const allStories = [story]
+
+      expect(getUnmetDependencies(story, allStories)).toEqual([])
+    })
+
+    it('returns empty array when all dependencies are done', () => {
+      const dep = createStory({ id: 'DEP-1', status: 'done' })
+      const story = createStory({
+        id: 'STORY-1',
+        dependencies: ['DEP-1'],
+      })
+      const allStories = [dep, story]
+
+      expect(getUnmetDependencies(story, allStories)).toEqual([])
+    })
+
+    it('returns unmet dependencies', () => {
+      const dep1 = createStory({ id: 'DEP-1', status: 'done' })
+      const dep2 = createStory({ id: 'DEP-2', status: 'pending' })
+      const dep3 = createStory({ id: 'DEP-3', status: 'failed' })
+      const story = createStory({
+        id: 'STORY-1',
+        dependencies: ['DEP-1', 'DEP-2', 'DEP-3'],
+      })
+      const allStories = [dep1, dep2, dep3, story]
+
+      const unmet = getUnmetDependencies(story, allStories)
+      expect(unmet).toHaveLength(2)
+      expect(unmet.map(s => s.id)).toContain('DEP-2')
+      expect(unmet.map(s => s.id)).toContain('DEP-3')
+    })
+
+    it('ignores non-existent dependencies', () => {
+      const story = createStory({
+        id: 'STORY-1',
+        dependencies: ['NON-EXISTENT'],
+      })
+      const allStories = [story]
+
+      expect(getUnmetDependencies(story, allStories)).toEqual([])
     })
   })
 

@@ -23,6 +23,8 @@ import {
   CircleDashed,
   Clock,
   GripVertical,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
@@ -76,6 +78,7 @@ interface KanbanColumn {
   bgColor: string
   isDraggable: boolean // Whether stories in this column can be dragged
   isDroppable: boolean // Whether stories can be dropped here
+  isLocked: boolean // Whether this column is locked (only runner can modify)
 }
 
 // Define the columns for the Kanban board
@@ -89,6 +92,7 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     bgColor: 'bg-slate-50 dark:bg-slate-900/50',
     isDraggable: true,
     isDroppable: true,
+    isLocked: false,
   },
   {
     id: 'todo',
@@ -99,6 +103,7 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     bgColor: 'bg-amber-50 dark:bg-amber-900/20',
     isDraggable: true,
     isDroppable: true,
+    isLocked: false,
   },
   {
     id: 'failed',
@@ -107,8 +112,9 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <AlertCircle className="w-4 h-4" />,
     headerColor: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-50 dark:bg-red-900/20',
-    isDraggable: false,
-    isDroppable: false,
+    isDraggable: true,
+    isDroppable: true,
+    isLocked: false,
   },
   {
     id: 'in_progress',
@@ -118,7 +124,8 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     headerColor: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
     isDraggable: false,
-    isDroppable: false,
+    isDroppable: false, // Only runner can move stories here
+    isLocked: true,
   },
   {
     id: 'done',
@@ -127,8 +134,9 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     icon: <CheckCircle2 className="w-4 h-4" />,
     headerColor: 'text-emerald-600 dark:text-emerald-400',
     bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
-    isDraggable: false,
-    isDroppable: false,
+    isDraggable: true,
+    isDroppable: true,
+    isLocked: false,
   },
 ]
 
@@ -173,27 +181,64 @@ function getColumnForStory(story: Story, allStories: Story[]): string {
   return story.status
 }
 
-// Check if a story can be dropped in a target column
+// Get the target status for a column
+function getTargetStatusForColumn(columnId: string): StoryStatus | null {
+  switch (columnId) {
+    case 'backlog':
+    case 'todo':
+      return 'pending'
+    case 'in_progress':
+      return 'in_progress'
+    case 'done':
+      return 'done'
+    case 'failed':
+      return 'failed'
+    default:
+      return null
+  }
+}
+
+// Valid status transitions (from stories router)
+const validTransitions: Record<StoryStatus, StoryStatus[]> = {
+  pending: ['in_progress', 'done'],
+  in_progress: ['done', 'failed', 'pending'],
+  done: ['pending'],
+  failed: ['in_progress', 'pending'],
+}
+
+// Check if a status transition is valid
+function isValidStatusTransition(from: StoryStatus, to: StoryStatus): boolean {
+  if (from === to) return true // Same status is always valid (no-op)
+  return validTransitions[from].includes(to)
+}
+
+// Check if a story can be dropped in a target column (basic check - ignores dependencies)
 function canDropInColumn(
   story: Story,
   targetColumnId: string,
-  allStories: Story[],
+  _allStories: Story[],
 ): boolean {
   const targetColumn = KANBAN_COLUMNS.find((c) => c.id === targetColumnId)
   if (!targetColumn || !targetColumn.isDroppable) return false
 
-  // Can only move between backlog and todo
-  if (story.status !== 'pending') return false
+  const sourceColumnId = getColumnForStory(story, _allStories)
+  if (sourceColumnId === targetColumnId) return false // Same column
 
-  // Can always move to backlog
-  if (targetColumnId === 'backlog') return true
+  const targetStatus = getTargetStatusForColumn(targetColumnId)
+  if (!targetStatus) return false
 
-  // Can only move to todo if all dependencies are met
-  if (targetColumnId === 'todo') {
-    return hasAllDependenciesMet(story, allStories)
-  }
+  // in_progress can only be set by runner
+  if (targetColumnId === 'in_progress') return false
 
-  return false
+  // Check if status transition is valid
+  return isValidStatusTransition(story.status, targetStatus)
+}
+
+// Get unmet dependencies for a story
+function getUnmetDependencies(story: Story, allStories: Story[]): Story[] {
+  return story.dependencies
+    .map((depId) => allStories.find((s) => s.id === depId))
+    .filter((dep): dep is Story => dep !== undefined && dep.status !== 'done')
 }
 
 // Compute project stats from stories
@@ -355,6 +400,13 @@ function ColumnHeader({ column, count }: ColumnHeaderProps) {
       <span className={cn('text-sm font-semibold', column.headerColor)}>
         {column.title}
       </span>
+      {column.isLocked && (
+        <Lock
+          className={cn('w-3.5 h-3.5', column.headerColor)}
+          data-testid="column-lock-icon"
+          aria-label="Column locked - only runner can modify"
+        />
+      )}
       <span
         className={cn(
           'ml-auto text-xs font-medium px-2 py-0.5 rounded-full',
@@ -530,6 +582,128 @@ function DragOverlayContent({ story }: DragOverlayContentProps) {
   )
 }
 
+// Dependency confirmation dialog
+interface DependencyConfirmDialogProps {
+  isOpen: boolean
+  story: Story | null
+  unmetDependencies: Story[]
+  targetColumnTitle: string
+  onConfirm: () => void
+  onCancel: () => void
+  isLoading: boolean
+}
+
+function DependencyConfirmDialog({
+  isOpen,
+  story,
+  unmetDependencies,
+  targetColumnTitle,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: DependencyConfirmDialogProps) {
+  if (!isOpen || !story) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      data-testid="dependency-confirm-dialog"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onCancel}
+        data-testid="dialog-backdrop"
+      />
+
+      {/* Dialog content */}
+      <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <h2
+              id="confirm-dialog-title"
+              className="text-lg font-semibold text-foreground"
+            >
+              Unmet Dependencies
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Moving <strong>{story.title}</strong> to {targetColumnTitle} while
+              some dependencies are not complete.
+            </p>
+          </div>
+        </div>
+
+        {/* Unmet dependencies list */}
+        <div className="bg-muted/50 rounded-lg p-3 mb-6">
+          <p className="text-sm font-medium text-foreground mb-2">
+            Dependencies not complete:
+          </p>
+          <ul className="space-y-1.5">
+            {unmetDependencies.map((dep) => (
+              <li
+                key={dep.id}
+                className="flex items-center gap-2 text-sm"
+              >
+                <span
+                  className={cn(
+                    'px-1.5 py-0.5 rounded text-xs font-medium',
+                    dep.status === 'pending' &&
+                      'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+                    dep.status === 'in_progress' &&
+                      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                    dep.status === 'failed' &&
+                      'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                  )}
+                >
+                  {dep.status}
+                </span>
+                <span className="text-foreground font-medium">{dep.id}</span>
+                <span className="text-muted-foreground truncate">{dep.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+            data-testid="dialog-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            data-testid="dialog-confirm"
+          >
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Move Anyway
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Pending drop info for confirmation dialog
+interface PendingDrop {
+  story: Story
+  targetColumnId: string
+  unmetDependencies: Story[]
+}
+
 function KanbanBoard() {
   const { id } = Route.useParams()
   const projectId = parseInt(id, 10)
@@ -538,6 +712,10 @@ function KanbanBoard() {
   // Drag state
   const [activeStory, setActiveStory] = useState<Story | null>(null)
   const [overColumnId, setOverColumnId] = useState<string | null>(null)
+
+  // Confirmation dialog state
+  const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
 
   // Modal state
   const [selectedStory, setSelectedStory] = useState<Story | null>(null)
@@ -602,11 +780,48 @@ function KanbanBoard() {
     },
   })
 
-  // Note: For drag & drop between backlog and todo, we don't need to update status
-  // because both columns have the same status ('pending').
-  // The column is determined by dependency status, not by a separate field.
-  // This is intentional - we're just allowing users to visualize what they want,
-  // but the actual column assignment is driven by dependency completion.
+  // Status update mutation with optimistic updates
+  const updateStatus = trpc.stories.updateStatus.useMutation({
+    onMutate: async ({ storyId, status }) => {
+      // Cancel any outgoing refetches
+      await utils.stories.listByProject.cancel({ projectId })
+
+      // Snapshot the previous value
+      const previousStories = utils.stories.listByProject.getData({ projectId })
+
+      // Optimistically update the cache
+      utils.stories.listByProject.setData({ projectId }, (old) => {
+        if (!old) return old
+        return old.map((story) =>
+          story.id === storyId ? { ...story, status } : story
+        )
+      })
+
+      // Return the context with the previous value
+      return { previousStories }
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousStories) {
+        utils.stories.listByProject.setData({ projectId }, context.previousStories)
+      }
+      toast.error('Failed to update status', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    },
+    onSuccess: (updatedStory) => {
+      const targetColumn = KANBAN_COLUMNS.find(
+        (c) => getTargetStatusForColumn(c.id) === updatedStory.status
+      )
+      toast.success('Story status updated', {
+        description: `${updatedStory.id} moved to ${targetColumn?.title ?? updatedStory.status}`,
+      })
+    },
+    onSettled: () => {
+      // Invalidate to refetch and ensure consistency
+      utils.stories.listByProject.invalidate({ projectId })
+    },
+  })
 
   // Compute stats
   const stats = computeProjectStats(stories)
@@ -674,6 +889,30 @@ function KanbanBoard() {
     setOverColumnId(over?.id as string | null)
   }, [])
 
+  // Execute a status change
+  const executeStatusChange = useCallback(
+    (story: Story, targetColumnId: string) => {
+      const targetStatus = getTargetStatusForColumn(targetColumnId)
+      if (!targetStatus) return
+
+      // If status is the same (e.g., backlog to todo), no API call needed
+      if (story.status === targetStatus) {
+        toast.info('Story moved', {
+          description: `${story.id} is already in ${targetStatus} status`,
+        })
+        return
+      }
+
+      // Make the API call
+      updateStatus.mutate({
+        projectId,
+        storyId: story.id,
+        status: targetStatus,
+      })
+    },
+    [projectId, updateStatus],
+  )
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
@@ -698,19 +937,39 @@ function KanbanBoard() {
         return
       }
 
-      // Since both backlog and todo have status 'pending', there's nothing to update
-      // The column is determined by dependency status which we can't change via drag & drop
-      // This drag & drop is for visual organization only
-      // In a real app, you might want to add a 'manual_column' field to override this
+      // Check for unmet dependencies when moving to todo
+      const unmetDeps = getUnmetDependencies(story, stories)
+      if (targetColumnId === 'todo' && unmetDeps.length > 0) {
+        // Show confirmation dialog
+        setPendingDrop({
+          story,
+          targetColumnId,
+          unmetDependencies: unmetDeps,
+        })
+        setIsConfirmDialogOpen(true)
+        return
+      }
 
-      // For now, we'll just show that the drag happened
-      // In the future, we could add a 'forceColumn' field to the story
-      console.log(
-        `Would move story ${story.id} from ${sourceColumnId} to ${targetColumnId}`,
-      )
+      // Execute the status change
+      executeStatusChange(story, targetColumnId)
     },
-    [stories],
+    [stories, executeStatusChange],
   )
+
+  // Handle confirmation dialog confirm
+  const handleConfirmDrop = useCallback(() => {
+    if (!pendingDrop) return
+
+    executeStatusChange(pendingDrop.story, pendingDrop.targetColumnId)
+    setIsConfirmDialogOpen(false)
+    setPendingDrop(null)
+  }, [pendingDrop, executeStatusChange])
+
+  // Handle confirmation dialog cancel
+  const handleCancelDrop = useCallback(() => {
+    setIsConfirmDialogOpen(false)
+    setPendingDrop(null)
+  }, [])
 
   // Calculate if current drag can drop in a column
   const canDropActiveStory = useCallback(
@@ -841,6 +1100,19 @@ function KanbanBoard() {
         onClose={handleCloseLogModal}
         projectId={projectId}
         story={logModalStory}
+      />
+
+      {/* Dependency confirmation dialog */}
+      <DependencyConfirmDialog
+        isOpen={isConfirmDialogOpen}
+        story={pendingDrop?.story ?? null}
+        unmetDependencies={pendingDrop?.unmetDependencies ?? []}
+        targetColumnTitle={
+          KANBAN_COLUMNS.find((c) => c.id === pendingDrop?.targetColumnId)?.title ?? ''
+        }
+        onConfirm={handleConfirmDrop}
+        onCancel={handleCancelDrop}
+        isLoading={updateStatus.isPending}
       />
     </DndContext>
   )
