@@ -1640,3 +1640,53 @@
 - useNavigate from TanStack Router for post-delete redirect to Dashboard
 - Toast with description provides clear feedback about what happened
 - Pre-existing discover test failures unrelated to delete changes
+
+## 2026-02-08 - UI-026
+**Title:** PRD.json format conversie wizard
+
+**Implemented:**
+- Created Ralph PRD schema definition in src/lib/schemas/prdSchema.ts with Zod
+- Schema includes: storySchema, epicSchema, implementationGuideSchema, prdSchema
+- Field aliases dictionary for detecting common alternative field names
+- Status aliases for mapping non-standard status values (e.g., "open" -> "pending")
+- validatePrd() function for strict schema validation with detailed errors
+- detectMappings() function for heuristic-based field mapping detection
+- applyMappings() function for applying field and status mappings
+- Created prd tRPC router with 4 endpoints: validate, suggestMapping, preview, convert
+- validate: reads prd.json from project path and validates against schema
+- suggestMapping: uses heuristics to detect field name mappings
+- preview: shows conversion result without writing to disk
+- convert: applies mappings and writes converted prd.json with optional backup
+- Updated projects.discover to validate prd.json and return needsConversion flag
+- Added "Needs conversion" amber badge to DiscoverProjectsModal
+- Badge is clickable and triggers conversion wizard
+- Projects needing conversion have disabled checkbox (cannot be selected for direct add)
+- Created PrdConversionWizard modal with 4-step wizard flow:
+  1. Detect Issues: validates prd.json, shows errors and auto-detects mappings
+  2. Configure Mappings: editable tables for root, story, and status mappings
+  3. Preview: side-by-side JSON diff view, backup option toggle
+  4. Apply: shows success/failure with backup path if created
+- Integrated wizard into Dashboard via index.tsx route
+- Created 27 unit tests for prdSchema validation and conversion functions
+- Created E2E test file for conversion wizard (placeholder tests for integration)
+
+**Files changed:**
+- src/lib/schemas/prdSchema.ts (new, +400 lines - schema, types, validation, conversion)
+- src/lib/schemas/prdSchema.test.ts (new, +300 lines - 27 unit tests)
+- src/lib/trpc/routers/prd.ts (new, +240 lines - tRPC router with 4 endpoints)
+- src/lib/trpc/routers/index.ts (added prd router export)
+- src/lib/trpc/routers/projects.ts (added validatePrd import, needsConversion in discover)
+- src/components/DiscoverProjectsModal.tsx (added conversion badge, onNeedsConversion prop)
+- src/components/PrdConversionWizard.tsx (new, +600 lines - wizard modal component)
+- src/routes/index.tsx (integrated wizard modal)
+- e2e/prd-conversion.spec.ts (new, +150 lines - E2E test placeholders)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- z.record() in Zod requires 2 arguments: z.record(keySchema, valueSchema)
+- expandPath utility is in utils.server.ts, not utils.ts
+- Schema validation with .passthrough() allows unknown properties for flexibility
+- Status value normalization: always lowercase before mapping lookup
+- Wizard step state management with explicit currentStep enum
+- useEffect dependency on mutation data for auto-triggering next step actions
+- Side-by-side JSON preview uses grid-cols-2 with overflow-auto for scrollable pre

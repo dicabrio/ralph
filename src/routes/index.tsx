@@ -15,6 +15,13 @@ import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { AddProjectModal } from '@/components/AddProjectModal'
 import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
+import { PrdConversionWizard } from '@/components/PrdConversionWizard'
+
+// Discovered project type for conversion wizard
+interface DiscoveredProjectForConversion {
+  path: string
+  name: string
+}
 
 export const Route = createFileRoute('/')({ component: Dashboard })
 
@@ -266,6 +273,7 @@ function EmptyState({
 function Dashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isDiscoverModalOpen, setIsDiscoverModalOpen] = useState(false)
+  const [conversionProject, setConversionProject] = useState<DiscoveredProjectForConversion | null>(null)
   const utils = trpc.useUtils()
 
   // Fetch all projects
@@ -298,6 +306,23 @@ function Dashboard() {
   const handleDiscoverSuccess = () => {
     // Invalidate projects list to refetch
     utils.projects.list.invalidate()
+  }
+
+  const handleNeedsConversion = (project: { path: string; name: string }) => {
+    setConversionProject(project)
+    setIsDiscoverModalOpen(false) // Close discover modal when opening conversion wizard
+  }
+
+  const handleConversionClose = () => {
+    setConversionProject(null)
+  }
+
+  const handleConversionSuccess = () => {
+    // Invalidate projects list and re-open discover modal to add the project
+    utils.projects.list.invalidate()
+    utils.projects.discover.invalidate()
+    setConversionProject(null)
+    setIsDiscoverModalOpen(true)
   }
 
   return (
@@ -371,7 +396,19 @@ function Dashboard() {
         isOpen={isDiscoverModalOpen}
         onClose={handleDiscoverModalClose}
         onSuccess={handleDiscoverSuccess}
+        onNeedsConversion={handleNeedsConversion}
       />
+
+      {/* PRD Conversion Wizard */}
+      {conversionProject && (
+        <PrdConversionWizard
+          isOpen={true}
+          onClose={handleConversionClose}
+          onSuccess={handleConversionSuccess}
+          projectPath={conversionProject.path}
+          projectName={conversionProject.name}
+        />
+      )}
     </div>
   )
 }

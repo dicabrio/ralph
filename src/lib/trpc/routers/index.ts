@@ -12,6 +12,7 @@ import { skillsRouter } from './skills'
 import { runnerRouter } from './runner'
 import { brainstormRouter } from './brainstorm'
 import { promptsRouter } from './prompts'
+import { prdRouter } from './prd'
 
 /**
  * Main application router
@@ -25,6 +26,7 @@ export const appRouter = router({
   runner: runnerRouter,
   brainstorm: brainstormRouter,
   prompts: promptsRouter,
+  prd: prdRouter,
 })
 
 /**

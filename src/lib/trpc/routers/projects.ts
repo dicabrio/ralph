@@ -17,6 +17,7 @@ import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDisc
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { validatePrd } from '@/lib/schemas/prdSchema'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -383,6 +384,7 @@ export const projectsRouter = router({
   /**
    * Discover projects in PROJECTS_ROOT
    * Returns projects with prd.json files, indicating which are already added to the database
+   * Also validates each prd.json against Ralph's schema
    */
   discover: publicProcedure.query(async () => {
     // Get discovered projects from filesystem
@@ -392,11 +394,39 @@ export const projectsRouter = router({
     const existingProjects = await db.select({ path: projects.path }).from(projects)
     const existingPaths = new Set(existingProjects.map(p => p.path))
 
-    // Mark which discovered projects are already in the database
-    const projectsWithStatus = discoveryResult.projects.map(project => ({
-      ...project,
-      isAdded: existingPaths.has(project.path),
-    }))
+    // Mark which discovered projects are already in the database and validate prd.json
+    const projectsWithStatus = await Promise.all(
+      discoveryResult.projects.map(async (project) => {
+        const isAdded = existingPaths.has(project.path)
+        let needsConversion = false
+        let validationErrors: string[] = []
+
+        // Validate prd.json against Ralph's schema
+        if (project.hasPrdJson) {
+          try {
+            const prdPath = join(project.path, 'stories', 'prd.json')
+            const content = await readFile(prdPath, 'utf-8')
+            const data = JSON.parse(content)
+            const result = validatePrd(data)
+
+            if (!result.isValid) {
+              needsConversion = true
+              validationErrors = result.errors.map(e => `${e.path}: ${e.message}`)
+            }
+          } catch {
+            // If we can't read/parse, it needs conversion
+            needsConversion = true
+          }
+        }
+
+        return {
+          ...project,
+          isAdded,
+          needsConversion,
+          validationErrors,
+        }
+      })
+    )
 
     return {
       projects: projectsWithStatus,

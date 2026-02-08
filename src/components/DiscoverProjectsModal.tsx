@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { X, FolderSearch, Loader2, CheckCircle2, FolderOpen, AlertCircle } from 'lucide-react'
+import { X, FolderSearch, Loader2, CheckCircle2, FolderOpen, AlertCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 
@@ -7,6 +7,7 @@ interface DiscoverProjectsModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  onNeedsConversion?: (project: DiscoveredProject) => void
 }
 
 interface DiscoveredProject {
@@ -16,9 +17,11 @@ interface DiscoveredProject {
   branchName: string | null
   hasPrdJson: boolean
   isAdded: boolean
+  needsConversion?: boolean
+  validationErrors?: string[]
 }
 
-export function DiscoverProjectsModal({ isOpen, onClose, onSuccess }: DiscoverProjectsModalProps) {
+export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConversion }: DiscoverProjectsModalProps) {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
   const [isAdding, setIsAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
@@ -267,7 +270,8 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess }: DiscoverPr
                       project={project}
                       isSelected={selectedPaths.has(project.path)}
                       onToggle={() => toggleSelection(project.path)}
-                      disabled={isAdding}
+                      disabled={isAdding || project.needsConversion}
+                      onConvertClick={() => onNeedsConversion?.(project)}
                     />
                   ))}
                 </div>
@@ -357,17 +361,21 @@ interface ProjectRowProps {
   onToggle: () => void
   disabled?: boolean
   isAdded?: boolean
+  onConvertClick?: () => void
 }
 
-function ProjectRow({ project, isSelected, onToggle, disabled, isAdded }: ProjectRowProps) {
+function ProjectRow({ project, isSelected, onToggle, disabled, isAdded, onConvertClick }: ProjectRowProps) {
+  const needsConversion = project.needsConversion && !isAdded
+
   return (
     <label
       className={cn(
         'flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer',
         isAdded && 'bg-muted/50 opacity-60 cursor-not-allowed',
-        !isAdded && !disabled && 'hover:bg-accent/50 hover:border-accent',
-        isSelected && !isAdded && 'bg-primary/5 border-primary/50',
-        !isSelected && !isAdded && 'border-border bg-card',
+        needsConversion && 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/20',
+        !isAdded && !disabled && !needsConversion && 'hover:bg-accent/50 hover:border-accent',
+        isSelected && !isAdded && !needsConversion && 'bg-primary/5 border-primary/50',
+        !isSelected && !isAdded && !needsConversion && 'border-border bg-card',
         disabled && !isAdded && 'opacity-50 cursor-not-allowed'
       )}
     >
@@ -375,6 +383,8 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded }: Projec
       <div className="pt-0.5">
         {isAdded ? (
           <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
+        ) : needsConversion ? (
+          <AlertTriangle className="w-5 h-5 text-amber-500" />
         ) : (
           <input
             type="checkbox"
@@ -392,11 +402,33 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded }: Projec
 
       {/* Project info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-foreground truncate">{project.name}</span>
           {isAdded && (
             <span className="shrink-0 px-1.5 py-0.5 text-xs font-medium rounded bg-muted text-muted-foreground">
               Added
+            </span>
+          )}
+          {needsConversion && (
+            <span
+              className="shrink-0 px-1.5 py-0.5 text-xs font-medium rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 cursor-pointer hover:bg-amber-500/30 transition-colors"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onConvertClick?.()
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onConvertClick?.()
+                }
+              }}
+              data-testid="needs-conversion-badge"
+            >
+              Needs conversion
             </span>
           )}
         </div>
@@ -409,6 +441,11 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded }: Projec
         {project.branchName && (
           <p className="text-xs text-muted-foreground mt-1">
             Branch: <span className="font-mono">{project.branchName}</span>
+          </p>
+        )}
+        {needsConversion && project.validationErrors && project.validationErrors.length > 0 && (
+          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+            {project.validationErrors.length} validation {project.validationErrors.length === 1 ? 'error' : 'errors'}
           </p>
         )}
       </div>
