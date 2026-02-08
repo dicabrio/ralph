@@ -99,6 +99,22 @@ function getStoryCard(page: Page, storyId: string): Locator {
   })
 }
 
+// Helper: get a column by title
+function getColumn(page: Page, columnTitle: string): Locator {
+  // Columns are identified by their header text
+  // The column structure is: div.flex.flex-col containing header with title and content area
+  return page.locator(`div.flex.flex-col:has(span.text-sm.font-semibold:text-is("${columnTitle}"))`).first()
+}
+
+// Helper: verify a story is in a specific column
+async function expectStoryInColumn(page: Page, storyId: string, columnTitle: string): Promise<void> {
+  const column = getColumn(page, columnTitle)
+  const storyInColumn = column.locator('[data-testid="story-card"]').filter({
+    has: page.locator(`[data-testid="story-id"]:text-is("${storyId}")`),
+  })
+  await expect(storyInColumn).toBeVisible({ timeout: 5000 })
+}
+
 
 // Create a shared test project that persists for all tests in this file
 // The project will be created once and reused across all tests
@@ -241,23 +257,23 @@ test.describe('Kanban Board Flow', () => {
       // Wait for stories to load
       await page.waitForTimeout(500)
 
-      // TEST-001 (done) should be in Voltooid column
-      await expect(getStoryCard(page, 'TEST-001')).toBeVisible()
+      // TEST-001 (status: done) should be in Voltooid column
+      await expectStoryInColumn(page, 'TEST-001', 'Voltooid')
 
-      // TEST-002 (pending, dependencies met) should be in Te doen column
-      await expect(getStoryCard(page, 'TEST-002')).toBeVisible()
+      // TEST-002 (status: pending, dep: TEST-001 done) should be in Te doen column (dependencies met)
+      await expectStoryInColumn(page, 'TEST-002', 'Te doen')
 
-      // TEST-003 (pending, unmet dependencies) should be in Backlog column
-      await expect(getStoryCard(page, 'TEST-003')).toBeVisible()
+      // TEST-003 (status: pending, dep: TEST-002 pending) should be in Backlog column (dependencies NOT met)
+      await expectStoryInColumn(page, 'TEST-003', 'Backlog')
 
-      // TEST-004 (pending, no dependencies) should be in Te doen column
-      await expect(getStoryCard(page, 'TEST-004')).toBeVisible()
+      // TEST-004 (status: pending, no dependencies) should be in Te doen column
+      await expectStoryInColumn(page, 'TEST-004', 'Te doen')
 
-      // TEST-005 (failed) should be in Gefaald column
-      await expect(getStoryCard(page, 'TEST-005')).toBeVisible()
+      // TEST-005 (status: failed) should be in Gefaald column
+      await expectStoryInColumn(page, 'TEST-005', 'Gefaald')
 
-      // TEST-006 (in_progress) should be in In Progress column
-      await expect(getStoryCard(page, 'TEST-006')).toBeVisible()
+      // TEST-006 (status: in_progress) should be in In Progress column
+      await expectStoryInColumn(page, 'TEST-006', 'In Progress')
     })
 
     test('should show Gefaald column when there are failed stories', async ({ page }) => {

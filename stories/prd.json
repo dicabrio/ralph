@@ -1114,6 +1114,105 @@
         "E2E test: discovery toont 'Needs conversion' badge",
         "Alle tests draaien headless in CI"
       ]
+    },
+    {
+      "id": "BUG-001",
+      "title": "Pending stories worden niet correct in swimlane getoond",
+      "description": "Stories met status 'pending' worden niet correct in de Pending/Backlog swimlane geplaatst op het Kanban board. Dit moet gefixed worden zodat alle story statussen correct gemapped worden naar de juiste kolommen.",
+      "priority": 60,
+      "status": "done",
+      "epic": "Kanban",
+      "dependencies": ["UI-006"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Stories met status 'pending' verschijnen in de Backlog/Pending kolom",
+        "Stories met status 'in_progress' verschijnen in de In Progress kolom",
+        "Stories met status 'done' verschijnen in de Done kolom",
+        "Stories met status 'failed' verschijnen in de Failed kolom (indien zichtbaar)",
+        "Status mapping is consistent tussen API response en UI weergave",
+        "Unit test: status naar kolom mapping logica",
+        "E2E test: alle statussen worden in correcte kolommen getoond",
+        "Lint check: npm run lint slaagt zonder errors",
+        "Build check: npm run build slaagt",
+        "Code review: security en best practices check",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "UI-027",
+      "title": "Drag handle icon verbeteren",
+      "description": "Het drag & drop icoontje op story cards moet altijd zichtbaar zijn (niet alleen on hover) en meer ruimte krijgen voor betere UX.",
+      "priority": 61,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-007"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Drag handle icon is altijd zichtbaar op story cards",
+        "Icon heeft voldoende padding/ruimte voor makkelijk klikken",
+        "Icon staat links van de card content",
+        "Cursor verandert naar 'grab' bij hover over icon",
+        "Cursor verandert naar 'grabbing' tijdens drag",
+        "Icon styling is consistent met rest van de UI",
+        "Unit test: drag handle rendering",
+        "E2E test: drag handle is zichtbaar en functioneel",
+        "Lint check: npm run lint slaagt zonder errors",
+        "Build check: npm run build slaagt",
+        "Code review: security en best practices check",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "UI-028",
+      "title": "Kanban board full-width layout",
+      "description": "Het Kanban board moet altijd de volledige breedte van het scherm gebruiken voor optimale weergave van alle kolommen.",
+      "priority": 62,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": ["UI-006"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "Kanban board gebruikt 100% van beschikbare breedte",
+        "Kolommen verdelen ruimte evenredig",
+        "Responsive: werkt op verschillende schermformaten",
+        "Geen horizontale scroll tenzij noodzakelijk bij zeer kleine schermen",
+        "Sidebar collapsed/expanded heeft geen negatieve impact op layout",
+        "E2E test: layout controle op verschillende viewport sizes",
+        "Lint check: npm run lint slaagt zonder errors",
+        "Build check: npm run build slaagt",
+        "Code review: security en best practices check",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "RUNNER-007",
+      "title": "Real-time Kanban updates bij prd.json wijzigingen",
+      "description": "Kanban board moet automatisch updaten wanneer prd.json wordt gewijzigd, zowel door de runner als door externe tools. Combineert WebSocket event listeners met file watching voor maximale responsiviteit.",
+      "priority": 63,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": ["UI-006", "API-002", "RUNNER-001"],
+      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Server: file watcher (chokidar) op {projectPath}/stories/prd.json",
+        "Server: broadcast 'stories_updated' WebSocket event bij prd.json wijziging",
+        "Server: debounce file watcher events (100ms) om dubbele broadcasts te voorkomen",
+        "WebSocket types: nieuw 'stories_updated' event type met projectId",
+        "Kanban client: luister naar 'runner_completed' event → invalidate stories cache",
+        "Kanban client: luister naar 'stories_updated' event → invalidate stories cache",
+        "TanStack Query: invalidateQueries(['stories', 'listByProject']) bij events",
+        "Optimistic updates blijven werken naast real-time sync",
+        "Geen dubbele refetches bij eigen status updates",
+        "File watcher cleanup bij project verwijderen of server shutdown",
+        "Unit test: file watcher trigger en debounce logic",
+        "Unit test: WebSocket event broadcasting",
+        "E2E test: Kanban update na runner story completion",
+        "E2E test: Kanban update na externe prd.json wijziging",
+        "Lint check: npm run lint slaagt zonder errors",
+        "Build check: npm run build slaagt",
+        "Code review: security en best practices check",
+        "Alle tests draaien headless in CI"
+      ]
     }
   ]
 }

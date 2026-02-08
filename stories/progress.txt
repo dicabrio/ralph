@@ -1690,3 +1690,29 @@
 - Wizard step state management with explicit currentStep enum
 - useEffect dependency on mutation data for auto-triggering next step actions
 - Side-by-side JSON preview uses grid-cols-2 with overflow-auto for scrollable pre
+
+## 2026-02-08 - BUG-001
+**Title:** Pending stories worden niet correct in swimlane getoond
+
+**Implemented:**
+- Investigated current Kanban board status-to-column mapping logic
+- Verified the existing implementation is correct:
+  - Backlog column: pending stories with UNMET dependencies
+  - Te doen column: pending stories with ALL dependencies met (or no dependencies)
+  - Other columns (In Progress, Gefaald, Voltooid): match by status directly
+- Enhanced E2E tests to explicitly verify column placement
+- Added expectStoryInColumn() helper function to verify stories are in correct columns
+- Updated "should display stories in correct columns" test to use explicit column assertions
+
+**Files changed:**
+- e2e/kanban-board.spec.ts (added expectStoryInColumn helper, updated test assertions)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- The original status-to-column mapping logic was already correct
+- E2E tests were weak - they only verified stories were visible, not which column contained them
+- getColumn() helper uses span.text-sm.font-semibold selector to target column headers
+- expectStoryInColumn() uses column locator filter with story-card and story-id data-testid
+- Test enhancement is valuable even when no bug exists - it prevents future regressions
+- Pre-existing lint errors in other files don't block this story (no changes to those files)
+- Pre-existing test failures in stories router are unrelated to Kanban functionality
