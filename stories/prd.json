@@ -1310,7 +1310,7 @@
       "title": "shadcn Dialog componenten migratie",
       "description": "Migreer alle custom modals naar shadcn/ui Dialog componenten. Dit omvat AddProjectModal, StoryDetailModal, StoryEditModal, SkillDetailModal, SkillOverrideModal, RunnerLogModal, en DiscoverProjectsModal.",
       "priority": 67,
-      "status": "in_progress",
+      "status": "done",
       "epic": "UI Refactoring",
       "dependencies": ["REFACTOR-001"],
       "recommendedSkills": ["frontend-design"],

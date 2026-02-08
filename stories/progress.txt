@@ -1917,3 +1917,52 @@
 - When migrating buttons, keep focus on consistent variant mapping (primary→default, cancel→secondary)
 - Ghost variant useful for icon-only buttons that need subtle hover states
 - The cn() utility from lib/utils properly merges Tailwind classes with component defaults
+
+## 2026-02-08 - REFACTOR-002
+**Title:** shadcn Dialog componenten migratie
+
+**Implemented:**
+- Installed and configured shadcn Dialog component (src/components/ui/dialog.tsx)
+- Migrated all custom modals to shadcn Dialog controlled component pattern:
+  - AddProjectModal: DialogContent, DialogHeader, DialogTitle, DialogFooter structure
+  - StoryDetailModal: With showCloseButton={false} for custom header close button
+  - StoryEditModal: Full form editing with acceptance criteria, skills, dependencies
+  - SkillDetailModal: Integrated CodeMirror editor with edit mode
+  - SkillOverrideModal: Side-by-side diff view with CodeMirror
+  - RunnerLogModal: Terminal-style modal with WebSocket log streaming
+  - DiscoverProjectsModal: Project discovery with selection and batch adding
+  - PrdConversionWizard: Multi-step wizard dialog with progress indicators
+- Updated all tests to use new Dialog component structure:
+  - Added isOpen={true} prop to all test renders
+  - Changed close button selectors to use data-slot="dialog-close"
+  - Updated backdrop/overlay tests for controlled component pattern
+  - Simplified accessibility tests for shadcn Dialog attributes
+- Updated caller components to pass isOpen prop:
+  - src/routes/prompts.tsx: SkillDetailModal now always rendered with isOpen
+  - src/routes/project/$id/prompts.tsx: Same pattern for project prompts page
+
+**Files changed:**
+- src/components/ui/dialog.tsx (new)
+- src/components/AddProjectModal.tsx
+- src/components/StoryDetailModal.tsx
+- src/components/StoryEditModal.tsx
+- src/components/SkillDetailModal.tsx
+- src/components/SkillDetailModal.test.tsx
+- src/components/SkillOverrideModal.tsx
+- src/components/SkillOverrideModal.test.tsx
+- src/components/RunnerLogModal.tsx
+- src/components/DiscoverProjectsModal.tsx
+- src/components/PrdConversionWizard.tsx
+- src/routes/prompts.tsx
+- src/routes/project/$id/prompts.tsx
+- stories/prd.json
+
+**Learnings:**
+- shadcn Dialog uses Radix UI primitives with data-slot attributes for styling hooks
+- Controlled component pattern: open={isOpen} onOpenChange={(open) => !open && onClose()}
+- Close button selector in tests: document.querySelector('[data-slot="dialog-close"]')
+- showCloseButton prop on DialogContent controls visibility of default X button
+- DialogContent can have showCloseButton={false} for custom header close buttons
+- For modals that might not have data, render them always with isOpen controlling visibility
+- Backdrop click testing simplified by testing controlled component behavior with rerender
+- Dialog component provides DialogPortal, DialogOverlay, DialogClose for customization
