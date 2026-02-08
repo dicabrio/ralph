@@ -1213,6 +1213,37 @@
         "Code review: security en best practices check",
         "Alle tests draaien headless in CI"
       ]
+    },
+    {
+      "id": "BRAIN-001",
+      "title": "Twee-fase brainstorm met story-generator skill",
+      "description": "Implementeer een twee-fase brainstorm flow: (1) Vrij brainstormen over een feature totdat de AI detecteert dat alle aspecten duidelijk zijn (What/Why/How/Where), (2) Automatisch story genereren via de story-generator skill met alle context uit fase 1. De skill is beschikbaar als host-skill in Ralph en kan per project overridden worden in .claude/skills/.",
+      "priority": 64,
+      "status": "done",
+      "epic": "Brainstorm",
+      "dependencies": ["UI-019", "API-005"],
+      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Nieuwe host-skill: host-skills/story-generator/SKILL.md met story generation prompt",
+        "Skill bevat: vertical slice requirements, quality gates, JSON output format, ID conventions",
+        "Skill loader uitbreiden: check eerst {project}/.claude/skills/, dan fallback naar host-skills/",
+        "Brainstorm system prompt aangepast voor fase 1: conversatie-modus met detectie logica",
+        "AI houdt bij wanneer What/Why/How/Where aspecten besproken zijn",
+        "AI stelt automatisch voor om story te maken wanneer feature duidelijk is",
+        "Bij user bevestiging: laad story-generator skill en genereer story met brainstorm context",
+        "Samenvatting van brainstorm gesprek wordt meegegeven aan story generation",
+        "Gegenereerde story verschijnt in StoryPreviewCard met Approve/Edit/Discard",
+        "Project context (bestaande stories, epics, skills) wordt meegenomen in generatie",
+        "Per-project skill override werkt correct (project/.claude/skills/ heeft prioriteit)",
+        "Unit tests voor skill loading met fallback logica",
+        "Unit tests voor feature-completeness detectie",
+        "E2E test: volledige brainstorm flow van gesprek tot story preview",
+        "E2E test: story approve voegt toe aan prd.json",
+        "E2E test: project-specifieke skill override wordt correct geladen",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
     }
   ]
 }

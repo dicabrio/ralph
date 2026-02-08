@@ -86,6 +86,49 @@ export async function streamChatCompletion(
 }
 
 /**
+ * Stream a chat completion with full conversation history
+ *
+ * @param systemPrompt - The system prompt with context and instructions
+ * @param messages - Array of conversation messages
+ * @param callbacks - Callbacks for streaming events
+ * @returns Promise that resolves when streaming is complete
+ */
+export async function streamChatCompletionWithHistory(
+  systemPrompt: string,
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  callbacks: StreamCallbacks,
+): Promise<void> {
+  const client = getClient()
+  const model = getModel()
+
+  let fullContent = ''
+
+  try {
+    const stream = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+      stream: true,
+    })
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || ''
+      if (content) {
+        fullContent += content
+        callbacks.onChunk(content)
+      }
+    }
+
+    callbacks.onComplete(fullContent)
+  } catch (error) {
+    const errorMessage = formatOpenAIError(error)
+    callbacks.onError(errorMessage)
+  }
+}
+
+/**
  * Format OpenAI errors into user-friendly messages
  */
 function formatOpenAIError(error: unknown): string {

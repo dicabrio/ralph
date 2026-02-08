@@ -80,6 +80,15 @@ export type ServerMessage =
       payload: { sessionId: string; error: string }
       timestamp: number
     }
+  | {
+      type: 'brainstorm_phase_change'
+      payload: {
+        sessionId: string
+        phase: 'conversation' | 'story_generation'
+        aspects: { what: boolean; why: boolean; how: boolean; where: boolean }
+      }
+      timestamp: number
+    }
   // Runner status change messages
   | {
       type: 'runner_status'

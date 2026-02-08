@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import { AlertCircle, Link as LinkIcon } from 'lucide-react'
 
 // Story status type
-export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed'
+export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
 
 // Story type from the API
 export interface Story {

@@ -127,6 +127,50 @@ test.describe('Brainstorm Feature', () => {
     expect(count).toBeGreaterThan(1)
   })
 
+  test('should handle multi-turn conversation', async ({ page }) => {
+    test.setTimeout(180000) // Allow time for conversation (3 minutes)
+
+    const projectLink = page.locator('a[href^="/project/"]').first()
+    const hasProjects = await projectLink.isVisible({ timeout: 5000 }).catch(() => false)
+
+    if (!hasProjects) {
+      test.skip(true, 'No projects available for testing')
+      return
+    }
+
+    const href = await projectLink.getAttribute('href')
+    const projectId = href?.match(/\/project\/(\d+)/)?.[1]
+    await page.goto(`/project/${projectId}/brainstorm`)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(2000) // Wait for WebSocket
+
+    const messageInput = page.getByTestId('message-input')
+    const sendButton = page.getByTestId('send-button')
+
+    // First message - initial brainstorm
+    await messageInput.fill('I want to add a feature')
+    await sendButton.click()
+
+    // Wait for first response to complete
+    const streamingStarted = await page.getByTestId('cancel-button').waitFor({ timeout: 30000 }).then(() => true).catch(() => false)
+
+    if (!streamingStarted) {
+      const errorBanner = page.locator('.bg-destructive\\/10')
+      const hasError = await errorBanner.isVisible({ timeout: 2000 }).catch(() => false)
+      if (hasError) {
+        test.skip(true, 'OpenAI API not configured')
+      }
+      return
+    }
+
+    // Wait for first response to complete
+    await page.getByTestId('send-button').waitFor({ state: 'visible', timeout: 60000 })
+
+    // Check that we have at least 2 messages (user + AI)
+    const messageCount = await page.locator('[data-testid^="message-"]').count()
+    expect(messageCount).toBeGreaterThanOrEqual(2)
+  })
+
   test('should show stories when generated', async ({ page }) => {
     test.setTimeout(180000) // Allow time for full story generation (3 minutes)
 

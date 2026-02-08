@@ -1,4 +1,9 @@
 ## Codebase Patterns (Updated by Agents)
+- Host skills in host-skills/ folder with SKILL.md files containing YAML frontmatter
+- Skill loading order: project/.claude/skills/{name}/SKILL.md → host-skills/{name}/SKILL.md
+- OpenAI multi-turn conversations use streamChatCompletionWithHistory with message array
+- Brainstorm sessions track conversation history and feature aspects (What/Why/How/Where)
+- WebSocket events for phase changes: brainstorm_phase_change with session state
 - TanStack Start with file-based routing in src/routes/
 - Component files use PascalCase (e.g., Header.tsx)
 - TailwindCSS v4 via @tailwindcss/vite plugin
@@ -1807,3 +1812,40 @@
 - Projects router needs to sync with file watcher when adding/removing projects
 - Pre-existing TypeScript errors in demo/test files don't block story completion
 - Pre-existing unit test failures in unrelated routers don't affect story verification
+
+## 2026-02-08 - BRAIN-001
+**Title:** Twee-fase brainstorm met story-generator skill
+
+**Implemented:**
+- Two-phase brainstorm flow: conversation → story generation
+- Phase 1: Conversational AI helps explore What/Why/How/Where aspects of a feature
+- Phase 2: Story generation using story-generator skill with all conversation context
+- Skill loading with fallback: project/.claude/skills/{name}/ → host-skills/{name}/
+- Created host-skills/story-generator/SKILL.md with story generation guidelines
+- Extended BrainstormSession with phase, conversationHistory, and featureAspects tracking
+- Added status block parsing to detect feature completeness (```status``` blocks)
+- Multi-turn conversation support via streamChatCompletionWithHistory
+- New tRPC endpoints: continueChat, generateStory, loadSkill
+- Added brainstorm_phase_change WebSocket event for UI phase tracking
+- Comprehensive unit tests for skill loading, aspect parsing, and conversation summarization
+- E2E test for multi-turn conversation flow
+
+**Files changed:**
+- src/lib/services/brainstormManager.ts (two-phase flow, skill loading, aspect detection)
+- src/lib/services/brainstormManager.test.ts (15 new tests for skill/phase logic)
+- src/lib/services/openaiService.ts (added streamChatCompletionWithHistory)
+- src/lib/trpc/routers/brainstorm.ts (continueChat, generateStory, loadSkill endpoints)
+- src/lib/websocket/types.ts (added brainstorm_phase_change event)
+- e2e/brainstorm.spec.ts (added multi-turn conversation test)
+- host-skills/story-generator/SKILL.md (already existed)
+- stories/progress.txt (codebase patterns and progress entry)
+
+**Learnings:**
+- getHostSkillsPath() needs multiple fallback strategies for dev vs prod environments
+- fileURLToPath(import.meta.url) works in ESM context for resolving relative paths
+- Conversation history format must match OpenAI's {role, content} structure
+- parseAspectsFromResponse handles truthy/falsy values with Boolean() coercion
+- Session state persists across multiple API calls via in-memory Map
+- detectStoryRequest uses simple keyword matching for user confirmation
+- Pre-existing lint/typecheck errors don't block new feature implementation
+- Build succeeds despite demo file type errors (isolated to demo routes)

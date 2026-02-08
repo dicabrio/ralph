@@ -20,6 +20,7 @@ import {
   brainstormManager,
   generateSystemPrompt,
   parseStoriesFromResponse,
+  loadSkill,
 } from '@/lib/services/brainstormManager'
 import { getWebSocketServer } from '@/lib/websocket/server'
 import type { GeneratedStory } from '@/lib/websocket/types'
@@ -117,6 +118,178 @@ export const brainstormRouter = router({
           code: 'INTERNAL_SERVER_ERROR',
           message: error instanceof Error ? error.message : 'Failed to start brainstorm session',
         })
+      }
+    }),
+
+  /**
+   * Continue an existing brainstorm session with a new message
+   *
+   * Supports multi-turn conversations. If the user confirms story generation,
+   * the session will transition to phase 2 (story generation).
+   */
+  continueChat: publicProcedure
+    .input(z.object({
+      sessionId: z.string().min(1),
+      message: z.string().min(1).max(10000),
+    }))
+    .mutation(async ({ input }) => {
+      const session = brainstormManager.getSession(input.sessionId)
+
+      if (!session) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Session ${input.sessionId} not found`,
+        })
+      }
+
+      const wsServer = getWebSocketServer()
+
+      try {
+        await brainstormManager.continueSession(
+          input.sessionId,
+          input.message,
+          {
+            onChunk: (sessionId, content) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_chunk',
+                payload: { sessionId, content },
+                timestamp: Date.now(),
+              })
+            },
+            onStories: (sessionId, stories) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_stories',
+                payload: { sessionId, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onComplete: (sessionId, content, stories) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_complete',
+                payload: { sessionId, content, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onError: (sessionId, error) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_error',
+                payload: { sessionId, error },
+                timestamp: Date.now(),
+              })
+            },
+            onPhaseChange: (sessionId, phase, aspects) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_phase_change',
+                payload: { sessionId, phase, aspects },
+                timestamp: Date.now(),
+              })
+            },
+          },
+        )
+
+        return { success: true }
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to continue brainstorm session',
+        })
+      }
+    }),
+
+  /**
+   * Trigger story generation for a session
+   *
+   * Called when user confirms they want to generate a story.
+   */
+  generateStory: publicProcedure
+    .input(z.object({
+      sessionId: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      const session = brainstormManager.getSession(input.sessionId)
+
+      if (!session) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Session ${input.sessionId} not found`,
+        })
+      }
+
+      const wsServer = getWebSocketServer()
+
+      try {
+        await brainstormManager.generateStory(
+          input.sessionId,
+          {
+            onChunk: (sessionId, content) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_chunk',
+                payload: { sessionId, content },
+                timestamp: Date.now(),
+              })
+            },
+            onStories: (sessionId, stories) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_stories',
+                payload: { sessionId, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onComplete: (sessionId, content, stories) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_complete',
+                payload: { sessionId, content, stories },
+                timestamp: Date.now(),
+              })
+            },
+            onError: (sessionId, error) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_error',
+                payload: { sessionId, error },
+                timestamp: Date.now(),
+              })
+            },
+            onPhaseChange: (sessionId, phase, aspects) => {
+              wsServer?.broadcast(String(session.projectId), {
+                type: 'brainstorm_phase_change',
+                payload: { sessionId, phase, aspects },
+                timestamp: Date.now(),
+              })
+            },
+          },
+        )
+
+        return { success: true }
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to generate story',
+        })
+      }
+    }),
+
+  /**
+   * Load a skill with fallback logic
+   *
+   * Checks project override first, then falls back to host-skills.
+   */
+  loadSkill: publicProcedure
+    .input(z.object({
+      projectId: z.number().int().positive(),
+      skillName: z.string().min(1),
+    }))
+    .query(async ({ input }) => {
+      const project = await getProjectById(input.projectId)
+      const result = await loadSkill(input.skillName, project.path)
+
+      if (!result) {
+        return { found: false, content: null, source: null }
+      }
+
+      return {
+        found: true,
+        content: result.content,
+        source: result.source,
       }
     }),
 

@@ -154,31 +154,15 @@ function getStoriesForColumn(
   stories: Story[],
   column: KanbanColumn,
 ): Story[] {
-  if (column.id === 'backlog') {
-    // Stories in backlog: pending status with unmet dependencies
-    return stories.filter((story) => {
-      if (story.status !== 'pending') return false
-      return !hasAllDependenciesMet(story, stories)
-    })
-  }
-
-  if (column.id === 'todo') {
-    // Stories in todo: pending status with all dependencies met
-    return stories.filter((story) => {
-      if (story.status !== 'pending') return false
-      return hasAllDependenciesMet(story, stories)
-    })
-  }
-
-  // Other columns: match by status directly
+  // Simple status matching - status determines column directly
   return stories.filter((story) => story.status === column.status)
 }
 
 // Get which column a story belongs to
-function getColumnForStory(story: Story, allStories: Story[]): string {
-  if (story.status === 'pending') {
-    return hasAllDependenciesMet(story, allStories) ? 'todo' : 'backlog'
-  }
+function getColumnForStory(story: Story, _allStories: Story[]): string {
+  // Simple status to column mapping
+  if (story.status === 'pending') return 'todo'
+  if (story.status === 'backlog') return 'backlog'
   return story.status
 }
 
@@ -186,6 +170,7 @@ function getColumnForStory(story: Story, allStories: Story[]): string {
 function getTargetStatusForColumn(columnId: string): StoryStatus | null {
   switch (columnId) {
     case 'backlog':
+      return 'backlog'
     case 'todo':
       return 'pending'
     case 'in_progress':
@@ -201,10 +186,11 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
 
 // Valid status transitions (from stories router)
 const validTransitions: Record<StoryStatus, StoryStatus[]> = {
-  pending: ['in_progress', 'done'],
+  pending: ['in_progress', 'done', 'backlog'],
   in_progress: ['done', 'failed', 'pending'],
-  done: ['pending'],
-  failed: ['in_progress', 'pending'],
+  done: ['pending', 'backlog'],
+  failed: ['in_progress', 'pending', 'backlog'],
+  backlog: ['pending', 'done'],
 }
 
 // Check if a status transition is valid
