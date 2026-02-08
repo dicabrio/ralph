@@ -857,6 +857,111 @@ test.describe('Kanban Board Flow', () => {
     })
   })
 
+  test.describe('Drag Handle Visibility (UI-027)', () => {
+    test('should display drag handle always visible on draggable stories', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Find TEST-004 (in Te doen, draggable column)
+      const storyCard = getStoryCard(page, 'TEST-004')
+      await expect(storyCard).toBeVisible()
+
+      // The drag handle should be visible without hovering
+      // It has data-testid="drag-handle"
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+    })
+
+    test('should have proper grab cursor on drag handle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Find a draggable story
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+
+      // Check that the handle has cursor-grab class
+      await expect(dragHandle).toHaveClass(/cursor-grab/)
+    })
+
+    test('should display GripVertical icon in drag handle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Find a draggable story
+      const storyCard = getStoryCard(page, 'TEST-004')
+      await expect(storyCard).toBeVisible()
+
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+
+      // The handle should contain an SVG (the GripVertical icon)
+      const icon = dragHandle.locator('svg')
+      await expect(icon).toBeVisible()
+    })
+
+    test('should position drag handle on left side of story card', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Find a draggable story
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+
+      // Get bounding boxes to verify position
+      const handleBox = await dragHandle.boundingBox()
+      const cardBox = await storyCard.boundingBox()
+
+      if (handleBox && cardBox) {
+        // The drag handle should be to the left of the card
+        expect(handleBox.x).toBeLessThan(cardBox.x)
+      }
+    })
+
+    test('should not display drag handle on non-draggable stories (In Progress)', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // TEST-006 is in In Progress column (non-draggable)
+      const storyCard = getStoryCard(page, 'TEST-006')
+      await expect(storyCard).toBeVisible()
+
+      // The drag handle should NOT be present
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).not.toBeVisible()
+    })
+
+    test('should have proper styling consistency with drag handle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Find a draggable story
+      const storyCard = getStoryCard(page, 'TEST-004')
+      await expect(storyCard).toBeVisible()
+
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+
+      // Verify the handle has the proper border styling
+      await expect(dragHandle).toHaveClass(/rounded-l-lg/)
+      await expect(dragHandle).toHaveClass(/border-y/)
+      await expect(dragHandle).toHaveClass(/border-l/)
+    })
+
+    test('should have accessible label on drag handle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+
+      const dragHandle = storyCard.locator('..').locator('[data-testid="drag-handle"]')
+      await expect(dragHandle).toBeVisible()
+
+      // Check for aria-label for accessibility
+      await expect(dragHandle).toHaveAttribute('aria-label', 'Drag to reorder')
+    })
+  })
+
   test.describe('Extended Drag and Drop (UI-025)', () => {
     test('should display lock icon on In Progress column', async ({ page }) => {
       await gotoKanbanBoard(page, testProject)

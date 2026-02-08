@@ -20,9 +20,11 @@ export interface Story {
 export interface StoryCardProps {
   story: Story
   onClick?: () => void
+  /** When true, removes left border radius for adjacent drag handle */
+  hasDragHandle?: boolean
 }
 
-export function StoryCard({ story, onClick }: StoryCardProps) {
+export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
   const hasDependencies = story.dependencies.length > 0
   const isFailed = story.status === 'failed'
 
@@ -42,6 +44,7 @@ export function StoryCard({ story, onClick }: StoryCardProps) {
         'hover:shadow-md hover:border-primary/30 transition-all',
         onClick && 'cursor-pointer',
         isFailed && 'border-destructive/30 bg-destructive/5',
+        hasDragHandle && 'rounded-l-none border-l-0',
       )}
       data-testid="story-card"
     >

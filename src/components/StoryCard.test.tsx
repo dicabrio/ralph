@@ -307,4 +307,43 @@ describe('StoryCard', () => {
       expect(card).toHaveAttribute('role', 'button')
     })
   })
+
+  describe('drag handle styling', () => {
+    it('has rounded corners on all sides by default', () => {
+      const story = createStory()
+      render(<StoryCard story={story} />)
+
+      const card = screen.getByTestId('story-card')
+      expect(card).toHaveClass('rounded-lg')
+      expect(card).not.toHaveClass('rounded-l-none')
+      expect(card).not.toHaveClass('border-l-0')
+    })
+
+    it('removes left border radius when hasDragHandle is true', () => {
+      const story = createStory()
+      render(<StoryCard story={story} hasDragHandle />)
+
+      const card = screen.getByTestId('story-card')
+      expect(card).toHaveClass('rounded-l-none')
+      expect(card).toHaveClass('border-l-0')
+    })
+
+    it('has left border radius when hasDragHandle is false', () => {
+      const story = createStory()
+      render(<StoryCard story={story} hasDragHandle={false} />)
+
+      const card = screen.getByTestId('story-card')
+      expect(card).not.toHaveClass('rounded-l-none')
+      expect(card).not.toHaveClass('border-l-0')
+    })
+
+    it('still has rounded-lg base class when hasDragHandle is true', () => {
+      const story = createStory()
+      render(<StoryCard story={story} hasDragHandle />)
+
+      const card = screen.getByTestId('story-card')
+      // The rounded-lg provides right-side corners, rounded-l-none removes left
+      expect(card).toHaveClass('rounded-lg')
+    })
+  })
 })

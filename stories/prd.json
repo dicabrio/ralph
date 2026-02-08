@@ -1143,7 +1143,7 @@
       "title": "Drag handle icon verbeteren",
       "description": "Het drag & drop icoontje op story cards moet altijd zichtbaar zijn (niet alleen on hover) en meer ruimte krijgen voor betere UX.",
       "priority": 61,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-007"],
       "recommendedSkills": ["frontend-design"],

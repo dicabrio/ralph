@@ -293,7 +293,7 @@ function DraggableStoryCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'relative',
+        'flex items-stretch',
         isDragging && 'opacity-50 z-50',
       )}
     >
@@ -302,18 +302,19 @@ function DraggableStoryCard({
           {...listeners}
           {...attributes}
           className={cn(
-            'absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center',
+            'flex-shrink-0 w-6 flex items-center justify-center rounded-l-lg',
             'cursor-grab active:cursor-grabbing',
-            'text-muted-foreground hover:text-foreground transition-colors',
-            'opacity-0 group-hover:opacity-100 hover:opacity-100',
+            'text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors',
+            'border-y border-l bg-muted/30',
           )}
-          style={{ zIndex: 10 }}
+          data-testid="drag-handle"
+          aria-label="Drag to reorder"
         >
           <GripVertical className="w-4 h-4" />
         </div>
       )}
-      <div className={cn(isDraggable && 'group')}>
-        <StoryCard story={story} onClick={onClick} />
+      <div className="flex-1 min-w-0">
+        <StoryCard story={story} onClick={onClick} hasDragHandle={isDraggable} />
       </div>
     </div>
   )

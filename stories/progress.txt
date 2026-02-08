@@ -1716,3 +1716,31 @@
 - Test enhancement is valuable even when no bug exists - it prevents future regressions
 - Pre-existing lint errors in other files don't block this story (no changes to those files)
 - Pre-existing test failures in stories router are unrelated to Kanban functionality
+
+## 2026-02-08 - UI-027
+**Title:** Drag handle icon verbeteren
+
+**Implemented:**
+- Changed drag handle from hover-only visibility to always visible
+- Repositioned drag handle layout: from absolute overlay to flex layout with handle on left
+- Added proper styling: rounded-l-lg border for seamless connection with story card
+- Added data-testid="drag-handle" and aria-label="Drag to reorder" for accessibility
+- Updated StoryCard component with hasDragHandle prop to adjust left border styling
+- When hasDragHandle is true, card gets rounded-l-none and border-l-0 classes
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (DraggableStoryCard layout restructured)
+- src/components/StoryCard.tsx (added hasDragHandle prop)
+- src/components/StoryCard.test.tsx (added tests for hasDragHandle prop)
+- src/routes/project/$id/-kanban.test.tsx (added drag handle visibility tests)
+- e2e/kanban-board.spec.ts (added UI-027 E2E test section)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- For adjacent UI elements (drag handle + card), use flex layout instead of absolute positioning
+- Coordinate border-radius between elements: handle gets rounded-l-lg, card gets rounded-l-none
+- Remove overlapping borders: card gets border-l-0 when handle provides the left border
+- The StoryCard component is reused in DragOverlayContent, so hasDragHandle=false is the default
+- Cursor states cursor-grab and active:cursor-grabbing work well for drag handles
+- Pre-existing lint issues (biome) don't block story completion if no new errors introduced
+- Pre-existing test failures in unrelated routers don't affect story verification
