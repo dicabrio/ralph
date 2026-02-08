@@ -15,9 +15,11 @@ import {
   X,
   Copy,
   CheckCheck,
+  RotateCcw,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/project/$id/settings')({
   component: ProjectSettingsPage,
@@ -107,26 +109,27 @@ function SettingsRow({
                 if (e.key === 'Escape') handleCancel()
               }}
             />
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleSave}
               disabled={isLoading}
-              className="p-1 rounded hover:bg-accent text-emerald-500"
+              className="text-emerald-500"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Check className="w-4 h-4" />
               )}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleCancel}
               disabled={isLoading}
-              className="p-1 rounded hover:bg-accent text-muted-foreground"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </>
         ) : (
           <>
@@ -140,10 +143,10 @@ function SettingsRow({
               {value ?? '-'}
             </span>
             {copyable && value && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-accent text-muted-foreground shrink-0"
                 title="Kopieer naar klembord"
               >
                 {copied ? (
@@ -151,20 +154,76 @@ function SettingsRow({
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
-              </button>
+              </Button>
             )}
             {editable && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setIsEditing(true)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground shrink-0"
               >
                 <Pencil className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             )}
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+// Toggle switch component
+interface ToggleRowProps {
+  label: string
+  description: string
+  icon: React.ReactNode
+  checked: boolean
+  onChange: (checked: boolean) => void
+  isLoading?: boolean
+}
+
+function ToggleRow({
+  label,
+  description,
+  icon,
+  checked,
+  onChange,
+  isLoading = false,
+}: ToggleRowProps) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+      <div className="flex items-start gap-3 min-w-0">
+        <span className="text-muted-foreground shrink-0 mt-0.5">{icon}</span>
+        <div>
+          <span className="text-sm font-medium text-foreground block">
+            {label}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {description}
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        disabled={isLoading}
+        className={cn(
+          'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent',
+          'transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          checked ? 'bg-primary' : 'bg-muted',
+        )}
+      >
+        <span
+          className={cn(
+            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0',
+            'transition duration-200 ease-in-out',
+            checked ? 'translate-x-5' : 'translate-x-0',
+          )}
+        />
+      </button>
     </div>
   )
 }
@@ -233,28 +292,19 @@ function DeleteConfirmModal({
         </div>
 
         <div className="flex gap-3">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            className="flex-1"
             onClick={onCancel}
             disabled={isDeleting}
-            className={cn(
-              'flex-1 px-4 py-2.5 rounded-lg border',
-              'text-foreground hover:bg-accent transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
           >
             Annuleren
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="destructive"
+            className="flex-1"
             onClick={onConfirm}
             disabled={!isConfirmed || isDeleting}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg',
-              'bg-destructive text-destructive-foreground font-medium',
-              'hover:bg-destructive/90 transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
           >
             {isDeleting ? (
               <>
@@ -267,7 +317,7 @@ function DeleteConfirmModal({
                 Verwijderen
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -298,6 +348,12 @@ function ProjectSettingsPage() {
     { enabled: !Number.isNaN(projectId) },
   )
 
+  // Fetch auto-restart status
+  const { data: autoRestartStatus } = trpc.runner.getAutoRestartStatus.useQuery(
+    { projectId },
+    { enabled: !Number.isNaN(projectId) },
+  )
+
   // Mutations
   const updateProject = trpc.projects.update.useMutation({
     onSuccess: () => {
@@ -310,6 +366,12 @@ function ProjectSettingsPage() {
     onSuccess: () => {
       utils.projects.list.invalidate()
       navigate({ to: '/' })
+    },
+  })
+
+  const setAutoRestart = trpc.runner.setAutoRestart.useMutation({
+    onSuccess: () => {
+      utils.runner.getAutoRestartStatus.invalidate({ projectId })
     },
   })
 
@@ -332,6 +394,11 @@ function ProjectSettingsPage() {
       id: projectId,
       branchName: newBranchName.trim() || null,
     })
+  }
+
+  // Handle auto-restart toggle
+  const handleAutoRestartToggle = (enabled: boolean) => {
+    setAutoRestart.mutate({ projectId, enabled })
   }
 
   // Handle delete
@@ -446,6 +513,23 @@ function ProjectSettingsPage() {
           </div>
         </section>
 
+        {/* Runner Settings */}
+        <section>
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Runner
+          </h2>
+          <div className="bg-card rounded-lg border p-4">
+            <ToggleRow
+              label="Auto-restart"
+              description="Start automatisch de volgende story wanneer de huidige klaar is"
+              icon={<RotateCcw className="w-4 h-4" />}
+              checked={autoRestartStatus?.autoRestartEnabled ?? true}
+              onChange={handleAutoRestartToggle}
+              isLoading={setAutoRestart.isPending}
+            />
+          </div>
+        </section>
+
         {/* Danger Zone */}
         <section>
           <h2 className="text-lg font-semibold text-destructive mb-4">
@@ -462,18 +546,13 @@ function ProjectSettingsPage() {
                   Dit kan niet ongedaan worden gemaakt.
                 </p>
               </div>
-              <button
-                type="button"
+              <Button
+                variant="destructive"
                 onClick={() => setShowDeleteModal(true)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg shrink-0',
-                  'bg-destructive text-destructive-foreground',
-                  'hover:bg-destructive/90 transition-colors',
-                )}
               >
                 <Trash2 className="w-4 h-4" />
                 Verwijderen
-              </button>
+              </Button>
             </div>
           </div>
         </section>

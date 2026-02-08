@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import type { Story, StoryStatus } from './StoryCard'
 
 interface StoryDetailModalProps {
@@ -195,19 +197,13 @@ export function StoryDetailModal({
               <span className="text-xs font-mono text-muted-foreground">
                 {story.id}
               </span>
-              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+              <Badge variant="default">
                 P{story.priority}
-              </span>
-              <span
-                className={cn(
-                  'flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded',
-                  statusConfig.bgColor,
-                  statusConfig.color,
-                )}
-              >
+              </Badge>
+              <Badge variant={story.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
                 {statusConfig.icon}
                 {statusConfig.label}
-              </span>
+              </Badge>
             </div>
             <h2
               id="story-detail-modal-title"
@@ -216,15 +212,16 @@ export function StoryDetailModal({
               {story.title}
             </h2>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="p-1.5 -mr-1.5 mt-0.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="-mr-1.5 mt-0.5"
             aria-label="Close"
             data-testid="close-button"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Content - Scrollable */}
@@ -299,16 +296,10 @@ export function StoryDetailModal({
                           {dep.title}
                         </p>
                       </div>
-                      <span
-                        className={cn(
-                          'flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded shrink-0',
-                          depStatus.bgColor,
-                          depStatus.color,
-                        )}
-                      >
+                      <Badge variant={dep.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
                         {depStatus.icon}
                         {depStatus.label}
-                      </span>
+                      </Badge>
                     </div>
                   )
                 })}
@@ -373,16 +364,10 @@ export function StoryDetailModal({
                       autoFocus
                       data-testid="skill-input"
                     />
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={handleAddSkill}
                       disabled={!newSkillInput.trim() || updateSkills.isPending}
-                      className={cn(
-                        'px-3 py-2 rounded-lg text-sm font-medium',
-                        'bg-primary text-primary-foreground',
-                        'hover:bg-primary/90 transition-colors',
-                        'disabled:opacity-50 disabled:cursor-not-allowed',
-                      )}
                       data-testid="confirm-add-skill"
                     >
                       {updateSkills.isPending ? (
@@ -390,22 +375,18 @@ export function StoryDetailModal({
                       ) : (
                         'Add'
                       )}
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => {
                         setIsAddingSkill(false)
                         setNewSkillInput('')
                       }}
-                      className={cn(
-                        'px-3 py-2 rounded-lg text-sm font-medium',
-                        'bg-secondary text-secondary-foreground',
-                        'hover:bg-secondary/80 transition-colors',
-                      )}
                       data-testid="cancel-add-skill"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Suggested skills */}
@@ -415,38 +396,33 @@ export function StoryDetailModal({
                         Suggestions:
                       </span>
                       {suggestedSkills.map((skill) => (
-                        <button
+                        <Button
                           key={skill.id}
-                          type="button"
+                          variant="ghost"
+                          size="xs"
                           onClick={() => {
                             setNewSkillInput(skill.id)
                           }}
-                          className={cn(
-                            'text-xs px-2 py-1 rounded-full',
-                            'bg-muted text-muted-foreground',
-                            'hover:bg-muted/80 transition-colors',
-                          )}
+                          className="rounded-full"
                           data-testid={`suggested-skill-${skill.id}`}
                         >
                           {skill.name}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}
                 </div>
               ) : (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsAddingSkill(true)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-sm',
-                    'text-muted-foreground hover:text-foreground transition-colors',
-                  )}
+                  className="text-muted-foreground hover:text-foreground"
                   data-testid="add-skill-button"
                 >
                   <Plus className="w-4 h-4" />
                   Add skill
-                </button>
+                </Button>
               )}
             </div>
           </section>

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, FolderSearch, Loader2, CheckCircle2, FolderOpen, AlertCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface DiscoverProjectsModalProps {
   isOpen: boolean
@@ -193,18 +195,16 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
               )}
             </div>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleClose}
             disabled={isAdding}
-            className={cn(
-              'p-1.5 -mr-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
-              isAdding && 'opacity-50 cursor-not-allowed'
-            )}
+            className="-mr-1.5"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -251,13 +251,14 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
                   <span className="text-sm text-muted-foreground">
                     {selectedPaths.size} of {availableProjects.length} selected
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={allSelected ? deselectAll : selectAll}
-                    className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                    className="h-auto p-0"
                   >
                     {allSelected ? 'Deselect all' : 'Select all'}
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -319,34 +320,20 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
             )}
           </p>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={handleClose}
               disabled={isAdding}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-secondary text-secondary-foreground',
-                'hover:bg-secondary/80 transition-colors',
-                isAdding && 'opacity-50 cursor-not-allowed'
-              )}
             >
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               onClick={handleAddSelected}
               disabled={selectedPaths.size === 0 || isAdding}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-primary text-primary-foreground',
-                'hover:bg-primary/90 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                'flex items-center gap-2'
-              )}
             >
               {isAdding && <Loader2 className="w-4 h-4 animate-spin" />}
               Add Selected ({selectedPaths.size})
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -405,13 +392,14 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded, onConver
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-foreground truncate">{project.name}</span>
           {isAdded && (
-            <span className="shrink-0 px-1.5 py-0.5 text-xs font-medium rounded bg-muted text-muted-foreground">
+            <Badge variant="secondary">
               Added
-            </span>
+            </Badge>
           )}
           {needsConversion && (
-            <span
-              className="shrink-0 px-1.5 py-0.5 text-xs font-medium rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 cursor-pointer hover:bg-amber-500/30 transition-colors"
+            <Badge
+              variant="pending"
+              className="cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -429,7 +417,7 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded, onConver
               data-testid="needs-conversion-badge"
             >
               Needs conversion
-            </span>
+            </Badge>
           )}
         </div>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{project.path}</p>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
 import { ProjectSelector, useSelectedProject } from './ProjectSelector'
 
 interface NavItem {
@@ -291,14 +292,11 @@ export function Sidebar({
         {/* Collapse toggle - only on desktop */}
         {!isMobile && (
           <div className="p-2 border-t border-sidebar-border">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onToggle}
-              className={cn(
-                'w-full flex items-center justify-center py-2 rounded-lg',
-                'text-sidebar-foreground/60 hover:text-sidebar-foreground',
-                'hover:bg-sidebar-accent/50 transition-colors'
-              )}
+              className="w-full text-sidebar-foreground/60 hover:text-sidebar-foreground"
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? (
@@ -306,7 +304,7 @@ export function Sidebar({
               ) : (
                 <ChevronLeft className="w-5 h-5" />
               )}
-            </button>
+            </Button>
           </div>
         )}
       </aside>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, FolderOpen, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { X, FolderOpen, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
 
 interface AddProjectModalProps {
   isOpen: boolean
@@ -15,6 +16,12 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Track if field has been touched (blur event occurred)
+  // "Reward Early, Punish Late" pattern:
+  // - Only show errors after user has left the field (punish late)
+  // - Show success immediately when input becomes valid (reward early)
+  const [pathTouched, setPathTouched] = useState(false)
 
   // Debounced path for validation
   const [debouncedPath, setDebouncedPath] = useState('')
@@ -86,13 +93,18 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
     setName('')
     setSubmitError(null)
     setDebouncedPath('')
+    setPathTouched(false)
     onClose()
   }, [onClose])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validation?.hasPrd) {
+    // Mark as touched on submit to show any validation errors
+    setPathTouched(true)
+
+    // Only require path to exist - prd.json will be created if missing
+    if (!validation?.pathExists) {
       return
     }
 
@@ -117,15 +129,25 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
     if (!validation) return null
     if (validation.isAlreadyAdded) return 'already_added'
     if (!validation.pathExists) return 'path_not_found'
-    if (!validation.hasPrd) return 'no_prd'
+    if (!validation.hasPrd) return 'will_create_prd' // Path exists, prd.json will be created
     return 'valid'
   }
 
   const validationState = getValidationState()
 
+  // "Reward Early, Punish Late" pattern:
+  // - Show errors only after blur (touched) OR after failed submit attempt
+  // - Show success/info immediately when valid (reward early)
+  const isError = validationState === 'path_not_found' ||
+    validationState === 'already_added'
+  const showError = isError && pathTouched
+  const showSuccess = validationState === 'valid'
+  const showWillCreate = validationState === 'will_create_prd'
+
+  // Can submit if path exists (prd.json will be created if missing)
   const canSubmit =
     debouncedPath.length > 0 &&
-    validationState === 'valid' &&
+    (validationState === 'valid' || validationState === 'will_create_prd') &&
     !isSubmitting
 
   if (!isOpen) return null
@@ -154,14 +176,15 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
           >
             Add Project
           </h2>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleClose}
-            className="p-1.5 -mr-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="-mr-1.5"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Form */}
@@ -185,17 +208,16 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                   type="text"
                   value={path}
                   onChange={(e) => setPath(e.target.value)}
+                  onBlur={() => setPathTouched(true)}
                   placeholder="/path/to/your/project"
                   className={cn(
                     'w-full pl-10 pr-10 py-2.5 rounded-lg border bg-background',
                     'text-foreground placeholder:text-muted-foreground',
                     'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
                     'transition-colors',
-                    validationState === 'valid' && 'border-emerald-500 focus:border-emerald-500',
-                    (validationState === 'path_not_found' ||
-                      validationState === 'no_prd' ||
-                      validationState === 'already_added') &&
-                      'border-destructive focus:border-destructive'
+                    showSuccess && 'border-emerald-500 focus:border-emerald-500',
+                    showWillCreate && 'border-blue-500 focus:border-blue-500',
+                    showError && 'border-destructive focus:border-destructive'
                   )}
                   autoComplete="off"
                   spellCheck="false"
@@ -205,40 +227,41 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                   {validationState === 'loading' && (
                     <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
                   )}
-                  {validationState === 'valid' && (
+                  {showSuccess && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   )}
-                  {(validationState === 'path_not_found' ||
-                    validationState === 'no_prd' ||
-                    validationState === 'already_added') && (
+                  {showWillCreate && (
+                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                  )}
+                  {showError && (
                     <AlertCircle className="w-4 h-4 text-destructive" />
                   )}
                 </div>
               </div>
 
-              {/* Validation message */}
-              {validationState === 'path_not_found' && (
+              {/* Validation message - only show errors after blur (punish late), show success immediately (reward early) */}
+              {showError && validationState === 'path_not_found' && (
                 <p className="text-sm text-destructive flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   Path does not exist
                 </p>
               )}
-              {validationState === 'no_prd' && (
-                <p className="text-sm text-destructive flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  No prd.json found. The project must have a stories/prd.json file.
-                </p>
-              )}
-              {validationState === 'already_added' && (
+              {showError && validationState === 'already_added' && (
                 <p className="text-sm text-destructive flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   This project has already been added
                 </p>
               )}
-              {validationState === 'valid' && (
+              {showSuccess && (
                 <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   Valid project found
+                </p>
+              )}
+              {showWillCreate && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  Folder found — stories/prd.json will be created
                 </p>
               )}
             </div>
@@ -272,7 +295,7 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
               />
               {validation?.suggestedName && !name && (
                 <p className="text-xs text-muted-foreground">
-                  Will use "{validation.suggestedName}" from prd.json
+                  Will use "{validation.suggestedName}"{validation.hasPrd ? ' from prd.json' : ' (folder name)'}
                 </p>
               )}
             </div>
@@ -290,31 +313,13 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
-            <button
-              type="button"
-              onClick={handleClose}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-secondary text-secondary-foreground',
-                'hover:bg-secondary/80 transition-colors'
-              )}
-            >
+            <Button variant="secondary" onClick={handleClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-primary text-primary-foreground',
-                'hover:bg-primary/90 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                'flex items-center gap-2'
-              )}
-            >
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Add Project
-            </button>
+            </Button>
           </div>
         </form>
       </div>

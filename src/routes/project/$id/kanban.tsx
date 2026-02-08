@@ -29,7 +29,9 @@ import {
 import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
-import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { StoryCard, type Story, type StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
 import { RunnerLogModal } from '@/components/RunnerLogModal'
 import { useWebSocket } from '@/lib/websocket/client'
@@ -475,16 +477,11 @@ function KanbanRunnerControls({
     <div className="flex items-center gap-3">
       <RunnerStatusBadge status={runnerStatus} storyId={currentStoryId} />
       {!isRunning ? (
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={onStart}
           disabled={isBusy}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium',
-            'bg-emerald-500 text-white',
-            'hover:bg-emerald-600 transition-colors',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-          )}
+          className="bg-emerald-500 text-white hover:bg-emerald-600"
         >
           {isStarting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -492,18 +489,13 @@ function KanbanRunnerControls({
             <Play className="w-3.5 h-3.5" />
           )}
           Start
-        </button>
+        </Button>
       ) : (
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="destructive"
           onClick={onStop}
           disabled={isBusy}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium',
-            'bg-destructive text-destructive-foreground',
-            'hover:bg-destructive/90 transition-colors',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-          )}
         >
           {isStopping ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -511,7 +503,7 @@ function KanbanRunnerControls({
             <Square className="w-3.5 h-3.5" />
           )}
           Stop
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -639,19 +631,9 @@ function DependencyConfirmDialog({
                 key={dep.id}
                 className="flex items-center gap-2 text-sm"
               >
-                <span
-                  className={cn(
-                    'px-1.5 py-0.5 rounded text-xs font-medium',
-                    dep.status === 'pending' &&
-                      'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-                    dep.status === 'in_progress' &&
-                      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                    dep.status === 'failed' &&
-                      'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                  )}
-                >
+                <Badge variant={dep.status as 'pending' | 'in_progress' | 'failed'}>
                   {dep.status}
-                </span>
+                </Badge>
                 <span className="text-foreground font-medium">{dep.id}</span>
                 <span className="text-muted-foreground truncate">{dep.title}</span>
               </li>
@@ -661,25 +643,23 @@ function DependencyConfirmDialog({
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onCancel}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
             data-testid="dialog-cancel"
           >
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={onConfirm}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="bg-amber-600 hover:bg-amber-700"
             data-testid="dialog-confirm"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Move Anyway
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { AddProjectModal } from '@/components/AddProjectModal'
 import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
 import { PrdConversionWizard } from '@/components/PrdConversionWizard'
@@ -233,30 +234,14 @@ function EmptyState({
         agents on your codebase.
       </p>
       <div className="flex flex-col sm:flex-row items-center gap-3">
-        <button
-          type="button"
-          onClick={onAddProject}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-lg',
-            'bg-primary text-primary-foreground font-medium',
-            'hover:bg-primary/90 transition-colors'
-          )}
-        >
+        <Button onClick={onAddProject}>
           <Plus className="w-4 h-4" />
           Add Project
-        </button>
-        <button
-          type="button"
-          onClick={onDiscover}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-lg',
-            'bg-secondary text-secondary-foreground font-medium',
-            'hover:bg-secondary/80 transition-colors'
-          )}
-        >
+        </Button>
+        <Button variant="secondary" onClick={onDiscover}>
           <Search className="w-4 h-4" />
           Discover Projects
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -353,30 +338,14 @@ function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleDiscover}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-lg',
-              'bg-secondary text-secondary-foreground text-sm font-medium',
-              'hover:bg-secondary/80 transition-colors'
-            )}
-          >
+          <Button variant="secondary" size="sm" onClick={handleDiscover}>
             <Search className="w-4 h-4" />
             Discover
-          </button>
-          <button
-            type="button"
-            onClick={handleAddProject}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-lg',
-              'bg-primary text-primary-foreground text-sm font-medium',
-              'hover:bg-primary/90 transition-colors'
-            )}
-          >
+          </Button>
+          <Button size="sm" onClick={handleAddProject}>
             <Plus className="w-4 h-4" />
             Add Project
-          </button>
+          </Button>
         </div>
       </div>
 

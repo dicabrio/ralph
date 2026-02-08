@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { AlertCircle, Link as LinkIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 // Story status type
 export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
@@ -59,24 +60,15 @@ export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
         <div className="flex items-center gap-1.5">
           {/* Failed badge */}
           {isFailed && (
-            <span
-              className={cn(
-                'flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded',
-                'bg-destructive/10 text-destructive',
-              )}
-              data-testid="failed-badge"
-            >
+            <Badge variant="failed" data-testid="failed-badge">
               <AlertCircle className="w-3 h-3" />
               Failed
-            </span>
+            </Badge>
           )}
           {/* Priority badge */}
-          <span
-            className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary"
-            data-testid="priority-badge"
-          >
+          <Badge variant="default" data-testid="priority-badge">
             P{story.priority}
-          </span>
+          </Badge>
         </div>
       </div>
 
