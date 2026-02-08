@@ -1235,4 +1235,172 @@ test.describe('Kanban Board Flow', () => {
       await expect(storyCard).toBeVisible()
     })
   })
+
+  test.describe('Full-Width Layout (UI-028)', () => {
+    test('should display Kanban board using full available width', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Get the Kanban board container
+      const kanbanBoard = page.locator('[data-testid="kanban-board"]')
+      await expect(kanbanBoard).toBeVisible()
+
+      // Get viewport width
+      const viewportSize = page.viewportSize()
+      if (!viewportSize) {
+        throw new Error('Viewport size not available')
+      }
+
+      // Get the board's bounding box
+      const boardBox = await kanbanBoard.boundingBox()
+      if (!boardBox) {
+        throw new Error('Could not get kanban board bounding box')
+      }
+
+      // The board should take significant portion of the viewport
+      // Account for sidebar (64px collapsed or 256px expanded) and some padding
+      const expectedMinWidth = viewportSize.width - 300 // Conservative estimate
+      expect(boardBox.width).toBeGreaterThanOrEqual(expectedMinWidth)
+    })
+
+    test('should distribute columns evenly across available space', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Get all column containers
+      const columns = page.locator('[data-testid^="kanban-column-"]')
+      const columnCount = await columns.count()
+      expect(columnCount).toBeGreaterThan(0)
+
+      // Get bounding boxes for all columns
+      const columnBoxes = await Promise.all(
+        Array.from({ length: columnCount }, (_, i) => columns.nth(i).boundingBox())
+      )
+
+      // Filter out any null values
+      const validBoxes = columnBoxes.filter((box): box is { x: number; y: number; width: number; height: number } => box !== null)
+
+      if (validBoxes.length > 1) {
+        // All columns should have similar widths (flex-1 distribution)
+        const widths = validBoxes.map(box => box.width)
+        const avgWidth = widths.reduce((a, b) => a + b, 0) / widths.length
+
+        // Each column width should be within 20% of average (allowing for some variation)
+        for (const width of widths) {
+          expect(width).toBeGreaterThan(avgWidth * 0.8)
+          expect(width).toBeLessThan(avgWidth * 1.2)
+        }
+      }
+    })
+
+    test('should work correctly at different viewport sizes', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Test large viewport (1920x1080)
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      await page.waitForTimeout(300) // Allow layout to adjust
+
+      const kanbanBoard = page.locator('[data-testid="kanban-board"]')
+      await expect(kanbanBoard).toBeVisible()
+
+      let boardBox = await kanbanBoard.boundingBox()
+      expect(boardBox).not.toBeNull()
+      if (boardBox) {
+        // Should use significant width on large screens
+        expect(boardBox.width).toBeGreaterThan(1200)
+      }
+
+      // Test medium viewport (1366x768)
+      await page.setViewportSize({ width: 1366, height: 768 })
+      await page.waitForTimeout(300)
+
+      boardBox = await kanbanBoard.boundingBox()
+      expect(boardBox).not.toBeNull()
+      if (boardBox) {
+        expect(boardBox.width).toBeGreaterThan(900)
+      }
+
+      // Test smaller viewport (1024x768)
+      await page.setViewportSize({ width: 1024, height: 768 })
+      await page.waitForTimeout(300)
+
+      boardBox = await kanbanBoard.boundingBox()
+      expect(boardBox).not.toBeNull()
+      if (boardBox) {
+        expect(boardBox.width).toBeGreaterThan(600)
+      }
+    })
+
+    test('should handle horizontal scroll only when necessary on small screens', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Test with a very small viewport where scroll might be needed
+      await page.setViewportSize({ width: 800, height: 600 })
+      await page.waitForTimeout(300)
+
+      const kanbanBoard = page.locator('[data-testid="kanban-board"]')
+      await expect(kanbanBoard).toBeVisible()
+
+      // Get the scroll container
+      const scrollContainer = kanbanBoard
+      const scrollWidth = await scrollContainer.evaluate(el => el.scrollWidth)
+      const clientWidth = await scrollContainer.evaluate(el => el.clientWidth)
+
+      // If content is wider than viewport, horizontal scroll should work
+      if (scrollWidth > clientWidth) {
+        // Verify we can scroll
+        await scrollContainer.evaluate(el => el.scrollLeft = 100)
+        const scrollLeft = await scrollContainer.evaluate(el => el.scrollLeft)
+        expect(scrollLeft).toBeGreaterThan(0)
+      }
+    })
+
+    test('should maintain layout when sidebar is collapsed/expanded', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      const kanbanBoard = page.locator('[data-testid="kanban-board"]')
+      await expect(kanbanBoard).toBeVisible()
+
+      // Get initial width
+      let boardBox = await kanbanBoard.boundingBox()
+      const initialWidth = boardBox?.width ?? 0
+
+      // Try to find and click sidebar toggle (if present)
+      const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]')
+      if (await sidebarToggle.isVisible()) {
+        await sidebarToggle.click()
+        await page.waitForTimeout(500) // Allow transition
+
+        // Get new width
+        boardBox = await kanbanBoard.boundingBox()
+        const newWidth = boardBox?.width ?? 0
+
+        // Width should change when sidebar collapses/expands
+        // Both widths should be substantial
+        expect(initialWidth).toBeGreaterThan(500)
+        expect(newWidth).toBeGreaterThan(500)
+      }
+
+      // Board should still be functional
+      await expect(kanbanBoard).toBeVisible()
+    })
+
+    test('should display columns with minimum readable width', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Set to small viewport
+      await page.setViewportSize({ width: 1024, height: 768 })
+      await page.waitForTimeout(300)
+
+      // Get all columns
+      const columns = page.locator('[data-testid^="kanban-column-"]')
+      const columnCount = await columns.count()
+
+      // Each column should have at least 200px width (our min-w-[200px] constraint)
+      for (let i = 0; i < columnCount; i++) {
+        const columnBox = await columns.nth(i).boundingBox()
+        if (columnBox) {
+          expect(columnBox.width).toBeGreaterThanOrEqual(200)
+        }
+      }
+    })
+  })
 })

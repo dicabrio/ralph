@@ -1167,7 +1167,7 @@
       "title": "Kanban board full-width layout",
       "description": "Het Kanban board moet altijd de volledige breedte van het scherm gebruiken voor optimale weergave van alle kolommen.",
       "priority": 62,
-      "status": "pending",
+      "status": "done",
       "epic": "Kanban",
       "dependencies": ["UI-006"],
       "recommendedSkills": ["frontend-design"],

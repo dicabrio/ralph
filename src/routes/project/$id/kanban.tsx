@@ -348,10 +348,11 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col min-w-[280px] max-w-[320px] bg-muted/30 rounded-lg border overflow-hidden transition-all',
+        'flex flex-col flex-1 min-w-[200px] bg-muted/30 rounded-lg border overflow-hidden transition-all',
         isOver && canDrop && 'ring-2 ring-primary border-primary/50',
         isOver && !canDrop && 'ring-2 ring-destructive border-destructive/50',
       )}
+      data-testid={`kanban-column-${column.id}`}
     >
       <ColumnHeader column={column} count={stories.length} />
       <div
@@ -1059,8 +1060,8 @@ function KanbanBoard() {
         </div>
 
         {/* Kanban columns */}
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 p-6 min-w-max">
+        <div className="flex-1 overflow-x-auto" data-testid="kanban-board">
+          <div className="flex gap-4 p-6 h-full min-w-0">
             {visibleColumns.map((column) => {
               const columnStories = getStoriesForColumn(stories, column)
               const isOver = overColumnId === column.id
