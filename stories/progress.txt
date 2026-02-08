@@ -1966,3 +1966,33 @@
 - For modals that might not have data, render them always with isOpen controlling visibility
 - Backdrop click testing simplified by testing controlled component behavior with rerender
 - Dialog component provides DialogPortal, DialogOverlay, DialogClose for customization
+
+## 2026-02-08 - REFACTOR-003
+**Title:** shadcn Form componenten migratie (Input, Label, Select)
+
+**Implemented:**
+- Migrated native HTML inputs in settings.tsx (SettingsRow and DeleteConfirmModal) to shadcn Input
+- Migrated native HTML labels in settings.tsx to shadcn Label with htmlFor binding
+- Migrated search input in prompts.tsx to shadcn Input with proper icon styling
+- Migrated skill input in StoryDetailModal.tsx to shadcn Input
+- Migrated auth form inputs in demo/better-auth.tsx to shadcn Input, Label, and Button
+- Added form validation error styling with destructive ring styling
+- Created unit tests for Input component (9 tests - validation states, disabled, types, className)
+- Created unit tests for Label component (6 tests - htmlFor binding, custom className, children)
+
+**Files changed:**
+- src/routes/project/$id/settings.tsx (added Input/Label imports, migrated SettingsRow input, migrated DeleteConfirmModal input/label)
+- src/routes/project/$id/prompts.tsx (added Input/Button imports, migrated search input)
+- src/components/StoryDetailModal.tsx (added Input import, migrated skill input)
+- src/routes/demo/better-auth.tsx (added Input/Label/Button imports, migrated entire auth form)
+- src/components/ui/input.test.tsx (new - 9 unit tests)
+- src/components/ui/label.test.tsx (new - 6 unit tests)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- shadcn Input already has aria-invalid styling built in for error states
+- ProjectSelector was already using shadcn Input (no migration needed)
+- Form validation error styling can use className conditionally: `className={cn(!isValid && 'border-destructive')}`
+- The Input component uses `data-slot="input"` attribute for internal styling
+- Label component uses Radix Label primitive for proper accessibility
+- fireEvent from @testing-library/react can replace userEvent when userEvent is not installed

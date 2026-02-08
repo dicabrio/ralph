@@ -20,6 +20,8 @@ import {
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export const Route = createFileRoute('/project/$id/settings')({
   component: ProjectSettingsPage,
@@ -94,15 +96,11 @@ function SettingsRow({
       <div className="flex items-center gap-2 min-w-0 ml-4">
         {isEditing ? (
           <>
-            <input
+            <Input
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className={cn(
-                'px-2 py-1 text-sm rounded border bg-background text-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                'w-48',
-              )}
+              className="w-48 h-8"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave()
@@ -274,20 +272,20 @@ function DeleteConfirmModal({
           Dit verwijdert alle stories en instellingen. Deze actie kan niet ongedaan worden gemaakt.
         </p>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-2">
+        <div className="mb-4 space-y-2">
+          <Label htmlFor="delete-confirm">
             Type <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{projectName}</span> om te bevestigen:
-          </label>
-          <input
+          </Label>
+          <Input
+            id="delete-confirm"
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            className={cn(
-              'w-full px-3 py-2 text-sm rounded-lg border bg-background text-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-destructive/50',
-            )}
             placeholder="Typ projectnaam..."
             disabled={isDeleting}
+            className={cn(
+              !isConfirmed && confirmText && 'border-destructive focus-visible:ring-destructive/50'
+            )}
           />
         </div>
 

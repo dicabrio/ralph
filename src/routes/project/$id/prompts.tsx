@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils'
 import { SkillDetailModal } from '@/components/SkillDetailModal'
 import { SkillOverrideModal } from '@/components/SkillOverrideModal'
 import { AgentPromptCard, AgentPromptModal } from '@/components/AgentPromptCard'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/project/$id/prompts')({
   component: ProjectPrompts,
@@ -470,28 +472,25 @@ function ProjectPrompts() {
 
       {/* Search bar */}
       <div className="relative mb-8">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <input
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+        <Input
           type="text"
           placeholder="Search skills by name, description, or category..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className={cn(
-            'w-full pl-10 pr-10 py-3 rounded-lg border bg-background',
-            'text-foreground placeholder:text-muted-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
-            'transition-colors'
-          )}
+          className="pl-10 pr-10 h-11"
         />
         {searchQuery && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2"
             aria-label="Clear search"
           >
-            <X className="w-4 h-4 text-muted-foreground" />
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         )}
       </div>
 

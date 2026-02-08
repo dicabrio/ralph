@@ -1,6 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '@/lib/auth-client'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
 
 export const Route = createFileRoute('/demo/better-auth')({
   component: BetterAuthDemo,
@@ -126,92 +130,73 @@ function BetterAuthDemo() {
         <form onSubmit={handleSubmit} className="grid gap-4">
           {isSignUp && (
             <div className="grid gap-2">
-              <label
-                htmlFor="name"
-                className="text-sm font-medium leading-none"
-              >
-                Name
-              </label>
-              <input
+              <Label htmlFor="name">Name</Label>
+              <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
                 required
               />
             </div>
           )}
 
           <div className="grid gap-2">
-            <label htmlFor="email" className="text-sm font-medium leading-none">
-              Email
-            </label>
-            <input
+            <Label htmlFor="email">Email</Label>
+            <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
               required
             />
           </div>
 
           <div className="grid gap-2">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium leading-none"
-            >
-              Password
-            </label>
-            <input
+            <Label htmlFor="password">Password</Label>
+            <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
               required
               minLength={8}
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-md">
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-9 px-4 text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-400 border-t-white dark:border-neutral-600 dark:border-t-neutral-900" />
-                <span>Please wait</span>
-              </span>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Please wait
+              </>
             ) : isSignUp ? (
               'Create account'
             ) : (
               'Sign in'
             )}
-          </button>
+          </Button>
         </form>
 
         <div className="mt-4 text-center">
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={() => {
               setIsSignUp(!isSignUp)
               setError('')
             }}
-            className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
           >
             {isSignUp
               ? 'Already have an account? Sign in'
               : "Don't have an account? Sign up"}
-          </button>
+          </Button>
         </div>
 
         <p className="mt-6 text-xs text-center text-neutral-400 dark:text-neutral-500">

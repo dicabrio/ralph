@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -330,17 +331,13 @@ export function StoryDetailModal({
               {isAddingSkill ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={newSkillInput}
                       onChange={(e) => setNewSkillInput(e.target.value)}
                       onKeyDown={handleSkillInputKeyDown}
                       placeholder="Enter skill name..."
-                      className={cn(
-                        'flex-1 px-3 py-2 text-sm rounded-lg border bg-background',
-                        'text-foreground placeholder:text-muted-foreground',
-                        'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
-                      )}
+                      className="flex-1"
                       autoFocus
                       data-testid="skill-input"
                     />

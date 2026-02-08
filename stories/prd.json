@@ -1342,7 +1342,7 @@
       "title": "shadcn Form componenten migratie (Input, Label, Select)",
       "description": "Migreer alle form elementen naar shadcn/ui Input, Label en Select componenten. Dit verbetert form consistency en accessibility across de applicatie.",
       "priority": 68,
-      "status": "pending",
+      "status": "done",
       "epic": "UI Refactoring",
       "dependencies": ["REFACTOR-001"],
       "recommendedSkills": ["frontend-design"],
