@@ -588,8 +588,11 @@ export function parseStoriesFromResponse(content: string): GeneratedStory[] {
       .map((s) => ({
         id: String(s.id),
         title: String(s.title),
-        description: String(s.description || ""),
-        priority: typeof s.priority === "number" ? s.priority : 1,
+        // Ensure description is never empty (required by addStories validation)
+        description: String(s.description || s.title || "No description"),
+        // Ensure priority is at least 1 (required by addStories validation)
+        priority: typeof s.priority === "number" && s.priority > 0 ? s.priority : 1,
+        // Ensure epic is never empty (required by addStories validation)
         epic: String(s.epic || "Features"),
         dependencies: Array.isArray(s.dependencies)
           ? s.dependencies.filter((d): d is string => typeof d === "string")

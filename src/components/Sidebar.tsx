@@ -14,6 +14,12 @@ import {
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ProjectSelector, useSelectedProject } from './ProjectSelector'
 
 interface NavItem {
@@ -145,13 +151,14 @@ export function Sidebar({
                 Algemeen
               </div>
             )}
-            <ul className="space-y-1">
-              {globalNavItems.map((item) => {
-                const Icon = item.icon
-                const active = isGlobalActive(item.href)
+            <TooltipProvider delayDuration={100}>
+              <ul className="space-y-1">
+                {globalNavItems.map((item) => {
+                  const Icon = item.icon
+                  const active = isGlobalActive(item.href)
+                  const showTooltip = !isMobile && isCollapsed
 
-                return (
-                  <li key={item.href}>
+                  const linkContent = (
                     <Link
                       to={item.href}
                       onClick={isMobile ? onClose : undefined}
@@ -185,26 +192,28 @@ export function Sidebar({
                       {active && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-sidebar-primary" />
                       )}
-
-                      {/* Tooltip for collapsed state */}
-                      {!isMobile && isCollapsed && (
-                        <div
-                          className={cn(
-                            'absolute left-full ml-2 px-2 py-1 rounded-md',
-                            'bg-popover text-popover-foreground text-sm font-medium',
-                            'opacity-0 invisible group-hover:opacity-100 group-hover:visible',
-                            'transition-all duration-150 whitespace-nowrap',
-                            'shadow-lg border border-border z-50'
-                          )}
-                        >
-                          {item.label}
-                        </div>
-                      )}
                     </Link>
-                  </li>
-                )
-              })}
-            </ul>
+                  )
+
+                  return (
+                    <li key={item.href}>
+                      {showTooltip ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {linkContent}
+                          </TooltipTrigger>
+                          <TooltipContent side="right" sideOffset={8}>
+                            {item.label}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        linkContent
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </TooltipProvider>
           </div>
 
           {/* Project Section */}
@@ -223,14 +232,15 @@ export function Sidebar({
 
             {/* Project Sub-navigation - only show when projects exist */}
             {selectedProjectId && hasProjects && (
-              <ul className="mt-2 space-y-1">
-                {projectNavItems.map((item) => {
-                  const Icon = item.icon
-                  const active = isProjectNavActive(item.path)
-                  const href = `/project/${selectedProjectId}${item.path}`
+              <TooltipProvider delayDuration={100}>
+                <ul className="mt-2 space-y-1">
+                  {projectNavItems.map((item) => {
+                    const Icon = item.icon
+                    const active = isProjectNavActive(item.path)
+                    const href = `/project/${selectedProjectId}${item.path}`
+                    const showTooltip = !isMobile && isCollapsed
 
-                  return (
-                    <li key={item.path}>
+                    const linkContent = (
                       <Link
                         to={href}
                         onClick={isMobile ? onClose : undefined}
@@ -265,26 +275,28 @@ export function Sidebar({
                         {active && (
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-sidebar-primary" />
                         )}
-
-                        {/* Tooltip for collapsed state */}
-                        {!isMobile && isCollapsed && (
-                          <div
-                            className={cn(
-                              'absolute left-full ml-2 px-2 py-1 rounded-md',
-                              'bg-popover text-popover-foreground text-sm font-medium',
-                              'opacity-0 invisible group-hover:opacity-100 group-hover:visible',
-                              'transition-all duration-150 whitespace-nowrap',
-                              'shadow-lg border border-border z-50'
-                            )}
-                          >
-                            {item.label}
-                          </div>
-                        )}
                       </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+                    )
+
+                    return (
+                      <li key={item.path}>
+                        {showTooltip ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {linkContent}
+                            </TooltipTrigger>
+                            <TooltipContent side="right" sideOffset={8}>
+                              {item.label}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          linkContent
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </TooltipProvider>
             )}
           </div>
         </nav>

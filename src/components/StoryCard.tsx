@@ -2,6 +2,12 @@ import { cn } from '@/lib/utils'
 import { AlertCircle, Link as LinkIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 // Story status type
 export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
@@ -94,21 +100,29 @@ export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
 
         {/* Dependencies badges */}
         {hasDependencies && (
-          <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies">
-            {story.dependencies.map((depId) => (
-              <span
-                key={depId}
-                className={cn(
-                  'inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded',
-                  'bg-muted text-muted-foreground',
-                )}
-                data-testid={`dependency-${depId}`}
-              >
-                <LinkIcon className="w-2.5 h-2.5" />
-                {depId}
-              </span>
-            ))}
-          </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies">
+              {story.dependencies.map((depId) => (
+                <Tooltip key={depId}>
+                  <TooltipTrigger asChild>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded cursor-default',
+                        'bg-muted text-muted-foreground',
+                      )}
+                      data-testid={`dependency-${depId}`}
+                    >
+                      <LinkIcon className="w-2.5 h-2.5" />
+                      {depId}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Depends on {depId}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>

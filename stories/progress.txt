@@ -2033,3 +2033,35 @@
 - RunnerLogModal keeps native scrolling due to complex auto-scroll logic with refs
 - ScrollArea provides consistent scrollbar styling across platforms
 - Button wrapping pattern: <button className="w-full text-left group"><Card>...</Card></button>
+
+## 2026-02-08 - REFACTOR-005
+**Title:** shadcn Tooltip & Alert componenten migratie
+
+**Implemented:**
+- Migrated ProjectSelector collapsed state button from title= attribute to shadcn Tooltip
+- Migrated settings.tsx SettingsRow truncated values and copy button from title= to Tooltip
+- Migrated prompts.tsx ProjectSkillCard override button from title= to Tooltip
+- Migrated SkillDetailModal unsaved changes confirm from window.confirm to AlertDialog
+- Migrated SkillOverrideModal unsaved changes confirm from window.confirm to AlertDialog
+- Migrated AgentPromptCard unsaved changes confirm from window.confirm to AlertDialog
+- Migrated AgentPromptCard reset to default confirm from window.confirm to AlertDialog
+- All unit tests for Tooltip, Alert, and AlertDialog components pass
+- Build succeeds with no new errors
+
+**Files changed:**
+- src/components/ProjectSelector.tsx (Tooltip import and collapsed button migration)
+- src/routes/project/$id/settings.tsx (Tooltip import and SettingsRow migration)
+- src/routes/project/$id/prompts.tsx (Tooltip import and override button migration)
+- src/components/SkillDetailModal.tsx (AlertDialog for discard confirmation)
+- src/components/SkillOverrideModal.tsx (AlertDialog for discard confirmation)
+- src/components/AgentPromptCard.tsx (AlertDialog for discard and reset confirmations)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- TooltipProvider can wrap individual tooltips with delayDuration prop for consistent delay
+- Use TooltipContent with side="right" sideOffset={8} for sidebar collapsed state
+- AlertDialog state managed via showDiscardConfirm pattern with useState
+- AlertDialog variant="destructive" on AlertDialogAction for destructive actions
+- AlertDialogMedia component provides icon area with background color
+- For truncated text tooltips, only show content when value exceeds threshold length
+- window.confirm replacements require separate handler functions for confirmation actions

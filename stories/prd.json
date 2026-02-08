@@ -1406,7 +1406,7 @@
       "title": "shadcn Tooltip & Alert componenten migratie",
       "description": "Migreer hardcoded tooltips naar shadcn/ui Tooltip en custom alert divs naar Alert/AlertDialog componenten. Dit verbetert UX consistency en accessibility.",
       "priority": 70,
-      "status": "pending",
+      "status": "done",
       "epic": "UI Refactoring",
       "dependencies": ["REFACTOR-001"],
       "recommendedSkills": ["frontend-design"],

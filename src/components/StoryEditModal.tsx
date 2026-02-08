@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { cn } from '@/lib/utils'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -133,105 +135,86 @@ export function StoryEditModal({
 
         {/* Content - scrollable */}
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
-          {/* Story ID (read-only) */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          {/* Story ID */}
+          <div className="space-y-1.5">
+            <Label htmlFor="story-id" className="text-xs text-muted-foreground">
               Story ID
-            </label>
-            <input
+            </Label>
+            <Input
+              id="story-id"
               type="text"
               value={editedStory.id}
               onChange={(e) => updateField('id', e.target.value)}
-              className={cn(
-                'w-full px-3 py-2 text-sm border rounded-lg',
-                'bg-background text-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary/50',
-              )}
               data-testid="input-id"
             />
           </div>
 
           {/* Title */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="story-title" className="text-xs text-muted-foreground">
               Title *
-            </label>
-            <input
+            </Label>
+            <Input
               ref={titleInputRef}
+              id="story-title"
               type="text"
               value={editedStory.title}
               onChange={(e) => updateField('title', e.target.value)}
-              className={cn(
-                'w-full px-3 py-2 text-sm border rounded-lg',
-                'bg-background text-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary/50',
-              )}
               data-testid="input-title"
             />
           </div>
 
           {/* Description */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="story-description" className="text-xs text-muted-foreground">
               Description *
-            </label>
-            <textarea
+            </Label>
+            <Textarea
+              id="story-description"
               value={editedStory.description}
               onChange={(e) => updateField('description', e.target.value)}
               rows={3}
-              className={cn(
-                'w-full px-3 py-2 text-sm border rounded-lg resize-none',
-                'bg-background text-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary/50',
-              )}
+              className="resize-none"
               data-testid="input-description"
             />
           </div>
 
           {/* Priority and Epic row */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="story-priority" className="text-xs text-muted-foreground">
                 Priority
-              </label>
-              <input
+              </Label>
+              <Input
+                id="story-priority"
                 type="number"
                 min={1}
                 value={editedStory.priority}
                 onChange={(e) =>
                   updateField('priority', parseInt(e.target.value) || 1)
                 }
-                className={cn(
-                  'w-full px-3 py-2 text-sm border rounded-lg',
-                  'bg-background text-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                )}
                 data-testid="input-priority"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="story-epic" className="text-xs text-muted-foreground">
                 Epic *
-              </label>
-              <input
+              </Label>
+              <Input
+                id="story-epic"
                 type="text"
                 value={editedStory.epic}
                 onChange={(e) => updateField('epic', e.target.value)}
-                className={cn(
-                  'w-full px-3 py-2 text-sm border rounded-lg',
-                  'bg-background text-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                )}
                 data-testid="input-epic"
               />
             </div>
           </div>
 
           {/* Acceptance Criteria */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
               Acceptance Criteria
-            </label>
+            </Label>
             <div className="space-y-2">
               {editedStory.acceptanceCriteria.map((criterion, index) => (
                 <div
@@ -251,7 +234,7 @@ export function StoryEditModal({
                 </div>
               ))}
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type="text"
                   value={newCriterion}
                   onChange={(e) => setNewCriterion(e.target.value)}
@@ -262,11 +245,7 @@ export function StoryEditModal({
                     }
                   }}
                   placeholder="Add a criterion..."
-                  className={cn(
-                    'flex-1 px-3 py-2 text-sm border rounded-lg',
-                    'bg-background text-foreground placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                  )}
+                  className="flex-1"
                   data-testid="input-new-criterion"
                 />
                 <Button
@@ -284,10 +263,10 @@ export function StoryEditModal({
           </div>
 
           {/* Skills */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
               Recommended Skills
-            </label>
+            </Label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {editedStory.recommendedSkills.map((skill) => (
                 <span
@@ -308,7 +287,7 @@ export function StoryEditModal({
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="text"
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
@@ -319,11 +298,7 @@ export function StoryEditModal({
                   }
                 }}
                 placeholder="Add a skill..."
-                className={cn(
-                  'flex-1 px-3 py-2 text-sm border rounded-lg',
-                  'bg-background text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                )}
+                className="flex-1"
                 data-testid="input-new-skill"
               />
               <Button
@@ -340,10 +315,10 @@ export function StoryEditModal({
           </div>
 
           {/* Dependencies */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
               Dependencies
-            </label>
+            </Label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {editedStory.dependencies.map((dep) => (
                 <span
@@ -364,7 +339,7 @@ export function StoryEditModal({
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="text"
                 value={newDependency}
                 onChange={(e) => setNewDependency(e.target.value)}
@@ -375,11 +350,7 @@ export function StoryEditModal({
                   }
                 }}
                 placeholder="Add a dependency (story ID)..."
-                className={cn(
-                  'flex-1 px-3 py-2 text-sm border rounded-lg font-mono',
-                  'bg-background text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/50',
-                )}
+                className="flex-1 font-mono"
                 data-testid="input-new-dependency"
               />
               <Button

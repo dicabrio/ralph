@@ -3,6 +3,8 @@ import { FolderOpen, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-rea
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -158,17 +160,14 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
           <div className="space-y-5 py-2">
             {/* Path field */}
             <div className="space-y-2">
-              <label
-                htmlFor="project-path"
-                className="block text-sm font-medium text-foreground"
-              >
+              <Label htmlFor="project-path">
                 Project Path
-              </label>
+              </Label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                   <FolderOpen className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <input
+                <Input
                   ref={inputRef}
                   id="project-path"
                   type="text"
@@ -177,16 +176,14 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                   onBlur={() => setPathTouched(true)}
                   placeholder="/path/to/your/project"
                   className={cn(
-                    'w-full pl-10 pr-10 py-2.5 rounded-lg border bg-background',
-                    'text-foreground placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
-                    'transition-colors',
-                    showSuccess && 'border-emerald-500 focus:border-emerald-500',
-                    showWillCreate && 'border-blue-500 focus:border-blue-500',
-                    showError && 'border-destructive focus:border-destructive'
+                    'pl-10 pr-10',
+                    showSuccess && 'border-emerald-500 focus-visible:border-emerald-500',
+                    showWillCreate && 'border-blue-500 focus-visible:border-blue-500',
+                    showError && 'border-destructive focus-visible:border-destructive'
                   )}
                   autoComplete="off"
-                  spellCheck="false"
+                  spellCheck={false}
+                  aria-invalid={showError ? true : undefined}
                 />
                 {/* Validation indicator */}
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -234,16 +231,13 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
 
             {/* Name field */}
             <div className="space-y-2">
-              <label
-                htmlFor="project-name"
-                className="block text-sm font-medium text-foreground"
-              >
+              <Label htmlFor="project-name">
                 Project Name
                 <span className="text-muted-foreground font-normal ml-1">
                   (optional)
                 </span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="project-name"
                 type="text"
                 value={name}
@@ -252,12 +246,6 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                   validation?.suggestedName ||
                   'Default from prd.json or folder name'
                 }
-                className={cn(
-                  'w-full px-3 py-2.5 rounded-lg border bg-background border-border',
-                  'text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
-                  'transition-colors'
-                )}
               />
               {validation?.suggestedName && !name && (
                 <p className="text-xs text-muted-foreground">

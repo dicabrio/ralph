@@ -15,6 +15,12 @@ import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { AddProjectModal } from '@/components/AddProjectModal'
 import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
 import { PrdConversionWizard } from '@/components/PrdConversionWizard'
@@ -161,59 +167,79 @@ function ProjectCard({ project }: ProjectCardProps) {
 
         <CardFooter className="pt-0">
           {/* Stats row */}
-          <div className="flex items-center gap-4 text-xs w-full">
-            {/* Done count */}
-            <div
-              className="flex items-center gap-1 text-muted-foreground"
-              title={`${stats.done} ${stats.done === 1 ? 'story' : 'stories'} completed`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{stats.done}</span>
-            </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex items-center gap-4 text-xs w-full">
+              {/* Done count */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 text-muted-foreground cursor-default">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>{stats.done}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {stats.done} {stats.done === 1 ? 'story' : 'stories'} completed
+                </TooltipContent>
+              </Tooltip>
 
-            {/* In progress count */}
-            {stats.inProgress > 0 && (
-              <div
-                className="flex items-center gap-1 text-muted-foreground"
-                title={`${stats.inProgress} ${stats.inProgress === 1 ? 'story' : 'stories'} in progress`}
-              >
-                <PlayCircle className="w-3.5 h-3.5 text-blue-500" />
-                <span>{stats.inProgress}</span>
+              {/* In progress count */}
+              {stats.inProgress > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-muted-foreground cursor-default">
+                      <PlayCircle className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{stats.inProgress}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {stats.inProgress} {stats.inProgress === 1 ? 'story' : 'stories'} in progress
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Failed count */}
+              {stats.failed > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-muted-foreground cursor-default">
+                      <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+                      <span className="text-destructive">{stats.failed}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {stats.failed} {stats.failed === 1 ? 'story' : 'stories'} failed
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Backlog count */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="flex items-center gap-1 text-muted-foreground cursor-default"
+                    data-testid="backlog-count"
+                  >
+                    <CircleDashed className="w-3.5 h-3.5" />
+                    <span>{stats.backlog}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {stats.backlog} {stats.backlog === 1 ? 'story' : 'stories'} in backlog
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Total stories */}
+              <span className="text-muted-foreground">
+                {stats.total} {stats.total === 1 ? 'story' : 'stories'}
+              </span>
+
+              {/* Last updated */}
+              <div className="flex items-center gap-1 text-muted-foreground ml-auto">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{formatRelativeTime(project.updatedAt)}</span>
               </div>
-            )}
-
-            {/* Failed count */}
-            {stats.failed > 0 && (
-              <div
-                className="flex items-center gap-1 text-muted-foreground"
-                title={`${stats.failed} ${stats.failed === 1 ? 'story' : 'stories'} failed`}
-              >
-                <AlertCircle className="w-3.5 h-3.5 text-destructive" />
-                <span className="text-destructive">{stats.failed}</span>
-              </div>
-            )}
-
-            {/* Backlog count */}
-            <div
-              className="flex items-center gap-1 text-muted-foreground"
-              title={`${stats.backlog} ${stats.backlog === 1 ? 'story' : 'stories'} in backlog`}
-              data-testid="backlog-count"
-            >
-              <CircleDashed className="w-3.5 h-3.5" />
-              <span>{stats.backlog}</span>
             </div>
-
-            {/* Total stories */}
-            <span className="text-muted-foreground">
-              {stats.total} {stats.total === 1 ? 'story' : 'stories'}
-            </span>
-
-            {/* Last updated */}
-            <div className="flex items-center gap-1 text-muted-foreground ml-auto">
-              <Clock className="w-3.5 h-3.5" />
-              <span>{formatRelativeTime(project.updatedAt)}</span>
-            </div>
-          </div>
+          </TooltipProvider>
         </CardFooter>
       </Card>
     </Link>

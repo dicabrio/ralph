@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Save, RotateCcw, Loader2, AlertCircle, GitCompare } from 'lucide-react'
+import { Save, RotateCcw, Loader2, AlertCircle, GitCompare, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -213,6 +224,8 @@ export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved 
   const [editedContent, setEditedContent] = useState(skill.content)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('side-by-side')
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const category = extractCategory(skill.id)
 
   const utils = trpc.useUtils()
@@ -309,13 +322,17 @@ export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved 
   // Handle close with unsaved changes check
   const handleClose = useCallback(() => {
     if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
-        onClose()
-      }
+      setShowDiscardConfirm(true)
     } else {
       onClose()
     }
   }, [hasUnsavedChanges, onClose])
+
+  // Handle discard confirmation
+  const handleDiscardConfirm = useCallback(() => {
+    setShowDiscardConfirm(false)
+    onClose()
+  }, [onClose])
 
   // Handle save
   const handleSave = useCallback(() => {
@@ -334,14 +351,18 @@ export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved 
     }
   }, [isExistingOverride, projectId, skill.id, editedContent, updateOverrideMutation, createOverrideMutation])
 
-  // Handle revert to original
-  const handleRevert = useCallback(() => {
-    if (window.confirm('Are you sure you want to delete this override and revert to the original skill?')) {
-      deleteOverrideMutation.mutate({
-        projectId,
-        skillId: skill.id,
-      })
-    }
+  // Handle revert to original - opens confirmation dialog
+  const handleRevertClick = useCallback(() => {
+    setShowRevertConfirm(true)
+  }, [])
+
+  // Confirm revert action
+  const handleRevertConfirm = useCallback(() => {
+    deleteOverrideMutation.mutate({
+      projectId,
+      skillId: skill.id,
+    })
+    setShowRevertConfirm(false)
   }, [projectId, skill.id, deleteOverrideMutation])
 
   // Handle content change
@@ -422,7 +443,7 @@ export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved 
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleRevert}
+                onClick={handleRevertClick}
                 disabled={isDeleting || isSaving}
               >
                 {isDeleting ? (
@@ -532,6 +553,50 @@ export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved 
           </div>
         )}
       </DialogContent>
+
+      {/* Revert confirmation dialog */}
+      <AlertDialog open={showRevertConfirm} onOpenChange={setShowRevertConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertTriangle className="w-8 h-8 text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Revert to Original?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this override and revert to the original skill?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleRevertConfirm}>
+              <RotateCcw className="w-4 h-4" />
+              Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Discard changes confirmation dialog */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-amber-500/10">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to discard them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDiscardConfirm}>
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

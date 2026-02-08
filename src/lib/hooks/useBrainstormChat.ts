@@ -338,6 +338,9 @@ export function useBrainstormChat({
       utils.stories.listByProject.invalidate({ projectId })
     } catch (err) {
       console.error('Failed to approve story:', err)
+      // Show error to user
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add story to prd.json'
+      setError(`Failed to approve "${story.title}": ${errorMessage}`)
     } finally {
       setApprovingStoryIds((prev) => {
         const next = new Set(prev)
@@ -362,6 +365,9 @@ export function useBrainstormChat({
       utils.stories.listByProject.invalidate({ projectId })
     } catch (err) {
       console.error('Failed to bulk approve stories:', err)
+      // Show error to user
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add stories to prd.json'
+      setError(`Failed to approve ${stories.length} stories: ${errorMessage}`)
     } finally {
       setApprovingStoryIds((prev) => {
         const next = new Set(prev)

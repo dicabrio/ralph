@@ -22,6 +22,23 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export const Route = createFileRoute('/project/$id/settings')({
   component: ProjectSettingsPage,
@@ -130,40 +147,56 @@ function SettingsRow({
             </Button>
           </>
         ) : (
-          <>
-            <span
-              className={cn(
-                'text-sm text-foreground truncate max-w-[300px]',
-                mono && 'font-mono text-xs bg-muted px-2 py-0.5 rounded',
-              )}
-              title={String(value || '')}
-            >
-              {value ?? '-'}
-            </span>
-            {copyable && value && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={handleCopy}
-                title="Kopieer naar klembord"
-              >
-                {copied ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
+          <TooltipProvider delayDuration={200}>
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      'text-sm text-foreground truncate max-w-[300px]',
+                      mono && 'font-mono text-xs bg-muted px-2 py-0.5 rounded',
+                    )}
+                  >
+                    {value ?? '-'}
+                  </span>
+                </TooltipTrigger>
+                {value && String(value).length > 30 && (
+                  <TooltipContent side="top" sideOffset={4}>
+                    {String(value)}
+                  </TooltipContent>
                 )}
-              </Button>
-            )}
-            {editable && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-            )}
-          </>
+              </Tooltip>
+              {copyable && value && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={handleCopy}
+                    >
+                      {copied ? (
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={4}>
+                    Kopieer naar klembord
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {editable && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </>
+          </TooltipProvider>
         )}
       </div>
     </div>
@@ -226,8 +259,8 @@ function ToggleRow({
   )
 }
 
-// Delete confirmation modal
-interface DeleteConfirmModalProps {
+// Delete confirmation dialog using shadcn AlertDialog
+interface DeleteConfirmDialogProps {
   projectName: string
   isOpen: boolean
   isDeleting: boolean
@@ -235,44 +268,40 @@ interface DeleteConfirmModalProps {
   onCancel: () => void
 }
 
-function DeleteConfirmModal({
+function DeleteConfirmDialog({
   projectName,
   isOpen,
   isDeleting,
   onConfirm,
   onCancel,
-}: DeleteConfirmModalProps) {
+}: DeleteConfirmDialogProps) {
   const [confirmText, setConfirmText] = useState('')
-
-  if (!isOpen) return null
 
   const isConfirmed = confirmText === projectName
 
+  // Reset confirm text when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setConfirmText('')
+      onCancel()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onCancel}
-      />
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogMedia className="bg-destructive/10">
+            <AlertTriangle className="w-8 h-8 text-destructive" />
+          </AlertDialogMedia>
+          <AlertDialogTitle>Project verwijderen</AlertDialogTitle>
+          <AlertDialogDescription>
+            Weet je zeker dat je <strong className="text-foreground">{projectName}</strong> wilt verwijderen?
+            Dit verwijdert alle stories en instellingen. Deze actie kan niet ongedaan worden gemaakt.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-      {/* Modal */}
-      <div className="relative bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-full bg-destructive/10">
-            <AlertTriangle className="w-6 h-6 text-destructive" />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground">
-            Project verwijderen
-          </h2>
-        </div>
-
-        <p className="text-sm text-muted-foreground mb-4">
-          Weet je zeker dat je <strong className="text-foreground">{projectName}</strong> wilt verwijderen?
-          Dit verwijdert alle stories en instellingen. Deze actie kan niet ongedaan worden gemaakt.
-        </p>
-
-        <div className="mb-4 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="delete-confirm">
             Type <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{projectName}</span> om te bevestigen:
           </Label>
@@ -289,18 +318,12 @@ function DeleteConfirmModal({
           />
         </div>
 
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={onCancel}
-            disabled={isDeleting}
-          >
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>
             Annuleren
-          </Button>
-          <Button
+          </AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
-            className="flex-1"
             onClick={onConfirm}
             disabled={!isConfirmed || isDeleting}
           >
@@ -315,10 +338,10 @@ function DeleteConfirmModal({
                 Verwijderen
               </>
             )}
-          </Button>
-        </div>
-      </div>
-    </div>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -556,8 +579,8 @@ function ProjectSettingsPage() {
         </section>
       </div>
 
-      {/* Delete confirmation modal */}
-      <DeleteConfirmModal
+      {/* Delete confirmation dialog */}
+      <DeleteConfirmDialog
         projectName={project.name}
         isOpen={showDeleteModal}
         isDeleting={deleteProject.isPending}

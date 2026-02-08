@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { FileCode2, Copy, Check, Pencil, Save, RotateCcw, Loader2 } from 'lucide-react'
+import { FileCode2, Copy, Check, Pencil, Save, RotateCcw, Loader2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import CodeMirror from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -69,6 +80,7 @@ export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, o
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState(skill.content)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const category = extractCategory(skill.id)
 
   // Get tRPC utils for cache invalidation
@@ -137,14 +149,18 @@ export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, o
   // Handle close with unsaved changes check
   const handleClose = useCallback(() => {
     if (isEditing && hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
-        handleCancel()
-        onClose()
-      }
+      setShowDiscardConfirm(true)
     } else {
       onClose()
     }
-  }, [isEditing, hasUnsavedChanges, handleCancel, onClose])
+  }, [isEditing, hasUnsavedChanges, onClose])
+
+  // Handle discard confirmation
+  const handleDiscardConfirm = useCallback(() => {
+    handleCancel()
+    setShowDiscardConfirm(false)
+    onClose()
+  }, [handleCancel, onClose])
 
   // Check if save button should be enabled
   const canSave = isEditing && hasUnsavedChanges && !updateCentralMutation.isPending
@@ -297,6 +313,27 @@ export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, o
           )}
         </ScrollArea>
       </DialogContent>
+
+      {/* Discard changes confirmation dialog */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-amber-500/10">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to discard them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDiscardConfirm}>
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

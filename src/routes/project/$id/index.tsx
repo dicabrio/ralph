@@ -23,6 +23,18 @@ import {
 import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // Parse runner errors into user-friendly messages
 function getRunnerErrorMessage(error: unknown): string {
@@ -393,7 +405,7 @@ function QuickLinks({ projectId }: QuickLinksProps) {
   )
 }
 
-// Delete confirmation dialog component
+// Delete confirmation dialog component using shadcn AlertDialog
 interface DeleteConfirmDialogProps {
   isOpen: boolean
   projectName: string
@@ -411,90 +423,47 @@ function DeleteConfirmDialog({
   onConfirm,
   onCancel,
 }: DeleteConfirmDialogProps) {
-  if (!isOpen) return null
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !isDeleting) {
+      onCancel()
+    }
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isDeleting) {
-          onCancel()
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && !isDeleting) {
-          onCancel()
-        }
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-    >
-      <div
-        className="w-full max-w-md bg-card rounded-lg border shadow-xl p-6 mx-4"
-        data-testid="delete-confirm-dialog"
-      >
-        {/* Warning icon */}
-        <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-destructive" />
-          </div>
-        </div>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+      <AlertDialogContent data-testid="delete-confirm-dialog">
+        <AlertDialogHeader>
+          <AlertDialogMedia className="bg-destructive/10">
+            <AlertTriangle className="w-8 h-8 text-destructive" />
+          </AlertDialogMedia>
+          <AlertDialogTitle>Remove Project from Ralph?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Project <span className="font-medium text-foreground">{projectName}</span> will be
+            removed from Ralph.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-        {/* Title */}
-        <h2
-          id="delete-dialog-title"
-          className="text-lg font-semibold text-foreground text-center mb-2"
-        >
-          Remove Project from Ralph?
-        </h2>
+        {/* Info box using Alert component */}
+        <Alert className="bg-amber-500/10 border-amber-500/20">
+          <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
+            <p className="font-medium mb-1">Files will be preserved</p>
+            <p>
+              The project files at <code className="font-mono bg-amber-500/10 px-1 rounded">{projectPath}</code> will
+              remain on your filesystem. Only the reference in Ralph will be deleted.
+            </p>
+          </AlertDescription>
+        </Alert>
 
-        {/* Description */}
-        <p className="text-sm text-muted-foreground text-center mb-4">
-          Project <span className="font-medium text-foreground">{projectName}</span> will be
-          removed from Ralph.
-        </p>
-
-        {/* Info box */}
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-6">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-amber-700 dark:text-amber-400">
-              <p className="font-medium mb-1">Files will be preserved</p>
-              <p>
-                The project files at <code className="font-mono bg-amber-500/10 px-1 rounded">{projectPath}</code> will
-                remain on your filesystem. Only the reference in Ralph will be deleted.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isDeleting}
-            className={cn(
-              'flex-1 px-4 py-2.5 rounded-lg font-medium',
-              'bg-secondary text-secondary-foreground',
-              'hover:bg-secondary/80 transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
-          >
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
             onClick={onConfirm}
             disabled={isDeleting}
             data-testid="confirm-delete-button"
-            className={cn(
-              'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium',
-              'bg-destructive text-destructive-foreground',
-              'hover:bg-destructive/90 transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
           >
             {isDeleting ? (
               <>
@@ -507,10 +476,10 @@ function DeleteConfirmDialog({
                 Remove Project
               </>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -341,16 +342,11 @@ function ProjectRow({ project, isSelected, onToggle, disabled, isAdded, onConver
         ) : needsConversion ? (
           <AlertTriangle className="w-5 h-5 text-amber-500" />
         ) : (
-          <input
-            type="checkbox"
+          <Checkbox
             checked={isSelected}
-            onChange={onToggle}
+            onCheckedChange={() => onToggle()}
             disabled={disabled}
-            className={cn(
-              'w-5 h-5 rounded border-2 transition-colors',
-              'text-primary focus:ring-primary focus:ring-offset-0',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
+            className="w-5 h-5"
           />
         )}
       </div>

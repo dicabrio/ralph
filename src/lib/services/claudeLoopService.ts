@@ -355,9 +355,10 @@ class ClaudeLoopService {
 
   /**
    * Check if auto-restart is enabled for a project
+   * Default is TRUE - auto-restart is on unless explicitly disabled
    */
   isAutoRestartEnabled(projectId: number): boolean {
-    return this.autoRestartEnabled.get(projectId) ?? false;
+    return this.autoRestartEnabled.get(projectId) ?? true;
   }
 
   /**

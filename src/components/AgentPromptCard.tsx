@@ -10,6 +10,17 @@ import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import CodeMirror from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -149,6 +160,8 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
   const [editedContent, setEditedContent] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [viewMode, setViewMode] = useState<'editor' | 'diff'>('editor')
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   // Fetch data
   const { data: defaultData, isLoading: isLoadingDefault } = trpc.prompts.getDefaultTemplate.useQuery(
@@ -212,9 +225,7 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isEditing && hasUnsavedChanges) {
-          if (window.confirm('You have unsaved changes. Discard them?')) {
-            handleCancel()
-          }
+          setShowDiscardConfirm(true)
         } else {
           onClose()
         }
@@ -256,9 +267,12 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
   }, [projectId, editedContent, updateProjectMutation, isProjectContext])
 
   const handleReset = useCallback(() => {
-    if (window.confirm('Reset to default template? This will delete your customizations.')) {
-      resetProjectMutation.mutate({ projectId: projectId! })
-    }
+    setShowResetConfirm(true)
+  }, [])
+
+  const handleResetConfirm = useCallback(() => {
+    resetProjectMutation.mutate({ projectId: projectId! })
+    setShowResetConfirm(false)
   }, [projectId, resetProjectMutation])
 
   const handleContentChange = useCallback((value: string) => {
@@ -267,13 +281,16 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
 
   const handleClose = useCallback(() => {
     if (isEditing && hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
-        onClose()
-      }
+      setShowDiscardConfirm(true)
     } else {
       onClose()
     }
-  }, [isEditing, hasUnsavedChanges, onClose])
+  }, [isEditing, hasUnsavedChanges])
+
+  const handleDiscardConfirm = useCallback(() => {
+    setShowDiscardConfirm(false)
+    onClose()
+  }, [onClose])
 
   const canSave = isEditing && hasUnsavedChanges && !updateProjectMutation.isPending
   const isSaving = updateProjectMutation.isPending
@@ -533,6 +550,50 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
           )}
         </ScrollArea>
       </div>
+
+      {/* Discard changes confirmation dialog */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-amber-500/10">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to discard them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDiscardConfirm}>
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset to default confirmation dialog */}
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertTriangle className="w-8 h-8 text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Reset to Default?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete your customizations and reset the prompt to the default template.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleResetConfirm}>
+              <RefreshCw className="w-4 h-4" />
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

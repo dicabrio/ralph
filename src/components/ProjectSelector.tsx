@@ -3,6 +3,13 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { Search, ChevronDown, Check, FolderOpen, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface ProjectSelectorProps {
   isCollapsed?: boolean
@@ -154,18 +161,26 @@ export function ProjectSelector({
   if (isCollapsed) {
     return (
       <div className="relative mx-1" ref={dropdownRef}>
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            'w-full flex items-center justify-center p-2 rounded-lg',
-            'bg-sidebar-accent text-sidebar-accent-foreground',
-            'hover:bg-sidebar-accent/80 transition-colors'
-          )}
-          title={selectedProject?.name || 'Selecteer project'}
-        >
-          <FolderOpen className="w-5 h-5" />
-        </button>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                  'w-full flex items-center justify-center p-2 rounded-lg',
+                  'bg-sidebar-accent text-sidebar-accent-foreground',
+                  'hover:bg-sidebar-accent/80 transition-colors'
+                )}
+              >
+                <FolderOpen className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              {selectedProject?.name || 'Selecteer project'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Dropdown - positioned to the right in collapsed mode */}
         {isOpen && (
@@ -173,15 +188,15 @@ export function ProjectSelector({
             {/* Search input */}
             <div className="p-2 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+                <Input
                   ref={inputRef}
                   type="text"
                   placeholder="Zoeken..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="pl-8 h-8"
                 />
               </div>
             </div>
@@ -262,15 +277,15 @@ export function ProjectSelector({
           {/* Search input */}
           <div className="p-2 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+              <Input
                 ref={inputRef}
                 type="text"
                 placeholder="Zoeken..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full pl-8 pr-3 py-1.5 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                className="pl-8 h-8"
               />
             </div>
           </div>

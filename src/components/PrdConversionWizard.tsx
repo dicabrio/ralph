@@ -13,6 +13,16 @@ import {
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -448,25 +458,29 @@ export function PrdConversionWizard({
               {/* Status Value Mappings */}
               {mappings.statusValueMap && Object.keys(mappings.statusValueMap).length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-foreground">Status Value Mappings</h3>
+                  <Label className="text-sm font-medium">Status Value Mappings</Label>
                   <div className="space-y-2">
                     {Object.entries(mappings.statusValueMap).map(([original, target]) => (
                       <div key={original} className="flex items-center gap-3 p-2 rounded bg-muted">
                         <span className="font-mono text-sm text-foreground min-w-24">{original}</span>
                         <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                        <select
+                        <Select
                           value={target}
-                          onChange={(e) =>
-                            handleStatusMapChange(original, e.target.value as StoryStatus)
+                          onValueChange={(value) =>
+                            handleStatusMapChange(original, value as StoryStatus)
                           }
-                          className="flex-1 px-2 py-1 rounded bg-background border border-border text-sm"
                         >
-                          <option value="pending">pending</option>
-                          <option value="in_progress">in_progress</option>
-                          <option value="done">done</option>
-                          <option value="failed">failed</option>
-                          <option value="backlog">backlog</option>
-                        </select>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">pending</SelectItem>
+                            <SelectItem value="in_progress">in_progress</SelectItem>
+                            <SelectItem value="done">done</SelectItem>
+                            <SelectItem value="failed">failed</SelectItem>
+                            <SelectItem value="backlog">backlog</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ))}
                   </div>
@@ -552,17 +566,16 @@ export function PrdConversionWizard({
                   </div>
 
                   {/* Backup Option */}
-                  <label className="flex items-center gap-2 p-3 rounded-lg bg-muted cursor-pointer">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                    <Checkbox
+                      id="create-backup"
                       checked={createBackup}
-                      onChange={(e) => setCreateBackup(e.target.checked)}
-                      className="w-4 h-4 rounded border-2 text-primary focus:ring-primary"
+                      onCheckedChange={(checked) => setCreateBackup(checked === true)}
                     />
-                    <span className="text-sm text-foreground">
+                    <Label htmlFor="create-backup" className="text-sm cursor-pointer">
                       Create backup before conversion (recommended)
-                    </span>
-                  </label>
+                    </Label>
+                  </div>
                 </div>
               )}
             </div>
@@ -697,20 +710,20 @@ interface MappingRowProps {
 function MappingRow({ mapping, onChange, onRemove }: MappingRowProps) {
   return (
     <div className="flex items-center gap-3 p-2 rounded bg-muted">
-      <input
+      <Input
         type="text"
         value={mapping.sourceField}
         onChange={(e) => onChange('sourceField', e.target.value)}
         placeholder="Source field"
-        className="flex-1 px-2 py-1 rounded bg-background border border-border text-sm font-mono"
+        className="flex-1 font-mono"
       />
       <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-      <input
+      <Input
         type="text"
         value={mapping.targetField}
         onChange={(e) => onChange('targetField', e.target.value)}
         placeholder="Target field"
-        className="flex-1 px-2 py-1 rounded bg-background border border-border text-sm font-mono"
+        className="flex-1 font-mono"
       />
       <button
         type="button"

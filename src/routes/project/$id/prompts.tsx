@@ -22,6 +22,12 @@ import { SkillOverrideModal } from '@/components/SkillOverrideModal'
 import { AgentPromptCard, AgentPromptModal } from '@/components/AgentPromptCard'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export const Route = createFileRoute('/project/$id/prompts')({
   component: ProjectPrompts,
@@ -176,22 +182,30 @@ function ProjectSkillCard({ skill, isActive, onToggleActive, onClick, onOverride
         </button>
 
         {/* Override button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onOverrideClick()
-          }}
-          className={cn(
-            'shrink-0 p-2 rounded-lg transition-all duration-200',
-            'text-muted-foreground hover:text-primary hover:bg-primary/10',
-            skill.isOverride && 'text-amber-600 dark:text-amber-400'
-          )}
-          aria-label={skill.isOverride ? `Edit override for ${skill.name}` : `Create override for ${skill.name}`}
-          title={skill.isOverride ? 'Edit override' : 'Create override'}
-        >
-          <GitCompare className="w-5 h-5" />
-        </button>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOverrideClick()
+                }}
+                className={cn(
+                  'shrink-0 p-2 rounded-lg transition-all duration-200',
+                  'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                  skill.isOverride && 'text-amber-600 dark:text-amber-400'
+                )}
+                aria-label={skill.isOverride ? `Edit override for ${skill.name}` : `Create override for ${skill.name}`}
+              >
+                <GitCompare className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={4}>
+              {skill.isOverride ? 'Edit override' : 'Create override'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
       </div>
