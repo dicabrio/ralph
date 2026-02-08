@@ -7,7 +7,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
@@ -64,15 +64,90 @@ async function readPrdJson(projectPath: string): Promise<z.infer<typeof prdJsonS
 }
 
 /**
+ * Creates a default prd.json file for a new project
+ * Also creates the stories directory if it doesn't exist
+ */
+async function createDefaultPrd(projectPath: string, projectName: string): Promise<void> {
+  const storiesDir = join(projectPath, 'stories')
+  const prdPath = join(storiesDir, 'prd.json')
+
+  // Create stories directory if it doesn't exist
+  if (!existsSync(storiesDir)) {
+    await mkdir(storiesDir, { recursive: true })
+  }
+
+  // Create default prd.json
+  const defaultPrd = {
+    projectName,
+    projectDescription: `Project ${projectName}`,
+    branchName: 'main',
+    implementationGuides: [],
+    availableSkills: [
+      'frontend-design',
+      'backend-development:api-design-principles',
+      'database-design:postgresql'
+    ],
+    epics: [
+      {
+        name: 'Foundation',
+        description: 'Project setup and infrastructure'
+      },
+      {
+        name: 'Core Features',
+        description: 'Main features for end users'
+      }
+    ],
+    userStories: []
+  }
+
+  await writeFile(prdPath, JSON.stringify(defaultPrd, null, 2), 'utf-8')
+}
+
+// Story stats included with project data
+interface ProjectWithStats extends Project {
+  stats: {
+    total: number
+    done: number
+    failed: number
+    inProgress: number
+    backlog: number
+    progress: number
+  }
+}
+
+/**
  * Syncs project metadata from prd.json file
  * Updates description and branch_name from the file if they differ
+ * Also computes story statistics
  */
-async function syncProjectWithPrd(project: Project): Promise<Project> {
+async function syncProjectWithPrd(project: Project): Promise<ProjectWithStats> {
   const prdData = await readPrdJson(project.path)
 
-  if (!prdData) {
-    return project
+  // Default stats when no prd.json
+  const defaultStats = {
+    total: 0,
+    done: 0,
+    failed: 0,
+    inProgress: 0,
+    backlog: 0,
+    progress: 0,
   }
+
+  if (!prdData) {
+    return { ...project, stats: defaultStats }
+  }
+
+  // Compute story statistics
+  const stories = (prdData as { userStories?: Array<{ status: string }> }).userStories || []
+  const total = stories.length
+  const done = stories.filter((s) => s.status === 'done').length
+  const failed = stories.filter((s) => s.status === 'failed').length
+  const inProgress = stories.filter((s) => s.status === 'in_progress').length
+  // Backlog includes both 'pending' and 'backlog' statuses
+  const backlog = stories.filter((s) => s.status === 'pending' || s.status === 'backlog').length
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0
+
+  const stats = { total, done, failed, inProgress, backlog, progress }
 
   // Extract metadata from prd.json
   const prdDescription = prdData.projectDescription || null
@@ -99,10 +174,10 @@ async function syncProjectWithPrd(project: Project): Promise<Project> {
       .where(eq(projects.id, project.id))
       .returning()
 
-    return updated
+    return { ...updated, stats }
   }
 
-  return project
+  return { ...project, stats }
 }
 
 /**
@@ -138,10 +213,11 @@ export const projectsRouter = router({
   /**
    * Get a single project by ID
    * Syncs with prd.json before returning
+   * Includes story statistics
    */
   getById: publicProcedure
     .input(z.object({ id: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ input }): Promise<ProjectWithStats> => {
       const [project] = await db
         .select()
         .from(projects)
@@ -160,6 +236,7 @@ export const projectsRouter = router({
   /**
    * Create a new project
    * Validates that the path exists on filesystem
+   * Creates prd.json if it doesn't exist
    * Expands ~ to home directory and stores the expanded path
    */
   create: publicProcedure
@@ -172,10 +249,20 @@ export const projectsRouter = router({
       validatePathExists(expandedPath)
 
       // Try to read prd.json for initial metadata
-      const prdData = await readPrdJson(expandedPath)
+      let prdData = await readPrdJson(expandedPath)
+
+      // Determine project name early (needed for prd creation)
+      const folderName = expandedPath.split('/').pop() || 'Untitled Project'
+      const name = input.name || prdData?.projectName || folderName
+
+      // Create prd.json if it doesn't exist
+      if (!prdData) {
+        await createDefaultPrd(expandedPath, name)
+        // Re-read to get the created prd data
+        prdData = await readPrdJson(expandedPath)
+      }
 
       // Use prd.json values as defaults if not provided
-      const name = input.name || prdData?.projectName || 'Untitled Project'
       const description = input.description ?? prdData?.projectDescription ?? null
       const branchName = input.branchName ?? prdData?.branchName ?? null
 
@@ -359,8 +446,8 @@ export const projectsRouter = router({
 
   /**
    * Validate a project path
-   * Checks if the path exists and contains a prd.json file
-   * Also reads prd.json for suggested project name
+   * Checks if the path exists (folder must exist)
+   * prd.json is optional - will be created if missing
    * Expands ~ to home directory for validation
    */
   validatePath: publicProcedure
@@ -383,6 +470,9 @@ export const projectsRouter = router({
           description = prdData.projectDescription || null
           branchName = prdData.branchName || null
         }
+      } else if (pathExists) {
+        // Suggest name from folder name if no prd.json
+        suggestedName = expandedPath.split('/').pop() || null
       }
 
       // Check if project already exists in database (compare expanded paths)

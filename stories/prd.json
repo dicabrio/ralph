@@ -1244,6 +1244,33 @@
         "Build slaagt (pnpm build)",
         "Code review completed"
       ]
+    },
+    {
+      "id": "UI-029",
+      "title": "Backlog count in project overzicht",
+      "description": "Voeg een 'backlog' status indicator toe aan de project cards op het Dashboard. Dit geeft gebruikers direct inzicht in hoeveel stories er nog in de backlog staan per project, naast de bestaande progress bar en failed count.\n\n**BELANGRIJK - Database backup workflow:**\n- VOOR implementatie: maak backup van database met `cp data/ralph.db data/ralph.db.backup`\n- NA implementatie: restore database met `cp data/ralph.db.backup data/ralph.db`\n- Dit zorgt ervoor dat testdata behouden blijft tijdens development",
+      "priority": 65,
+      "status": "done",
+      "epic": "Dashboard",
+      "dependencies": ["UI-002"],
+      "recommendedSkills": ["frontend-design"],
+      "acceptanceCriteria": [
+        "PRE: Database backup maken: `cp data/ralph.db data/ralph.db.backup`",
+        "Project card toont backlog count (aantal stories met status 'pending')",
+        "Backlog count wordt weergegeven als badge of label naast bestaande stats",
+        "Visueel onderscheid tussen backlog count en andere metrics (bijv. kleur/icon)",
+        "Tooltip met 'X stories in backlog' bij hover",
+        "Count wordt real-time bijgewerkt bij story status wijzigingen",
+        "API: projects.list retourneert backlog count per project",
+        "Consistente styling met bestaande progress bar en failed count",
+        "Unit test: backlog count berekening",
+        "Unit test: project card rendering met backlog count",
+        "E2E test: backlog count is zichtbaar op dashboard",
+        "E2E test: count update na story status wijziging",
+        "Lint check: npm run lint slaagt zonder errors",
+        "Build check: npm run build slaagt",
+        "POST: Database restore: `cp data/ralph.db.backup data/ralph.db && rm data/ralph.db.backup`"
+      ]
     }
   ]
 }

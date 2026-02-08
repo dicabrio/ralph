@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   Plus,
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { AddProjectModal } from '@/components/AddProjectModal'
 import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
 import { PrdConversionWizard } from '@/components/PrdConversionWizard'
+import { useWebSocket } from '@/lib/websocket/client'
 
 // Discovered project type for conversion wizard
 interface DiscoveredProjectForConversion {
@@ -25,23 +26,17 @@ interface DiscoveredProjectForConversion {
 
 export const Route = createFileRoute('/')({ component: Dashboard })
 
-// Story status type
-type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed'
-
-// Story type from the API
-interface Story {
-  id: string
-  title: string
-  description: string
-  priority: number
-  status: StoryStatus
-  epic: string
-  dependencies: string[]
-  recommendedSkills: string[]
-  acceptanceCriteria: string[]
+// Project stats from the API
+interface ProjectStats {
+  total: number
+  done: number
+  failed: number
+  inProgress: number
+  backlog: number
+  progress: number
 }
 
-// Project type from the API
+// Project type from the API (with stats)
 interface Project {
   id: number
   name: string
@@ -50,22 +45,11 @@ interface Project {
   branchName: string | null
   createdAt: Date
   updatedAt: Date
+  stats: ProjectStats
 }
 
 // Runner status type
 type RunnerStatus = 'idle' | 'running' | 'stopping'
-
-// Compute project stats from stories
-function computeProjectStats(stories: Story[]) {
-  const total = stories.length
-  const done = stories.filter((s) => s.status === 'done').length
-  const failed = stories.filter((s) => s.status === 'failed').length
-  const inProgress = stories.filter((s) => s.status === 'in_progress').length
-  const pending = stories.filter((s) => s.status === 'pending').length
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0
-
-  return { total, done, failed, inProgress, pending, progress }
-}
 
 // Format relative time
 function formatRelativeTime(date: Date | string): string {
@@ -90,19 +74,14 @@ interface ProjectCardProps {
 }
 
 function ProjectCard({ project }: ProjectCardProps) {
-  // Fetch stories for this project
-  const { data: stories = [] } = trpc.stories.listByProject.useQuery(
-    { projectId: project.id },
-    { staleTime: 30000 }
-  )
-
   // Fetch runner status
   const { data: runnerState } = trpc.runner.getStatus.useQuery(
     { projectId: project.id },
     { staleTime: 5000 }
   )
 
-  const stats = computeProjectStats(stories)
+  // Use stats from the project object (already included in projects.list response)
+  const stats = project.stats
   const runnerStatus: RunnerStatus = runnerState?.status ?? 'idle'
 
   return (
@@ -178,14 +157,20 @@ function ProjectCard({ project }: ProjectCardProps) {
       {/* Stats row */}
       <div className="flex items-center gap-4 text-xs">
         {/* Done count */}
-        <div className="flex items-center gap-1 text-muted-foreground">
+        <div
+          className="flex items-center gap-1 text-muted-foreground"
+          title={`${stats.done} ${stats.done === 1 ? 'story' : 'stories'} completed`}
+        >
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
           <span>{stats.done}</span>
         </div>
 
         {/* In progress count */}
         {stats.inProgress > 0 && (
-          <div className="flex items-center gap-1 text-muted-foreground">
+          <div
+            className="flex items-center gap-1 text-muted-foreground"
+            title={`${stats.inProgress} ${stats.inProgress === 1 ? 'story' : 'stories'} in progress`}
+          >
             <PlayCircle className="w-3.5 h-3.5 text-blue-500" />
             <span>{stats.inProgress}</span>
           </div>
@@ -193,16 +178,23 @@ function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Failed count */}
         {stats.failed > 0 && (
-          <div className="flex items-center gap-1 text-muted-foreground">
+          <div
+            className="flex items-center gap-1 text-muted-foreground"
+            title={`${stats.failed} ${stats.failed === 1 ? 'story' : 'stories'} failed`}
+          >
             <AlertCircle className="w-3.5 h-3.5 text-destructive" />
             <span className="text-destructive">{stats.failed}</span>
           </div>
         )}
 
-        {/* Pending count */}
-        <div className="flex items-center gap-1 text-muted-foreground">
+        {/* Backlog count */}
+        <div
+          className="flex items-center gap-1 text-muted-foreground"
+          title={`${stats.backlog} ${stats.backlog === 1 ? 'story' : 'stories'} in backlog`}
+          data-testid="backlog-count"
+        >
           <CircleDashed className="w-3.5 h-3.5" />
-          <span>{stats.pending}</span>
+          <span>{stats.backlog}</span>
         </div>
 
         {/* Total stories */}
@@ -281,6 +273,31 @@ function Dashboard() {
     undefined,
     { staleTime: 10000 }
   )
+
+  // Subscribe to all projects for real-time updates
+  const projectIds = projects.map(p => String(p.id))
+
+  // WebSocket for real-time story updates
+  const { subscribe, unsubscribe } = useWebSocket({
+    onStoriesUpdated: useCallback(() => {
+      // Any story update should refresh project stats
+      console.log('[Dashboard] Stories updated, invalidating projects cache')
+      utils.projects.list.invalidate()
+    }, [utils]),
+    onRunnerCompleted: useCallback(() => {
+      // Runner completed should also refresh stats
+      console.log('[Dashboard] Runner completed, invalidating projects cache')
+      utils.projects.list.invalidate()
+    }, [utils]),
+  })
+
+  // Subscribe to all projects when the list changes
+  useEffect(() => {
+    projectIds.forEach(id => subscribe(id))
+    return () => {
+      projectIds.forEach(id => unsubscribe(id))
+    }
+  }, [projectIds.join(','), subscribe, unsubscribe])
 
   const handleAddProject = () => {
     setIsAddModalOpen(true)

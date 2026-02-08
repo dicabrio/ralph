@@ -125,6 +125,68 @@ describe('projectsRouter', () => {
       expect(result[0].description).toBe('New description from prd.json')
       expect(result[0].branchName).toBe('main')
     })
+
+    it('returns story stats including backlog count', async () => {
+      // Setup: Create a project
+      await db.insert(projects).values({
+        name: 'Project with stories',
+        path: '/path/to/project',
+      })
+
+      // Mock prd.json with various story statuses
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Project with stories',
+        userStories: [
+          { id: 'STORY-1', status: 'pending' },
+          { id: 'STORY-2', status: 'pending' },
+          { id: 'STORY-3', status: 'backlog' },
+          { id: 'STORY-4', status: 'in_progress' },
+          { id: 'STORY-5', status: 'done' },
+          { id: 'STORY-6', status: 'done' },
+          { id: 'STORY-7', status: 'done' },
+          { id: 'STORY-8', status: 'failed' },
+        ],
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.list()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].stats).toBeDefined()
+      expect(result[0].stats.total).toBe(8)
+      expect(result[0].stats.backlog).toBe(3) // 2 pending + 1 backlog
+      expect(result[0].stats.inProgress).toBe(1)
+      expect(result[0].stats.done).toBe(3)
+      expect(result[0].stats.failed).toBe(1)
+      expect(result[0].stats.progress).toBe(38) // 3/8 = 37.5 -> 38%
+    })
+
+    it('returns zero stats when no userStories exist', async () => {
+      await db.insert(projects).values({
+        name: 'Empty Project',
+        path: '/path/to/empty',
+      })
+
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        projectName: 'Empty Project',
+        // No userStories field
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.list()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].stats).toEqual({
+        total: 0,
+        done: 0,
+        failed: 0,
+        inProgress: 0,
+        backlog: 0,
+        progress: 0,
+      })
+    })
   })
 
   describe('getById', () => {

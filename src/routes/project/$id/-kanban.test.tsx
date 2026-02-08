@@ -10,7 +10,7 @@
  * - Drag handle rendering and visibility
  */
 import { describe, it, expect } from 'vitest'
-import { Story, StoryStatus } from '@/components/StoryCard'
+import type { Story, StoryStatus } from '@/components/StoryCard'
 
 // Re-implement the helper functions from kanban.tsx for testing
 // These are the core logic functions that we want to verify
@@ -50,10 +50,11 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
 
 // Valid status transitions (from stories router)
 const validTransitions: Record<StoryStatus, StoryStatus[]> = {
-  pending: ['in_progress', 'done'],
+  pending: ['in_progress', 'done', 'backlog'],
   in_progress: ['done', 'failed', 'pending'],
-  done: ['pending'],
-  failed: ['in_progress', 'pending'],
+  done: ['pending', 'backlog'],
+  failed: ['in_progress', 'pending', 'backlog'],
+  backlog: ['pending', 'done'],
 }
 
 // Check if a status transition is valid

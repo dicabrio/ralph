@@ -800,6 +800,47 @@ test.describe('Project Management Flow', () => {
 
       await expect(projectCard.locator('text=/\\d+ stor(y|ies)/')).toBeVisible()
     })
+
+    test('should display backlog count on project card', async ({ page }) => {
+      await gotoDashboard(page)
+
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${cardProject.name}")`)
+      const exists = await projectCard.isVisible().catch(() => false)
+
+      if (!exists) {
+        test.skip()
+        return
+      }
+
+      // The project has 1 pending story, which should show in backlog count
+      // The backlog count element has data-testid="backlog-count"
+      const backlogCount = projectCard.getByTestId('backlog-count')
+      await expect(backlogCount).toBeVisible()
+
+      // Should contain the CircleDashed icon and a number
+      await expect(backlogCount.locator('svg')).toBeVisible()
+      await expect(backlogCount.locator('span')).toBeVisible()
+    })
+
+    test('should show tooltip on backlog count hover', async ({ page }) => {
+      await gotoDashboard(page)
+
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${cardProject.name}")`)
+      const exists = await projectCard.isVisible().catch(() => false)
+
+      if (!exists) {
+        test.skip()
+        return
+      }
+
+      // Get the backlog count element
+      const backlogCount = projectCard.getByTestId('backlog-count')
+      await expect(backlogCount).toBeVisible()
+
+      // Verify title attribute (native tooltip)
+      const title = await backlogCount.getAttribute('title')
+      expect(title).toMatch(/\d+ stor(y|ies) in backlog/)
+    })
   })
 
   test.describe('Error Handling', () => {

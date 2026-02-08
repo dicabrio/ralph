@@ -57,7 +57,7 @@ export const Route = createFileRoute('/project/$id/')({
 })
 
 // Story status type
-type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed'
+type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
 
 // Story type from the API
 interface Story {

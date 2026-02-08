@@ -32,6 +32,12 @@ const STATUS_CONFIG: Record<
     color: 'text-amber-600 dark:text-amber-400',
     bgColor: 'bg-amber-500/10',
   },
+  backlog: {
+    label: 'Backlog',
+    icon: <CircleDashed className="w-4 h-4" />,
+    color: 'text-slate-600 dark:text-slate-400',
+    bgColor: 'bg-slate-500/10',
+  },
   in_progress: {
     label: 'In Progress',
     icon: <PlayCircle className="w-4 h-4" />,
