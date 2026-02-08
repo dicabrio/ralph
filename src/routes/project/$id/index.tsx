@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Play,
@@ -17,6 +17,8 @@ import {
   Check,
   X,
   ExternalLink,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
@@ -391,10 +393,135 @@ function QuickLinks({ projectId }: QuickLinksProps) {
   )
 }
 
+// Delete confirmation dialog component
+interface DeleteConfirmDialogProps {
+  isOpen: boolean
+  projectName: string
+  projectPath: string
+  isDeleting: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function DeleteConfirmDialog({
+  isOpen,
+  projectName,
+  projectPath,
+  isDeleting,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmDialogProps) {
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isDeleting) {
+          onCancel()
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !isDeleting) {
+          onCancel()
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-dialog-title"
+    >
+      <div
+        className="w-full max-w-md bg-card rounded-lg border shadow-xl p-6 mx-4"
+        data-testid="delete-confirm-dialog"
+      >
+        {/* Warning icon */}
+        <div className="flex justify-center mb-4">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <h2
+          id="delete-dialog-title"
+          className="text-lg font-semibold text-foreground text-center mb-2"
+        >
+          Remove Project from Ralph?
+        </h2>
+
+        {/* Description */}
+        <p className="text-sm text-muted-foreground text-center mb-4">
+          Project <span className="font-medium text-foreground">{projectName}</span> will be
+          removed from Ralph.
+        </p>
+
+        {/* Info box */}
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-6">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="font-medium mb-1">Files will be preserved</p>
+              <p>
+                The project files at <code className="font-mono bg-amber-500/10 px-1 rounded">{projectPath}</code> will
+                remain on your filesystem. Only the reference in Ralph will be deleted.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isDeleting}
+            className={cn(
+              'flex-1 px-4 py-2.5 rounded-lg font-medium',
+              'bg-secondary text-secondary-foreground',
+              'hover:bg-secondary/80 transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            )}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            data-testid="confirm-delete-button"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium',
+              'bg-destructive text-destructive-foreground',
+              'hover:bg-destructive/90 transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            )}
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Removing...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Remove Project
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProjectDetail() {
   const { id } = Route.useParams()
   const projectId = parseInt(id, 10)
   const utils = trpc.useUtils()
+  const navigate = useNavigate()
+
+  // State for delete confirmation dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   // Fetch project data
   const {
@@ -422,6 +549,26 @@ function ProjectDetail() {
   const updateProject = trpc.projects.update.useMutation({
     onSuccess: () => {
       utils.projects.getById.invalidate({ id: projectId })
+    },
+  })
+
+  const deleteProject = trpc.projects.delete.useMutation({
+    onSuccess: (data) => {
+      // Invalidate projects list
+      utils.projects.list.invalidate()
+      // Close the dialog
+      setIsDeleteDialogOpen(false)
+      // Show success toast
+      toast.success('Project removed from Ralph', {
+        description: `"${data.projectName}" has been removed. Files on disk are preserved.`,
+      })
+      // Navigate to dashboard
+      navigate({ to: '/' })
+    },
+    onError: (error) => {
+      toast.error('Failed to remove project', {
+        description: error.message || 'An unexpected error occurred',
+      })
     },
   })
 
@@ -468,6 +615,19 @@ function ProjectDetail() {
 
   const handleStopRunner = () => {
     stopRunner.mutate({ projectId })
+  }
+
+  // Handle project delete
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    deleteProject.mutate({ id: projectId })
+  }
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false)
   }
 
   // Loading state
@@ -585,6 +745,39 @@ function ProjectDetail() {
               />
             </div>
           </div>
+
+          {/* Danger Zone */}
+          <div>
+            <h2 className="text-lg font-semibold text-destructive mb-4">
+              Danger Zone
+            </h2>
+            <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Remove project from Ralph
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This will remove the project from Ralph. Files on disk will be preserved.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteClick}
+                  data-testid="delete-project-button"
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm',
+                    'border border-destructive text-destructive',
+                    'hover:bg-destructive hover:text-destructive-foreground',
+                    'transition-colors',
+                  )}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove Project
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar - runner controls and quick links */}
@@ -602,6 +795,16 @@ function ProjectDetail() {
           <QuickLinks projectId={id} />
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        projectName={project.name}
+        projectPath={project.path}
+        isDeleting={deleteProject.isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   )
 }

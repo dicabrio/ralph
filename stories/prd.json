@@ -1227,6 +1227,66 @@
         "E2E test: nieuw project heeft .claude/settings.local.json",
         "Alle tests draaien headless in CI"
       ]
+    },
+    {
+      "id": "API-012",
+      "title": "Project verwijderen uit Ralph",
+      "description": "Mogelijkheid om een project te verwijderen uit Ralph. Dit verwijdert alleen de referentie uit de database, niet de daadwerkelijke project bestanden op disk.",
+      "priority": 58,
+      "status": "done",
+      "epic": "Core API",
+      "dependencies": ["API-003"],
+      "recommendedSkills": ["backend-development:api-design-principles", "frontend-design"],
+      "acceptanceCriteria": [
+        "API: projects.delete(projectId) - verwijdert project uit database",
+        "Verwijdert alleen database record, NIET de bestanden op disk",
+        "Stop running runner voor project voordat delete wordt uitgevoerd",
+        "Verwijder gerelateerde runner_logs uit database",
+        "Verwijder gerelateerde brainstorm_sessions en messages uit database",
+        "UI: Delete knop op project pagina met confirmatie dialog",
+        "Confirmatie dialog waarschuwt: 'Project wordt uit Ralph verwijderd, bestanden blijven behouden'",
+        "Na delete: redirect naar Dashboard",
+        "Toast notificatie bij succesvolle verwijdering",
+        "Unit tests voor delete procedure inclusief cascade deletes",
+        "Unit test: bestanden op disk worden NIET verwijderd",
+        "E2E test: project verwijderen via UI flow",
+        "E2E test: confirmatie dialog annuleren behoudt project",
+        "Alle tests draaien headless in CI"
+      ]
+    },
+    {
+      "id": "UI-026",
+      "title": "PRD.json format conversie wizard",
+      "description": "AI-assisted wizard voor het converteren van afwijkende prd.json formats naar Ralph's standaard schema. Detecteert afwijkingen bij project toevoegen en discovery, laat Claude mappings suggereren die gebruiker kan goedkeuren of aanpassen.",
+      "priority": 59,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": ["API-003", "API-007"],
+      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
+      "acceptanceCriteria": [
+        "Ralph schema definitie in src/lib/schemas/prdSchema.ts met Zod",
+        "API: prd.validate(projectPath) - valideert prd.json tegen schema, retourneert errors",
+        "API: prd.suggestMapping(originalJson) - stuurt naar Claude, krijgt mapping suggesties terug",
+        "API: prd.convert(originalJson, mappings) - past mappings toe en retourneert geconverteerde JSON",
+        "Bij project discovery: badge 'Needs conversion' voor projecten met afwijkend format",
+        "Bij project toevoegen met afwijkend format: open conversie wizard modal",
+        "Wizard stap 1: toon originele JSON met gedetecteerde problemen highlighted",
+        "Wizard stap 2: Claude analyseert en suggereert field mappings",
+        "Wizard stap 3: toon side-by-side preview - origineel links, geconverteerd rechts",
+        "Elke mapping regel heeft dropdown om alternatief source veld te kiezen",
+        "Optie om velden te negeren (niet mappen)",
+        "Data transformatie ondersteuning: bijv. 'open' → 'pending', 'closed' → 'done'",
+        "Nested structure mapping: bijv. 'tasks[].state' → 'userStories[].status'",
+        "Apply knop: slaat geconverteerde prd.json op en voegt project toe",
+        "Cancel knop: breekt wizard af, project wordt niet toegevoegd",
+        "Backup: originele prd.json wordt opgeslagen als prd.json.backup voor conversie",
+        "Unit tests voor schema validatie",
+        "Unit tests voor mapping logic",
+        "E2E test: project met afwijkend format toevoegen via wizard",
+        "E2E test: mapping aanpassen in wizard",
+        "E2E test: discovery toont 'Needs conversion' badge",
+        "Alle tests draaien headless in CI"
+      ]
     }
   ]
 }

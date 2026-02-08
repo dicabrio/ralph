@@ -556,14 +556,16 @@ test.describe('Project Management Flow', () => {
 
   test.describe('Delete Project', () => {
     let deleteProject: { path: string; name: string }
+    let deleteProject2: { path: string; name: string }
 
     test.beforeAll(async () => {
       deleteProject = await createTestProject('delete-test')
       testProjects.push(deleteProject.path)
+      deleteProject2 = await createTestProject('delete-test-2')
+      testProjects.push(deleteProject2.path)
     })
 
-    // Note: Delete functionality not yet implemented in UI
-    test('should display delete option for project (when implemented)', async ({ page }) => {
+    test('should display delete button in Danger Zone section', async ({ page }) => {
       await gotoDashboard(page)
 
       let projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject.name}")`)
@@ -579,16 +581,178 @@ test.describe('Project Management Flow', () => {
       await page.waitForURL(/\/project\/\d+/)
       await page.waitForLoadState('networkidle')
 
-      const deleteButton = page.getByRole('button', { name: /delete/i })
-      const hasDeleteButton = await deleteButton.isVisible().catch(() => false)
+      // Verify Danger Zone section exists
+      await expect(page.locator('h2:has-text("Danger Zone")')).toBeVisible({ timeout: 10000 })
 
-      if (!hasDeleteButton) {
-        // Skip test if delete button not implemented yet
-        test.skip()
-      } else {
-        await deleteButton.click()
-        await expect(page.locator('text=Are you sure')).toBeVisible()
+      // Verify delete button exists
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible()
+      await expect(deleteButton).toContainText('Remove Project')
+    })
+
+    test('should show confirmation dialog when clicking delete button', async ({ page }) => {
+      await gotoDashboard(page)
+
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+      await projectCard.click()
+      await page.waitForURL(/\/project\/\d+/)
+      await page.waitForLoadState('networkidle')
+
+      // Click delete button
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible({ timeout: 10000 })
+      await deleteButton.click()
+
+      // Verify confirmation dialog appears
+      const dialog = page.getByTestId('delete-confirm-dialog')
+      await expect(dialog).toBeVisible({ timeout: 5000 })
+
+      // Verify dialog content
+      await expect(dialog.locator('h2:has-text("Remove Project from Ralph?")')).toBeVisible()
+      await expect(dialog.locator(`text=${deleteProject.name}`)).toBeVisible()
+      await expect(dialog.locator('text=Files will be preserved')).toBeVisible()
+
+      // Verify buttons
+      await expect(dialog.locator('button:has-text("Cancel")')).toBeVisible()
+      await expect(page.getByTestId('confirm-delete-button')).toBeVisible()
+    })
+
+    test('should close confirmation dialog when clicking Cancel', async ({ page }) => {
+      await gotoDashboard(page)
+
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+      await projectCard.click()
+      await page.waitForURL(/\/project\/\d+/)
+      await page.waitForLoadState('networkidle')
+
+      // Click delete button
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible({ timeout: 10000 })
+      await deleteButton.click()
+
+      // Wait for dialog
+      const dialog = page.getByTestId('delete-confirm-dialog')
+      await expect(dialog).toBeVisible({ timeout: 5000 })
+
+      // Click Cancel
+      await dialog.locator('button:has-text("Cancel")').click()
+
+      // Dialog should close
+      await expect(dialog).not.toBeVisible({ timeout: 5000 })
+
+      // Should still be on the project page
+      await expect(page.locator(`h1:has-text("${deleteProject.name}")`)).toBeVisible()
+    })
+
+    test('should delete project and redirect to Dashboard when confirmed', async ({ page }) => {
+      await gotoDashboard(page)
+
+      // Add project if not exists
+      let projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject2.name}")`)
+      const projectExists = await projectCard.isVisible().catch(() => false)
+
+      if (!projectExists) {
+        await addProjectViaPath(page, deleteProject2.path)
       }
+
+      projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject2.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+      await projectCard.click()
+      await page.waitForURL(/\/project\/\d+/)
+      await page.waitForLoadState('networkidle')
+
+      // Click delete button
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible({ timeout: 10000 })
+      await deleteButton.click()
+
+      // Wait for dialog
+      const dialog = page.getByTestId('delete-confirm-dialog')
+      await expect(dialog).toBeVisible({ timeout: 5000 })
+
+      // Click confirm
+      const confirmButton = page.getByTestId('confirm-delete-button')
+      await confirmButton.click()
+
+      // Should redirect to dashboard
+      await page.waitForURL('/')
+      await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 10000 })
+
+      // Project card should no longer be visible
+      projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject2.name}")`)
+      await expect(projectCard).not.toBeVisible({ timeout: 5000 })
+
+      // Success toast should appear
+      await expect(page.locator('text=Project removed from Ralph')).toBeVisible({ timeout: 5000 })
+    })
+
+    test('should preserve project files on disk after delete', async ({ page }) => {
+      // Create a new project for this test
+      const filePreserveProject = await createTestProject('file-preserve-test')
+      testProjects.push(filePreserveProject.path)
+
+      await gotoDashboard(page)
+
+      // Add the project
+      await addProjectViaPath(page, filePreserveProject.path)
+
+      // Verify project exists
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${filePreserveProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+
+      // Navigate to project
+      await projectCard.click()
+      await page.waitForURL(/\/project\/\d+/)
+      await page.waitForLoadState('networkidle')
+
+      // Delete the project
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible({ timeout: 10000 })
+      await deleteButton.click()
+
+      const dialog = page.getByTestId('delete-confirm-dialog')
+      await expect(dialog).toBeVisible({ timeout: 5000 })
+
+      const confirmButton = page.getByTestId('confirm-delete-button')
+      await confirmButton.click()
+
+      // Should redirect to dashboard
+      await page.waitForURL('/')
+
+      // Verify files still exist on disk
+      const prdPath = path.join(filePreserveProject.path, 'stories', 'prd.json')
+      expect(fs.existsSync(filePreserveProject.path)).toBe(true)
+      expect(fs.existsSync(prdPath)).toBe(true)
+    })
+
+    test('should close confirmation dialog when pressing Escape', async ({ page }) => {
+      await gotoDashboard(page)
+
+      const projectCard = page.locator(`a[href^="/project/"]:has-text("${deleteProject.name}")`)
+      await expect(projectCard).toBeVisible({ timeout: 5000 })
+      await projectCard.click()
+      await page.waitForURL(/\/project\/\d+/)
+      await page.waitForLoadState('networkidle')
+
+      // Click delete button
+      const deleteButton = page.getByTestId('delete-project-button')
+      await expect(deleteButton).toBeVisible({ timeout: 10000 })
+      await deleteButton.click()
+
+      // Wait for dialog
+      const dialog = page.getByTestId('delete-confirm-dialog')
+      await expect(dialog).toBeVisible({ timeout: 5000 })
+
+      // Press Escape
+      await page.keyboard.press('Escape')
+
+      // Dialog should close
+      await expect(dialog).not.toBeVisible({ timeout: 5000 })
+
+      // Should still be on the project page
+      await expect(page.locator(`h1:has-text("${deleteProject.name}")`)).toBeVisible()
     })
   })
 

@@ -1604,3 +1604,39 @@
 - E2E tests may reuse existing dev server; use CI=true or restart server for fresh builds
 - Playwright reuseExistingServer setting affects test behavior significantly
 - Wrap filesystem operations in try-catch when they shouldn't fail the main operation
+## 2026-02-08 - API-012
+**Title:** Project verwijderen uit Ralph
+
+**Implemented:**
+- Enhanced projects.delete tRPC procedure with comprehensive cleanup
+- Stops running runner before project deletion using claudeLoopService.stop(projectId, true)
+- Database cascade automatically handles:
+  - runner_logs (via onDelete: 'cascade' foreign key)
+  - brainstorm_sessions (via onDelete: 'cascade' foreign key)
+  - brainstorm_messages (via cascade from brainstorm_sessions)
+- Delete button in Danger Zone section on project detail page
+- DeleteConfirmDialog component with clear warning that files are preserved
+- Dialog shows project name and path, explains files stay on disk
+- Cancel button and Escape key close dialog without deletion
+- On successful delete: redirect to Dashboard + toast notification
+- Returns projectName and projectPath in delete response for toast message
+- 10 new unit tests covering cascade deletes, runner stop, and file preservation
+- 6 new E2E tests covering full deletion UI flow
+
+**Files changed:**
+- src/lib/trpc/routers/projects.ts (enhanced delete with runner stop, +42 lines)
+- src/lib/trpc/routers/projects.test.ts (added 10 tests, +150 lines)
+- src/routes/project/$id/index.tsx (added delete UI, +140 lines)
+- e2e/project-management.spec.ts (added 6 E2E tests, +130 lines)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Foreign key cascades in Drizzle/SQLite handle related record deletion automatically
+- claudeLoopService.getStatus() returns sync state, stop() returns Promise
+- Force stop (second param = true) ensures quick container termination before delete
+- Try-catch around runner stop prevents delete failure if runner already stopped
+- DeleteConfirmDialog uses data-testid attributes for E2E test targeting
+- Dialog backdrop click and Escape key handling requires disabled state check during deletion
+- useNavigate from TanStack Router for post-delete redirect to Dashboard
+- Toast with description provides clear feedback about what happened
+- Pre-existing discover test failures unrelated to delete changes

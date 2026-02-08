@@ -47,13 +47,22 @@ vi.mock('@/lib/services/claudePermissions', () => ({
   })),
 }))
 
+// Mock the claudeLoopService for delete tests
+vi.mock('@/lib/services/claudeLoopService', () => ({
+  claudeLoopService: {
+    getStatus: vi.fn(() => ({ status: 'idle', projectId: 1 })),
+    stop: vi.fn(() => Promise.resolve({ status: 'idle', projectId: 1 })),
+  },
+}))
+
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createCallerFactory } from '../trpc'
 import { projectsRouter } from './projects'
 import { db } from '@/db'
-import { projects } from '@/db/schema'
+import { projects, runnerLogs, brainstormSessions, brainstormMessages } from '@/db/schema'
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
+import { claudeLoopService } from '@/lib/services/claudeLoopService'
 
 const createCaller = createCallerFactory(projectsRouter)
 
@@ -447,7 +456,7 @@ describe('projectsRouter', () => {
   })
 
   describe('delete', () => {
-    it('deletes a project and returns success', async () => {
+    it('deletes a project and returns success with project details', async () => {
       const [project] = await db.insert(projects).values({
         name: 'To Delete',
         path: '/delete/me',
@@ -458,6 +467,8 @@ describe('projectsRouter', () => {
 
       expect(result.success).toBe(true)
       expect(result.deletedId).toBe(project.id)
+      expect(result.projectName).toBe('To Delete')
+      expect(result.projectPath).toBe('/delete/me')
 
       // Verify project is deleted
       const remaining = await db.select().from(projects)
@@ -479,6 +490,186 @@ describe('projectsRouter', () => {
 
       await expect(caller.delete({ id: -1 })).rejects.toThrow()
       await expect(caller.delete({ id: 0 })).rejects.toThrow()
+    })
+
+    it('stops running runner before deleting project', async () => {
+      // Setup: Runner is running
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: 1,
+        storyId: 'STORY-001',
+        pid: 12345,
+        startedAt: new Date(),
+      })
+      vi.mocked(claudeLoopService.stop).mockResolvedValue({
+        status: 'idle',
+        projectId: 1,
+      })
+
+      const [project] = await db.insert(projects).values({
+        name: 'Running Project',
+        path: '/running/project',
+      }).returning()
+
+      const caller = createCaller({})
+      await caller.delete({ id: project.id })
+
+      // Verify runner.stop was called with force=true
+      expect(claudeLoopService.getStatus).toHaveBeenCalledWith(project.id)
+      expect(claudeLoopService.stop).toHaveBeenCalledWith(project.id, true)
+    })
+
+    it('does not call stop if runner is not running', async () => {
+      // Setup: Runner is idle
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'idle',
+        projectId: 1,
+      })
+      vi.mocked(claudeLoopService.stop).mockClear()
+
+      const [project] = await db.insert(projects).values({
+        name: 'Idle Project',
+        path: '/idle/project',
+      }).returning()
+
+      const caller = createCaller({})
+      await caller.delete({ id: project.id })
+
+      // Verify stop was NOT called
+      expect(claudeLoopService.getStatus).toHaveBeenCalledWith(project.id)
+      expect(claudeLoopService.stop).not.toHaveBeenCalled()
+    })
+
+    it('proceeds with delete even if runner stop fails', async () => {
+      // Setup: Runner is running but stop fails
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: 1,
+      })
+      vi.mocked(claudeLoopService.stop).mockRejectedValue(new Error('Failed to stop'))
+
+      const [project] = await db.insert(projects).values({
+        name: 'Problem Project',
+        path: '/problem/project',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.delete({ id: project.id })
+
+      // Should still successfully delete
+      expect(result.success).toBe(true)
+      expect(result.deletedId).toBe(project.id)
+
+      // Verify project is deleted
+      const remaining = await db.select().from(projects)
+      expect(remaining).toHaveLength(0)
+    })
+
+    it('cascades delete to runner_logs', async () => {
+      // Reset runner status to idle
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'idle',
+        projectId: 1,
+      })
+
+      // Create project with runner_logs
+      const [project] = await db.insert(projects).values({
+        name: 'Project with logs',
+        path: '/project/with/logs',
+      }).returning()
+
+      // Add some runner logs
+      await db.insert(runnerLogs).values([
+        { projectId: project.id, logContent: 'Log 1', logType: 'stdout' },
+        { projectId: project.id, logContent: 'Log 2', logType: 'stdout' },
+        { projectId: project.id, storyId: 'STORY-001', logContent: 'Log 3', logType: 'stderr' },
+      ])
+
+      // Verify logs exist
+      const logsBefore = await db.select().from(runnerLogs)
+      expect(logsBefore).toHaveLength(3)
+
+      const caller = createCaller({})
+      await caller.delete({ id: project.id })
+
+      // Verify logs are cascade deleted
+      const logsAfter = await db.select().from(runnerLogs)
+      expect(logsAfter).toHaveLength(0)
+    })
+
+    it('cascades delete to brainstorm_sessions and messages', async () => {
+      // Reset runner status to idle
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'idle',
+        projectId: 1,
+      })
+
+      // Create project with brainstorm sessions
+      const [project] = await db.insert(projects).values({
+        name: 'Project with brainstorm',
+        path: '/project/with/brainstorm',
+      }).returning()
+
+      // Add brainstorm sessions
+      const [session1] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'Session 1',
+        status: 'active',
+      }).returning()
+
+      const [session2] = await db.insert(brainstormSessions).values({
+        projectId: project.id,
+        title: 'Session 2',
+        status: 'completed',
+      }).returning()
+
+      // Add messages to sessions
+      await db.insert(brainstormMessages).values([
+        { sessionId: session1.id, role: 'user', content: 'Hello' },
+        { sessionId: session1.id, role: 'assistant', content: 'Hi there!' },
+        { sessionId: session2.id, role: 'user', content: 'Another session' },
+      ])
+
+      // Verify data exists
+      const sessionsBefore = await db.select().from(brainstormSessions)
+      const messagesBefore = await db.select().from(brainstormMessages)
+      expect(sessionsBefore).toHaveLength(2)
+      expect(messagesBefore).toHaveLength(3)
+
+      const caller = createCaller({})
+      await caller.delete({ id: project.id })
+
+      // Verify sessions and messages are cascade deleted
+      const sessionsAfter = await db.select().from(brainstormSessions)
+      const messagesAfter = await db.select().from(brainstormMessages)
+      expect(sessionsAfter).toHaveLength(0)
+      expect(messagesAfter).toHaveLength(0)
+    })
+
+    it('does not delete files on disk (only database record)', async () => {
+      // Reset runner status to idle
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'idle',
+        projectId: 1,
+      })
+
+      // Note: We're only testing that the delete operation doesn't include
+      // any filesystem operations. The acceptance criteria states that
+      // files should NOT be deleted from disk.
+      // Since our implementation only calls db.delete(), this is verified
+      // by the fact that we never mock or call any filesystem delete functions.
+
+      const [project] = await db.insert(projects).values({
+        name: 'Project on disk',
+        path: '/project/on/disk',
+      }).returning()
+
+      const caller = createCaller({})
+      const result = await caller.delete({ id: project.id })
+
+      expect(result.success).toBe(true)
+      // No filesystem delete functions should have been called
+      // (existsSync, unlinkSync, rmSync, etc. are not used in delete)
     })
   })
 

@@ -16,6 +16,7 @@ import { projects, type Project } from '@/db/schema'
 import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
+import { claudeLoopService } from '@/lib/services/claudeLoopService'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -272,24 +273,68 @@ export const projectsRouter = router({
     }),
 
   /**
-   * Delete a project
+   * Delete a project from Ralph
+   *
+   * This removes the project from the database but does NOT delete
+   * any files from the filesystem. The project folder remains intact.
+   *
+   * Before deletion:
+   * - Stops any running runner for the project
+   * - Database cascade will automatically delete:
+   *   - runner_logs (via foreign key cascade)
+   *   - brainstorm_sessions (via foreign key cascade)
+   *   - brainstorm_messages (via cascade from brainstorm_sessions)
    */
   delete: publicProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input }) => {
+      const projectId = input.id
+
+      // Check if project exists first
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${projectId} not found`,
+        })
+      }
+
+      // Stop the runner if it's running for this project
+      try {
+        const runnerStatus = claudeLoopService.getStatus(projectId)
+        if (runnerStatus.status === 'running') {
+          await claudeLoopService.stop(projectId, true) // Force stop
+        }
+      } catch (error) {
+        // Log but don't fail - runner might not be running
+        console.error(`[projects.delete] Failed to stop runner for project ${projectId}:`, error)
+      }
+
+      // Delete the project from database
+      // Related records (runner_logs, brainstorm_sessions, brainstorm_messages)
+      // will be automatically deleted via cascade
       const [deleted] = await db
         .delete(projects)
-        .where(eq(projects.id, input.id))
+        .where(eq(projects.id, projectId))
         .returning()
 
       if (!deleted) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: `Project with id ${input.id} not found`,
+          message: `Project with id ${projectId} not found`,
         })
       }
 
-      return { success: true, deletedId: deleted.id }
+      return {
+        success: true,
+        deletedId: deleted.id,
+        projectName: deleted.name,
+        projectPath: deleted.path,
+      }
     }),
 
   /**
