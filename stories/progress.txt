@@ -1849,3 +1849,71 @@
 - detectStoryRequest uses simple keyword matching for user confirmation
 - Pre-existing lint/typecheck errors don't block new feature implementation
 - Build succeeds despite demo file type errors (isolated to demo routes)
+
+## 2026-02-08 - UI-029
+**Title:** Backlog count in project overzicht
+
+**Implemented:**
+- Added story statistics to projects.list API response (total, done, failed, inProgress, backlog, progress)
+- Updated ProjectCard component to use API-provided stats instead of client-side computation
+- Added WebSocket listener to Dashboard for real-time updates when stories change
+- Added tooltip on backlog count showing "X stories in backlog"
+- Backlog count includes both 'pending' and 'backlog' status stories
+- Added unit tests for backlog count API
+- Added E2E tests for backlog count display and tooltip
+- Fixed pre-existing TypeScript errors for 'backlog' status in StoryDetailModal and kanban tests
+
+**Files changed:**
+- src/lib/trpc/routers/projects.ts
+- src/lib/trpc/routers/projects.test.ts
+- src/routes/index.tsx
+- src/components/StoryDetailModal.tsx
+- src/routes/project/$id/-kanban.test.tsx
+- src/routes/project/$id/index.tsx
+- e2e/project-management.spec.ts
+- stories/prd.json
+
+**Learnings:**
+- projects.list now returns stats alongside project data, eliminating N+1 queries for stories
+- WebSocket events (stories_updated, runner_completed) can be used to invalidate tRPC queries for real-time UI updates
+- Story status 'backlog' was already defined in stories router but missing from some UI components
+- Database backup workflow is important for preserving test data during development
+
+## 2026-02-08 - REFACTOR-001
+**Title:** shadcn Button & Badge componenten migratie
+
+**Implemented:**
+- Extended shadcn Badge component with status variants: pending, in_progress, done, failed, backlog
+- Migrated all custom button elements to shadcn Button component in:
+  - Dashboard (index.tsx): Empty state buttons, header action buttons
+  - AddProjectModal: Close button, Cancel and Submit buttons
+  - DiscoverProjectsModal: Close button, Select all link, footer buttons, status badges
+  - Sidebar: Collapse toggle button
+  - StoryCard: Failed badge, priority badge
+  - StoryDetailModal: Close button, skill management buttons, status badges
+  - Kanban: Runner control buttons, dependency dialog buttons, status badges
+  - Settings: Edit/save/cancel buttons, delete confirmation buttons
+- Migrated inline badge spans to use shadcn Badge with semantic variants
+- Button uses consistent variants: default, secondary, destructive, ghost, outline, link
+- Button uses consistent sizes: default, sm, xs, icon, icon-xs, icon-sm
+- Badge variants map directly to story status values for type-safe usage
+
+**Files changed:**
+- src/components/ui/badge.tsx (added status variants)
+- src/components/AddProjectModal.tsx
+- src/components/DiscoverProjectsModal.tsx
+- src/components/Sidebar.tsx
+- src/components/StoryCard.tsx
+- src/components/StoryDetailModal.tsx
+- src/routes/index.tsx
+- src/routes/project/$id/kanban.tsx
+- src/routes/project/$id/settings.tsx
+- stories/prd.json
+
+**Learnings:**
+- shadcn components use cva (class-variance-authority) for variant management
+- Button already had icon sizes (icon-xs, icon-sm) which are useful for inline actions
+- Badge variants can be typed to StoryStatus for compile-time safety: variant={story.status as 'pending' | ...}
+- When migrating buttons, keep focus on consistent variant mapping (primary→default, cancel→secondary)
+- Ghost variant useful for icon-only buttons that need subtle hover states
+- The cn() utility from lib/utils properly merges Tailwind classes with component defaults
