@@ -1189,7 +1189,7 @@
       "title": "Real-time Kanban updates bij prd.json wijzigingen",
       "description": "Kanban board moet automatisch updaten wanneer prd.json wordt gewijzigd, zowel door de runner als door externe tools. Combineert WebSocket event listeners met file watching voor maximale responsiviteit.",
       "priority": 63,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": ["UI-006", "API-002", "RUNNER-001"],
       "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],

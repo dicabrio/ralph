@@ -106,6 +106,14 @@ export type ServerMessage =
       }
       timestamp: number
     }
+  // Stories updated message (file watcher)
+  | {
+      type: 'stories_updated'
+      payload: {
+        projectId: string
+      }
+      timestamp: number
+    }
 
 /**
  * Extended WebSocket connection with tracking info

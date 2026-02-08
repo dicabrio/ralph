@@ -18,6 +18,7 @@ import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
 import { validatePrd } from '@/lib/schemas/prdSchema'
+import { getPrdFileWatcher } from '@/lib/services/prdFileWatcher'
 
 // Zod schemas for input validation
 const createProjectSchema = z.object({
@@ -198,6 +199,15 @@ export const projectsRouter = router({
           console.error('Failed to set up Claude permissions:', e)
         }
 
+        // Add project to file watcher for real-time prd.json updates
+        try {
+          const fileWatcher = getPrdFileWatcher()
+          fileWatcher.addProject(newProject.id, expandedPath)
+        } catch (e) {
+          // Log but don't fail project creation if file watcher setup fails
+          console.error('Failed to add project to file watcher:', e)
+        }
+
         return newProject
       } catch (error) {
         // Handle unique constraint violation on path
@@ -313,6 +323,15 @@ export const projectsRouter = router({
       } catch (error) {
         // Log but don't fail - runner might not be running
         console.error(`[projects.delete] Failed to stop runner for project ${projectId}:`, error)
+      }
+
+      // Remove project from file watcher before deletion
+      try {
+        const fileWatcher = getPrdFileWatcher()
+        fileWatcher.removeProject(projectId)
+      } catch (error) {
+        // Log but don't fail - file watcher might not be running
+        console.error(`[projects.delete] Failed to remove project from file watcher:`, error)
       }
 
       // Delete the project from database

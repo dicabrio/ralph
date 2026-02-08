@@ -1744,3 +1744,66 @@
 - Cursor states cursor-grab and active:cursor-grabbing work well for drag handles
 - Pre-existing lint issues (biome) don't block story completion if no new errors introduced
 - Pre-existing test failures in unrelated routers don't affect story verification
+
+## 2026-02-08 - UI-028
+**Title:** Kanban board full-width layout
+
+**Implemented:**
+- Changed column layout from fixed width (min-w-[280px] max-w-[320px]) to flexible (flex-1 min-w-[200px])
+- Columns now distribute evenly across available viewport space
+- Removed min-w-max from container, replaced with min-w-0 to allow flex shrinking
+- Added h-full to inner container for consistent vertical spacing
+- Added data-testid="kanban-board" and data-testid="kanban-column-{id}" for E2E testing
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (DroppableColumn and container layout changes)
+- e2e/kanban-board.spec.ts (added UI-028 E2E test section with 6 tests)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- flex-1 on columns allows them to grow and share available space equally
+- min-w-[200px] ensures columns remain readable even when space is limited
+- The parent container must NOT have min-w-max if you want columns to fill available width
+- Use min-w-0 on flex children to allow shrinking below content width
+- E2E viewport testing: use page.setViewportSize() and waitForTimeout() to allow layout reflow
+- Sidebar offset (pl-16 or pl-64) is handled by Layout component, not Kanban board
+- Pre-existing lint errors in other files don't block story completion
+
+## 2026-02-08 - RUNNER-007
+**Title:** Real-time Kanban updates bij prd.json wijzigingen
+
+**Implemented:**
+- Created prdFileWatcher service using chokidar to watch prd.json files
+- Added `stories_updated` WebSocket event type for broadcasting file changes
+- File watcher syncs with database on startup, watches all project prd.json files
+- Debouncing (100ms) prevents duplicate broadcasts during rapid file changes
+- Integrated file watcher initialization into tRPC API handler
+- Projects router: adds/removes watchers when projects are created/deleted
+- Updated WebSocket client hook with onStoriesUpdated and onRunnerCompleted callbacks
+- Kanban board subscribes to project updates via WebSocket
+- Kanban invalidates stories cache when stories_updated or runner_completed events received
+- Skip refetch for own updates (within 500ms) to prevent duplicate refreshes
+- Created comprehensive unit tests for prdFileWatcher service
+- Created E2E tests for real-time update scenarios
+
+**Files changed:**
+- package.json (added chokidar dependency)
+- src/lib/websocket/types.ts (added stories_updated event type)
+- src/lib/services/prdFileWatcher.ts (new file - file watcher service)
+- src/lib/services/prdFileWatcher.test.ts (new file - unit tests)
+- src/routes/api/trpc/$.ts (initialized file watcher)
+- src/lib/trpc/routers/projects.ts (sync watchers on create/delete)
+- src/lib/websocket/client.ts (added onStoriesUpdated, onRunnerCompleted callbacks)
+- src/routes/project/$id/kanban.tsx (WebSocket subscription and cache invalidation)
+- e2e/kanban-board.spec.ts (added RUNNER-007 E2E test section)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- chokidar 5.x uses ESM imports: `import { watch } from 'chokidar'`
+- For singleton services on globalThis, use explicit typing with `as any` cast to avoid TS errors
+- File watcher awaitWriteFinish option helps with editor save events (multiple rapid writes)
+- WebSocket client hooks should use useCallback for handlers to prevent re-renders
+- Track lastOwnUpdateRef timestamp to skip refetch when UI initiated the change
+- Projects router needs to sync with file watcher when adding/removing projects
+- Pre-existing TypeScript errors in demo/test files don't block story completion
+- Pre-existing unit test failures in unrelated routers don't affect story verification

@@ -9,6 +9,7 @@ import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@/lib/trpc/routers'
 import { createContext } from '@/lib/trpc/context'
 import { createWebSocketServer, setWebSocketServer, getWebSocketServer } from '@/lib/websocket/server'
+import { initPrdFileWatcher } from '@/lib/services/prdFileWatcher'
 
 // Initialize WebSocket server in the API context (only once)
 // This ensures WebSocket broadcasts work from tRPC handlers
@@ -30,8 +31,20 @@ function initWebSocketServer() {
   }
 }
 
+// Initialize PRD file watcher after WebSocket server is ready
+async function initFileWatcher() {
+  try {
+    await initPrdFileWatcher()
+    console.log('[tRPC] PRD file watcher initialized')
+  } catch (error) {
+    console.error('[tRPC] Failed to initialize PRD file watcher:', error)
+  }
+}
+
 // Run initialization
 initWebSocketServer()
+// Initialize file watcher in background (don't block)
+initFileWatcher()
 
 /**
  * Handle tRPC requests

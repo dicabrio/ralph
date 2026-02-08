@@ -74,6 +74,9 @@ dependencies:
   better-sqlite3:
     specifier: ^12.5.0
     version: 12.6.2
+  chokidar:
+    specifier: ^5.0.0
+    version: 5.0.0
   class-variance-authority:
     specifier: ^0.7.1
     version: 0.7.1
@@ -91,7 +94,7 @@ dependencies:
     version: 0.561.0(react@19.2.4)
   nitro:
     specifier: npm:nitro-nightly@latest
-    version: /nitro-nightly@3.0.1-20260206-112341-db30877d(better-sqlite3@12.6.2)(drizzle-orm@0.45.1)(vite@7.3.1)
+    version: /nitro-nightly@3.0.1-20260206-112341-db30877d(better-sqlite3@12.6.2)(chokidar@5.0.0)(drizzle-orm@0.45.1)(vite@7.3.1)
   openai:
     specifier: ^6.18.0
     version: 6.18.0(ws@8.19.0)(zod@4.3.6)
@@ -3316,6 +3319,13 @@ packages:
       fsevents: 2.3.3
     dev: false
 
+  /chokidar@5.0.0:
+    resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
+    engines: {node: '>= 20.19.0'}
+    dependencies:
+      readdirp: 5.0.0
+    dev: false
+
   /chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
     dev: false
@@ -4446,7 +4456,7 @@ packages:
     resolution: {integrity: sha512-vgmoL6pUXpKXx+WepG4H1xc2nf1N/5vKgU9QerryuSFIyef8EDkj7esYcIgqMe/mE6nGsy6M6b8wfssEBQizVQ==}
     dev: false
 
-  /nitro-nightly@3.0.1-20260206-112341-db30877d(better-sqlite3@12.6.2)(drizzle-orm@0.45.1)(vite@7.3.1):
+  /nitro-nightly@3.0.1-20260206-112341-db30877d(better-sqlite3@12.6.2)(chokidar@5.0.0)(drizzle-orm@0.45.1)(vite@7.3.1):
     resolution: {integrity: sha512-Wq5RONmCTugf2Khu5V4aBzN/IiNfdABWirdEEtlWxJ9WKL2KE/lnqLIHaHdsweqCVKiqD0IPm8W12Fx++IxkpQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
@@ -4473,7 +4483,7 @@ packages:
       rolldown: 1.0.0-rc.3
       srvx: 0.11.2
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.5(db0@0.3.4)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.5(chokidar@5.0.0)(db0@0.3.4)(ofetch@2.0.0-alpha.3)
       vite: 7.3.1(@types/node@22.19.9)(tsx@4.21.0)
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -4730,6 +4740,11 @@ packages:
     engines: {node: '>=8.10.0'}
     dependencies:
       picomatch: 2.3.1
+    dev: false
+
+  /readdirp@5.0.0:
+    resolution: {integrity: sha512-9u/XQ1pvrQtYyMpZe7DXKv2p5CNvyVwzUB6uhLAnQwHMSgKMBR62lc7AHljaeteeHXn11XTAaLLUVZYVZyuRBQ==}
+    engines: {node: '>= 20.19.0'}
     dev: false
 
   /recast@0.23.11:
@@ -5210,7 +5225,7 @@ packages:
       webpack-virtual-modules: 0.6.2
     dev: false
 
-  /unstorage@2.0.0-alpha.5(db0@0.3.4)(ofetch@2.0.0-alpha.3):
+  /unstorage@2.0.0-alpha.5(chokidar@5.0.0)(db0@0.3.4)(ofetch@2.0.0-alpha.3):
     resolution: {integrity: sha512-Sj8btci21Twnd6M+N+MHhjg3fVn6lAPElPmvFTe0Y/wR0WImErUdA1PzlAaUavHylJ7uDiFwlZDQKm0elG4b7g==}
     peerDependencies:
       '@azure/app-configuration': ^1.9.0
@@ -5284,6 +5299,7 @@ packages:
       uploadthing:
         optional: true
     dependencies:
+      chokidar: 5.0.0
       db0: 0.3.4(better-sqlite3@12.6.2)(drizzle-orm@0.45.1)
       ofetch: 2.0.0-alpha.3
     dev: false

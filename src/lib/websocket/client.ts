@@ -52,6 +52,18 @@ export interface UseWebSocketOptions {
   onBrainstormComplete?: (data: { sessionId: string; content: string; stories: GeneratedStory[] }) => void
   /** Called when a brainstorm session errors */
   onBrainstormError?: (data: { sessionId: string; error: string }) => void
+  /** Called when stories are updated (prd.json changed) */
+  onStoriesUpdated?: (data: { projectId: string }) => void
+  /** Called when runner completes a story */
+  onRunnerCompleted?: (data: {
+    projectId: string
+    storyId?: string
+    exitCode: number
+    success: boolean
+    completedStoryStatus?: string
+    nextStoryId?: string
+    willAutoRestart: boolean
+  }) => void
 }
 
 export interface UseWebSocketReturn {
@@ -93,6 +105,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     onBrainstormStories,
     onBrainstormComplete,
     onBrainstormError,
+    onStoriesUpdated,
+    onRunnerCompleted,
   } = options
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -252,9 +266,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         case 'brainstorm_error':
           onBrainstormError?.(message.payload)
           break
+
+        case 'stories_updated':
+          onStoriesUpdated?.(message.payload)
+          break
+
+        case 'runner_completed':
+          onRunnerCompleted?.(message.payload)
+          break
       }
     }
-  }, [url, reconnect, reconnectAttempts, reconnectInterval, onConnect, onDisconnect, onLog, onError, onBrainstormStart, onBrainstormChunk, onBrainstormStories, onBrainstormComplete, onBrainstormError])
+  }, [url, reconnect, reconnectAttempts, reconnectInterval, onConnect, onDisconnect, onLog, onError, onBrainstormStart, onBrainstormChunk, onBrainstormStories, onBrainstormComplete, onBrainstormError, onStoriesUpdated, onRunnerCompleted])
 
   /**
    * Subscribe to project logs

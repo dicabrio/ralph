@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { StoryCard, Story, StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
 import { RunnerLogModal } from '@/components/RunnerLogModal'
+import { useWebSocket } from '@/lib/websocket/client'
 
 // Parse runner errors into user-friendly messages
 function getRunnerErrorMessage(error: unknown): string {
@@ -757,6 +758,47 @@ function KanbanBoard() {
     { enabled: !isNaN(projectId), refetchInterval: 3000 },
   )
 
+  // Track if this component triggered the last update (to avoid refetching our own changes)
+  const lastOwnUpdateRef = useRef<number>(0)
+
+  // WebSocket for real-time prd.json updates
+  const { subscribe, unsubscribe, isConnected } = useWebSocket({
+    onStoriesUpdated: useCallback((data: { projectId: string }) => {
+      // Only invalidate if this is for our project
+      if (data.projectId === String(projectId)) {
+        // Skip if we just made an update ourselves (within 500ms)
+        const timeSinceOwnUpdate = Date.now() - lastOwnUpdateRef.current
+        if (timeSinceOwnUpdate < 500) {
+          console.log('[Kanban] Skipping refetch - own update')
+          return
+        }
+        console.log('[Kanban] Stories updated via file watcher, invalidating cache')
+        utils.stories.listByProject.invalidate({ projectId })
+      }
+    }, [projectId, utils]),
+    onRunnerCompleted: useCallback((data: { projectId: string }) => {
+      // Only invalidate if this is for our project
+      if (data.projectId === String(projectId)) {
+        console.log('[Kanban] Runner completed, invalidating stories cache')
+        utils.stories.listByProject.invalidate({ projectId })
+        utils.runner.getStatus.invalidate({ projectId })
+      }
+    }, [projectId, utils]),
+  })
+
+  // Subscribe to project updates when component mounts
+  useEffect(() => {
+    if (isConnected && !isNaN(projectId)) {
+      const projectIdStr = String(projectId)
+      subscribe(projectIdStr)
+      console.log(`[Kanban] Subscribed to project ${projectIdStr} updates`)
+      return () => {
+        unsubscribe(projectIdStr)
+        console.log(`[Kanban] Unsubscribed from project ${projectIdStr} updates`)
+      }
+    }
+  }, [isConnected, projectId, subscribe, unsubscribe])
+
   // Mutations
   const startRunner = trpc.runner.start.useMutation({
     onSuccess: () => {
@@ -785,6 +827,9 @@ function KanbanBoard() {
   // Status update mutation with optimistic updates
   const updateStatus = trpc.stories.updateStatus.useMutation({
     onMutate: async ({ storyId, status }) => {
+      // Mark the timestamp of our own update to avoid duplicate refetch from file watcher
+      lastOwnUpdateRef.current = Date.now()
+
       // Cancel any outgoing refetches
       await utils.stories.listByProject.cancel({ projectId })
 
