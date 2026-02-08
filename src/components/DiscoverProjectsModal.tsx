@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
-import { X, FolderSearch, Loader2, CheckCircle2, FolderOpen, AlertCircle, AlertTriangle } from 'lucide-react'
+import { FolderSearch, Loader2, CheckCircle2, FolderOpen, AlertCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 interface DiscoverProjectsModalProps {
   isOpen: boolean
@@ -56,17 +63,6 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
       refetch()
     }
   }, [isOpen, refetch])
-
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isAdding) {
-        handleClose()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, isAdding])
 
   const handleClose = useCallback(() => {
     if (!isAdding) {
@@ -157,37 +153,17 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
     availableProjects.length > 0 &&
     availableProjects.every((p) => selectedPaths.has(p.path))
 
-  if (!isOpen) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="discover-projects-modal-title"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col bg-card border border-border rounded-xl shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <FolderSearch className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2
-                id="discover-projects-modal-title"
-                className="text-lg font-semibold text-foreground"
-              >
-                Discover Projects
-              </h2>
+              <DialogTitle>Discover Projects</DialogTitle>
               {discoveryData && (
                 <p className="text-xs text-muted-foreground">
                   Scanning: {discoveryData.projectsRoot}
@@ -195,20 +171,10 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
               )}
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            disabled={isAdding}
-            className="-mr-1.5"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto py-4">
           {/* Loading state */}
           {isDiscovering && (
             <div className="flex flex-col items-center justify-center py-12">
@@ -313,31 +279,33 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border bg-muted/30 shrink-0">
-          <p className="text-xs text-muted-foreground">
-            {discoveryData && !isDiscovering && (
-              <>Found {discoveryData.projects.length} project{discoveryData.projects.length !== 1 ? 's' : ''}</>
-            )}
-          </p>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              onClick={handleClose}
-              disabled={isAdding}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddSelected}
-              disabled={selectedPaths.size === 0 || isAdding}
-            >
-              {isAdding && <Loader2 className="w-4 h-4 animate-spin" />}
-              Add Selected ({selectedPaths.size})
-            </Button>
+        <DialogFooter className="flex-shrink-0 pt-4 border-t border-border bg-muted/30 -mx-6 -mb-6 px-6 pb-6">
+          <div className="flex items-center justify-between w-full">
+            <p className="text-xs text-muted-foreground">
+              {discoveryData && !isDiscovering && (
+                <>Found {discoveryData.projects.length} project{discoveryData.projects.length !== 1 ? 's' : ''}</>
+              )}
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                onClick={handleClose}
+                disabled={isAdding}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddSelected}
+                disabled={selectedPaths.size === 0 || isAdding}
+              >
+                {isAdding && <Loader2 className="w-4 h-4 animate-spin" />}
+                Add Selected ({selectedPaths.size})
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

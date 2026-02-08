@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { X, Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import type { GeneratedStory } from './StoryPreviewCard'
 
 export interface StoryEditModalProps {
@@ -21,7 +29,6 @@ export function StoryEditModal({
   const [newSkill, setNewSkill] = useState('')
   const [newDependency, setNewDependency] = useState('')
 
-  const modalRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   // Reset form when story changes
@@ -38,30 +45,6 @@ export function StoryEditModal({
       setTimeout(() => titleInputRef.current?.focus(), 50)
     }
   }, [isOpen])
-
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
-
-  // Handle backdrop click
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === modalRef.current) {
-        onClose()
-      }
-    },
-    [onClose],
-  )
 
   const handleSave = useCallback(() => {
     onSave(editedStory)
@@ -138,45 +121,18 @@ export function StoryEditModal({
     [editedStory.dependencies],
   )
 
-  if (!isOpen) return null
-
   return (
-    <div
-      ref={modalRef}
-      onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-story-title"
-      data-testid="story-edit-modal"
-    >
-      <div
-        className={cn(
-          'bg-card rounded-xl border shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden',
-          'flex flex-col',
-        )}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        data-testid="story-edit-modal"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2
-            id="edit-story-title"
-            className="text-lg font-semibold text-foreground"
-          >
-            Edit Story
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-            aria-label="Close modal"
-            data-testid="close-button"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle>Edit Story</DialogTitle>
+        </DialogHeader>
 
         {/* Content - scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* Story ID (read-only) */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
@@ -313,21 +269,16 @@ export function StoryEditModal({
                   )}
                   data-testid="input-new-criterion"
                 />
-                <button
+                <Button
                   type="button"
+                  size="icon"
                   onClick={addCriterion}
                   disabled={!newCriterion.trim()}
-                  className={cn(
-                    'p-2 rounded-lg shrink-0',
-                    'bg-primary text-primary-foreground',
-                    'hover:bg-primary/90 transition-colors',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                  )}
                   aria-label="Add criterion"
                   data-testid="add-criterion-button"
                 >
                   <Plus className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -375,21 +326,16 @@ export function StoryEditModal({
                 )}
                 data-testid="input-new-skill"
               />
-              <button
+              <Button
                 type="button"
+                size="icon"
                 onClick={addSkill}
                 disabled={!newSkill.trim()}
-                className={cn(
-                  'p-2 rounded-lg shrink-0',
-                  'bg-primary text-primary-foreground',
-                  'hover:bg-primary/90 transition-colors',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                )}
                 aria-label="Add skill"
                 data-testid="add-skill-button"
               >
                 <Plus className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -436,59 +382,42 @@ export function StoryEditModal({
                 )}
                 data-testid="input-new-dependency"
               />
-              <button
+              <Button
                 type="button"
+                size="icon"
                 onClick={addDependency}
                 disabled={!newDependency.trim()}
-                className={cn(
-                  'p-2 rounded-lg shrink-0',
-                  'bg-primary text-primary-foreground',
-                  'hover:bg-primary/90 transition-colors',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                )}
                 aria-label="Add dependency"
                 data-testid="add-dependency-button"
               >
                 <Plus className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-border">
-          <button
-            type="button"
+        <DialogFooter className="flex-shrink-0 pt-4 border-t border-border">
+          <Button
+            variant="secondary"
             onClick={onClose}
-            className={cn(
-              'px-4 py-2 text-sm rounded-lg',
-              'border border-border text-muted-foreground',
-              'hover:text-foreground hover:border-primary/50 transition-colors',
-            )}
             data-testid="cancel-button"
           >
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={
               !editedStory.title.trim() ||
               !editedStory.description.trim() ||
               !editedStory.epic.trim()
             }
-            className={cn(
-              'px-4 py-2 text-sm rounded-lg',
-              'bg-primary text-primary-foreground',
-              'hover:bg-primary/90 transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
             data-testid="save-button"
           >
             Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

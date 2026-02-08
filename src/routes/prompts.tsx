@@ -348,17 +348,16 @@ function PromptsPage() {
       )}
 
       {/* Skill detail modal */}
-      {selectedSkill && (
-        <SkillDetailModal
-          skill={selectedSkill}
-          isWritable={writableStatus?.writable ?? false}
-          onClose={handleCloseModal}
-          onSaved={() => {
-            // Optionally update selected skill with new content
-            // The modal will invalidate the cache
-          }}
-        />
-      )}
+      <SkillDetailModal
+        skill={selectedSkill ?? { id: '', name: '', description: '', content: '' }}
+        isOpen={selectedSkill !== null}
+        isWritable={writableStatus?.writable ?? false}
+        onClose={handleCloseModal}
+        onSaved={() => {
+          // Optionally update selected skill with new content
+          // The modal will invalidate the cache
+        }}
+      />
 
       {/* Agent Prompt modal */}
       {showAgentPromptModal && (

@@ -1,7 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
-import { X, FileCode2, Copy, Check, Pencil, Save, RotateCcw, Loader2 } from 'lucide-react'
+import { FileCode2, Copy, Check, Pencil, Save, RotateCcw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import CodeMirror from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -18,6 +25,7 @@ interface Skill {
 
 interface SkillDetailModalProps {
   skill: Skill
+  isOpen: boolean
   isWritable?: boolean
   onClose: () => void
   onSaved?: () => void
@@ -55,7 +63,7 @@ function getCategoryColor(category: string): string {
   return categoryColors[category] || 'bg-muted text-muted-foreground'
 }
 
-export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }: SkillDetailModalProps) {
+export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, onSaved }: SkillDetailModalProps) {
   const [copied, setCopied] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState(skill.content)
@@ -87,24 +95,6 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
     setIsEditing(false)
     setHasUnsavedChanges(false)
   }, [skill.id, skill.content])
-
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isEditing && hasUnsavedChanges) {
-          // Ask for confirmation before discarding changes
-          if (window.confirm('You have unsaved changes. Discard them?')) {
-            handleCancel()
-          }
-        } else {
-          onClose()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose, isEditing, hasUnsavedChanges])
 
   // Handle copy content
   const handleCopy = async () => {
@@ -159,20 +149,11 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
   const canSave = isEditing && hasUnsavedChanges && !updateCentralMutation.isPending
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="skill-detail-modal-title"
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} aria-hidden="true" />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-4xl mx-4 max-h-[90vh] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-start gap-4 flex-1 min-w-0 pr-4">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b border-border">
+          <div className="flex items-start gap-4">
             <div className="shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileCode2 className="w-6 h-6 text-primary" />
             </div>
@@ -192,33 +173,25 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
                   </span>
                 )}
               </div>
-              <h2 id="skill-detail-modal-title" className="text-lg font-semibold text-foreground">
+              <DialogTitle>
                 {skill.name}
-              </h2>
+              </DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">{skill.description}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 -mr-1.5 mt-0.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Skill ID bar + Actions */}
-        <div className="flex items-center justify-between px-6 py-2 bg-muted/50 border-b border-border text-sm gap-4">
+        <div className="flex items-center justify-between py-2 bg-muted/50 border-b border-border text-sm gap-4 flex-shrink-0 -mx-6 px-6">
           <span className="font-mono text-muted-foreground shrink-0">ID: {skill.id}</span>
           <div className="flex items-center gap-2">
             {/* Copy button */}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleCopy}
               className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors',
-                copied ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'hover:bg-accent text-muted-foreground'
+                copied && 'text-emerald-600 dark:text-emerald-400'
               )}
             >
               {copied ? (
@@ -232,7 +205,7 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
                   Copy
                 </>
               )}
-            </button>
+            </Button>
 
             {/* Edit/Save/Cancel buttons (only if writable) */}
             {isWritable && (
@@ -240,31 +213,21 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
                 {isEditing ? (
                   <>
                     {/* Cancel button */}
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={handleCancel}
                       disabled={updateCentralMutation.isPending}
-                      className={cn(
-                        'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors',
-                        'hover:bg-accent text-muted-foreground',
-                        updateCentralMutation.isPending && 'opacity-50 cursor-not-allowed'
-                      )}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       Cancel
-                    </button>
+                    </Button>
 
                     {/* Save button */}
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={handleSave}
                       disabled={!canSave}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-                        canSave
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
-                      )}
                     >
                       {updateCentralMutation.isPending ? (
                         <>
@@ -277,17 +240,17 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
                           Save
                         </>
                       )}
-                    </button>
+                    </Button>
                   </>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={handleEdit}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium hover:bg-accent text-muted-foreground transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     Edit
-                  </button>
+                  </Button>
                 )}
               </>
             )}
@@ -296,13 +259,13 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
 
         {/* Error message */}
         {updateCentralMutation.isError && (
-          <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm">
+          <div className="px-6 py-2 -mx-6 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm">
             {updateCentralMutation.error?.message || 'Failed to save changes'}
           </div>
         )}
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto -mx-6">
           {isEditing ? (
             <CodeMirror
               value={editedContent}
@@ -332,8 +295,8 @@ export function SkillDetailModal({ skill, isWritable = false, onClose, onSaved }
             </pre>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

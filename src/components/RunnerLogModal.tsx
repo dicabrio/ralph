@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  X,
   PlayCircle,
   Copy,
   Check,
@@ -10,6 +9,13 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useWebSocket, type UseWebSocketOptions } from '@/lib/websocket/client'
 import type { Story } from './StoryCard'
 
@@ -94,17 +100,6 @@ export function RunnerLogModal({
     }
   }, [logs, autoScroll])
 
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, onClose])
-
   // Handle scroll - disable auto-scroll if user scrolls up
   const handleScroll = useCallback(() => {
     if (!logContainerRef.current) return
@@ -148,135 +143,105 @@ export function RunnerLogModal({
     })
   }, [])
 
-  if (!isOpen || !story) return null
+  if (!story) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="runner-log-modal-title"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-        data-testid="modal-backdrop"
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-4xl mx-4 h-[80vh] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="sm:max-w-4xl h-[80vh] overflow-hidden flex flex-col bg-zinc-900 border-zinc-700"
+        showCloseButton={false}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 bg-zinc-800/50 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2 text-blue-400">
-              <PlayCircle className="w-5 h-5" />
-              <span className="text-sm font-medium">Running</span>
+        <DialogHeader className="flex-shrink-0 pb-3 border-b border-zinc-700 bg-zinc-800/50 -mx-6 -mt-6 px-4 pt-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2 text-blue-400">
+                <PlayCircle className="w-5 h-5" />
+                <span className="text-sm font-medium">Running</span>
+              </div>
+              <div className="h-4 w-px bg-zinc-600" />
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-mono text-zinc-400 shrink-0">
+                  {story.id}
+                </span>
+                <DialogTitle className="text-sm font-medium text-zinc-200 truncate">
+                  {story.title}
+                </DialogTitle>
+              </div>
             </div>
-            <div className="h-4 w-px bg-zinc-600" />
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-mono text-zinc-400 shrink-0">
-                {story.id}
-              </span>
-              <h2
-                id="runner-log-modal-title"
-                className="text-sm font-medium text-zinc-200 truncate"
+
+            <div className="flex items-center gap-2">
+              {/* Connection status */}
+              <div
+                className={cn(
+                  'flex items-center gap-1.5 px-2 py-1 rounded text-xs',
+                  isConnected
+                    ? 'text-emerald-400'
+                    : isReconnecting
+                      ? 'text-amber-400'
+                      : 'text-zinc-500',
+                )}
+                data-testid="connection-status"
               >
-                {story.title}
-              </h2>
+                {isConnected ? (
+                  <>
+                    <Wifi className="w-3.5 h-3.5" />
+                    <span>Connected</span>
+                  </>
+                ) : isReconnecting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Reconnecting</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3.5 h-3.5" />
+                    <span>Disconnected</span>
+                  </>
+                )}
+              </div>
+
+              {/* Copy button */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCopyLogs}
+                disabled={logs.length === 0}
+                className="bg-zinc-700 text-zinc-200 hover:bg-zinc-600 border-0"
+                data-testid="copy-button"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </Button>
+
+              {/* Auto-scroll toggle */}
+              <Button
+                variant={autoScroll ? 'default' : 'secondary'}
+                size="sm"
+                onClick={handleScrollToBottom}
+                className={cn(
+                  autoScroll
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-zinc-700 text-zinc-200 hover:bg-zinc-600',
+                  'border-0'
+                )}
+                data-testid="autoscroll-button"
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5" />
+                <span>Auto-scroll</span>
+              </Button>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* Connection status */}
-            <div
-              className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded text-xs',
-                isConnected
-                  ? 'text-emerald-400'
-                  : isReconnecting
-                    ? 'text-amber-400'
-                    : 'text-zinc-500',
-              )}
-              data-testid="connection-status"
-            >
-              {isConnected ? (
-                <>
-                  <Wifi className="w-3.5 h-3.5" />
-                  <span>Connected</span>
-                </>
-              ) : isReconnecting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Reconnecting</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3.5 h-3.5" />
-                  <span>Disconnected</span>
-                </>
-              )}
-            </div>
-
-            {/* Copy button */}
-            <button
-              type="button"
-              onClick={handleCopyLogs}
-              disabled={logs.length === 0}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-                'bg-zinc-700 text-zinc-200',
-                'hover:bg-zinc-600 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-              aria-label="Copy logs"
-              data-testid="copy-button"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-
-            {/* Auto-scroll toggle */}
-            <button
-              type="button"
-              onClick={handleScrollToBottom}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-                autoScroll
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-zinc-700 text-zinc-200 hover:bg-zinc-600',
-                'transition-colors',
-              )}
-              aria-label={autoScroll ? 'Auto-scroll enabled' : 'Enable auto-scroll'}
-              aria-pressed={autoScroll}
-              data-testid="autoscroll-button"
-            >
-              <ArrowDownToLine className="w-3.5 h-3.5" />
-              <span>Auto-scroll</span>
-            </button>
-
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
-              aria-label="Close"
-              data-testid="close-button"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        </DialogHeader>
 
         {/* Terminal content */}
         <div
@@ -284,7 +249,7 @@ export function RunnerLogModal({
           onScroll={handleScroll}
           className={cn(
             'flex-1 overflow-y-auto p-4 font-mono text-sm',
-            'bg-zinc-950',
+            'bg-zinc-950 -mx-6',
           )}
           data-testid="log-container"
         >
@@ -326,7 +291,7 @@ export function RunnerLogModal({
         </div>
 
         {/* Footer with log count */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800/50 text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-4 py-2 -mx-6 -mb-6 border-t border-zinc-700 bg-zinc-800/50 text-xs text-zinc-500">
           <span>{logs.length} lines</span>
           {!autoScroll && logs.length > 0 && (
             <button
@@ -338,8 +303,8 @@ export function RunnerLogModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

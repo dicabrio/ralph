@@ -12,6 +12,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import type { ConversionMapping, FieldMapping, StoryStatus } from '@/lib/schemas/prdSchema'
 
 interface PrdConversionWizardProps {
@@ -94,17 +102,6 @@ export function PrdConversionWizard({
       suggestMappings.mutate({ originalJson: validationData.originalJson })
     }
   }, [validationData])
-
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !convertMutation.isPending) {
-        handleClose()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, convertMutation.isPending])
 
   const handleClose = useCallback(() => {
     if (!convertMutation.isPending) {
@@ -217,56 +214,24 @@ export function PrdConversionWizard({
 
   const isLoading = isValidating || suggestMappings.isPending || convertMutation.isPending
 
-  if (!isOpen) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="prd-conversion-wizard-title"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col bg-card border border-border rounded-xl shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" showCloseButton={false}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/10">
               <FileJson className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <h2
-                id="prd-conversion-wizard-title"
-                className="text-lg font-semibold text-foreground"
-              >
-                PRD Format Conversion
-              </h2>
+              <DialogTitle>PRD Format Conversion</DialogTitle>
               <p className="text-xs text-muted-foreground">{projectName}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={convertMutation.isPending}
-            className={cn(
-              'p-1.5 -mr-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
-              convertMutation.isPending && 'opacity-50 cursor-not-allowed'
-            )}
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Progress Steps */}
-        <div className="px-6 py-3 border-b border-border bg-muted/30">
+        <div className="py-3 border-y border-border bg-muted/30 -mx-6 px-6">
           <div className="flex items-center justify-between">
             {WIZARD_STEPS.map((step, index) => {
               const isActive = step.id === currentStep
@@ -306,7 +271,7 @@ export function PrdConversionWizard({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto py-4">
           {/* Step 1: Detect Issues */}
           {currentStep === 'detect' && (
             <div className="space-y-4">
@@ -659,13 +624,9 @@ export function PrdConversionWizard({
                   </div>
 
                   <div className="flex justify-center">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="px-6 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
+                    <Button onClick={handleClose}>
                       Close & Add Project
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -674,79 +635,55 @@ export function PrdConversionWizard({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border bg-muted/30 shrink-0">
-          <button
-            type="button"
-            onClick={handlePreviousStep}
-            disabled={currentStep === 'detect' || isLoading}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium',
-              'bg-secondary text-secondary-foreground',
-              'hover:bg-secondary/80 transition-colors',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isLoading}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium',
-                'bg-secondary text-secondary-foreground',
-                'hover:bg-secondary/80 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+        <DialogFooter className="flex-shrink-0 pt-4 border-t border-border bg-muted/30 -mx-6 -mb-6 px-6 pb-6">
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              onClick={handlePreviousStep}
+              disabled={currentStep === 'detect' || isLoading}
             >
-              Cancel
-            </button>
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </Button>
 
-            {currentStep !== 'apply' ? (
-              <button
-                type="button"
-                onClick={handleNextStep}
-                disabled={!canProceed || isLoading}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium',
-                  'bg-primary text-primary-foreground',
-                  'hover:bg-primary/90 transition-colors',
-                  'disabled:opacity-50 disabled:cursor-not-allowed'
-                )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                onClick={handleClose}
+                disabled={isLoading}
               >
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            ) : (
-              !convertMutation.data?.success && (
-                <button
-                  type="button"
-                  onClick={handleApply}
-                  disabled={isLoading}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium',
-                    'bg-primary text-primary-foreground',
-                    'hover:bg-primary/90 transition-colors',
-                    'disabled:opacity-50 disabled:cursor-not-allowed'
-                  )}
+                Cancel
+              </Button>
+
+              {currentStep !== 'apply' ? (
+                <Button
+                  onClick={handleNextStep}
+                  disabled={!canProceed || isLoading}
                 >
-                  {convertMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                  Apply Conversion
-                </button>
-              )
-            )}
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                !convertMutation.data?.success && (
+                  <Button
+                    onClick={handleApply}
+                    disabled={isLoading}
+                  >
+                    {convertMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                    Apply Conversion
+                  </Button>
+                )
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

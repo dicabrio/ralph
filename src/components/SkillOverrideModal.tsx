@@ -1,7 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { X, Save, RotateCcw, Loader2, AlertCircle, GitCompare } from 'lucide-react'
+import { Save, RotateCcw, Loader2, AlertCircle, GitCompare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -18,6 +25,7 @@ interface Skill {
 
 interface SkillOverrideModalProps {
   skill: Skill
+  isOpen: boolean
   projectId: number
   onClose: () => void
   onSaved?: () => void
@@ -62,7 +70,7 @@ interface DiffLineProps {
   lineNumber?: number
 }
 
-function DiffLine({ type, content, lineNumber }: DiffLineProps) {
+function DiffLine({ type, content }: DiffLineProps) {
   const bgColor = {
     added: 'bg-green-500/10',
     removed: 'bg-red-500/10',
@@ -83,11 +91,6 @@ function DiffLine({ type, content, lineNumber }: DiffLineProps) {
 
   return (
     <div className={cn('flex font-mono text-sm', bgColor)}>
-      {lineNumber !== undefined && (
-        <span className="w-10 px-2 text-right text-muted-foreground/60 select-none border-r border-border/50">
-          {lineNumber}
-        </span>
-      )}
       <span className={cn('px-2 w-4 select-none', textColor)}>{prefix}</span>
       <span className={cn('flex-1 whitespace-pre-wrap break-all', textColor)}>{content || ' '}</span>
     </div>
@@ -206,7 +209,7 @@ function UnifiedDiffView({ diff }: UnifiedDiffViewProps) {
 
 type ViewMode = 'side-by-side' | 'unified'
 
-export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: SkillOverrideModalProps) {
+export function SkillOverrideModal({ skill, isOpen, projectId, onClose, onSaved }: SkillOverrideModalProps) {
   const [editedContent, setEditedContent] = useState(skill.content)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('side-by-side')
@@ -222,7 +225,7 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
   } = trpc.skills.diff.useQuery(
     { projectId, skillId: skill.id },
     {
-      enabled: skill.isOverride || skill.hasOverride,
+      enabled: isOpen && (skill.isOverride || skill.hasOverride),
       staleTime: 30000,
     }
   )
@@ -231,7 +234,7 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
   const { data: centralSkill, isLoading: isCentralLoading } = trpc.skills.getById.useQuery(
     { skillId: skill.id },
     {
-      enabled: !skill.isOverride && !skill.hasOverride,
+      enabled: isOpen && !skill.isOverride && !skill.hasOverride,
       staleTime: 60000,
     }
   )
@@ -303,22 +306,16 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
   const isExistingOverride = skill.isOverride || skill.hasOverride
   const isLoading = isDiffLoading || isCentralLoading
 
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (hasUnsavedChanges) {
-          if (window.confirm('You have unsaved changes. Discard them?')) {
-            onClose()
-          }
-        } else {
-          onClose()
-        }
+  // Handle close with unsaved changes check
+  const handleClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      if (window.confirm('You have unsaved changes. Discard them?')) {
+        onClose()
       }
+    } else {
+      onClose()
     }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose, hasUnsavedChanges])
+  }, [hasUnsavedChanges, onClose])
 
   // Handle save
   const handleSave = useCallback(() => {
@@ -352,17 +349,6 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
     setEditedContent(value)
   }, [])
 
-  // Handle close with unsaved changes check
-  const handleClose = useCallback(() => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
-        onClose()
-      }
-    } else {
-      onClose()
-    }
-  }, [hasUnsavedChanges, onClose])
-
   // Check if save button should be enabled
   const canSave = hasUnsavedChanges && !isSaving && !isDeleting
 
@@ -371,20 +357,11 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
     createOverrideMutation.error || updateOverrideMutation.error || deleteOverrideMutation.error
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="skill-override-modal-title"
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} aria-hidden="true" />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-6xl mx-4 h-[90vh] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-6xl h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-start gap-4 flex-1 min-w-0 pr-4">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b border-border">
+          <div className="flex items-start gap-4">
             <div className="shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
               <GitCompare className="w-6 h-6 text-primary" />
             </div>
@@ -409,66 +386,44 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
                   </span>
                 )}
               </div>
-              <h2 id="skill-override-modal-title" className="text-lg font-semibold text-foreground">
+              <DialogTitle>
                 {skill.name}
-              </h2>
+              </DialogTitle>
               <p className="text-sm text-muted-foreground mt-1">{skill.description}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 -mr-1.5 mt-0.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Action bar */}
-        <div className="flex items-center justify-between px-6 py-2 bg-muted/50 border-b border-border text-sm gap-4 flex-shrink-0">
+        <div className="flex items-center justify-between py-2 bg-muted/50 border-b border-border text-sm gap-4 flex-shrink-0 -mx-6 px-6">
           <div className="flex items-center gap-4">
             <span className="font-mono text-muted-foreground">ID: {skill.id}</span>
             {/* View mode toggle */}
             <div className="flex items-center gap-1 p-0.5 bg-background rounded border border-border">
-              <button
-                type="button"
+              <Button
+                variant={viewMode === 'side-by-side' ? 'default' : 'ghost'}
+                size="xs"
                 onClick={() => setViewMode('side-by-side')}
-                className={cn(
-                  'px-2 py-1 rounded text-xs font-medium transition-colors',
-                  viewMode === 'side-by-side'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
               >
                 Side by Side
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={viewMode === 'unified' ? 'default' : 'ghost'}
+                size="xs"
                 onClick={() => setViewMode('unified')}
-                className={cn(
-                  'px-2 py-1 rounded text-xs font-medium transition-colors',
-                  viewMode === 'unified'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
               >
                 Unified
-              </button>
+              </Button>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Revert to original button (only for existing overrides) */}
             {isExistingOverride && (
-              <button
-                type="button"
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleRevert}
                 disabled={isDeleting || isSaving}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors',
-                  'border border-destructive/30 text-destructive hover:bg-destructive/10',
-                  (isDeleting || isSaving) && 'opacity-50 cursor-not-allowed'
-                )}
               >
                 {isDeleting ? (
                   <>
@@ -481,20 +436,14 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
                     Revert to Original
                   </>
                 )}
-              </button>
+              </Button>
             )}
 
             {/* Save button */}
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={handleSave}
               disabled={!canSave}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-medium transition-colors',
-                canSave
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'bg-muted text-muted-foreground cursor-not-allowed'
-              )}
             >
               {isSaving ? (
                 <>
@@ -507,13 +456,13 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
                   {isExistingOverride ? 'Save Override' : 'Create Override'}
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Error message */}
         {(mutationError || diffError) && (
-          <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm flex items-center gap-2 flex-shrink-0">
+          <div className="px-6 py-2 -mx-6 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm flex items-center gap-2 flex-shrink-0">
             <AlertCircle className="w-4 h-4" />
             {mutationError?.message || diffError?.message || 'An error occurred'}
           </div>
@@ -528,7 +477,7 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
 
         {/* Content */}
         {!isLoading && (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden -mx-6">
             {viewMode === 'side-by-side' ? (
               <SideBySideDiff
                 original={originalContent}
@@ -582,8 +531,8 @@ export function SkillOverrideModal({ skill, projectId, onClose, onSaved }: Skill
             )}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -582,28 +582,26 @@ function ProjectPrompts() {
       )}
 
       {/* Skill detail modal */}
-      {selectedSkill && (
-        <SkillDetailModal
-          skill={selectedSkill}
-          isWritable={false}
-          onClose={handleCloseModal}
-          onSaved={() => {
-            utils.skills.listByProject.invalidate({ projectId })
-          }}
-        />
-      )}
+      <SkillDetailModal
+        skill={selectedSkill ?? { id: '', name: '', description: '', content: '' }}
+        isOpen={selectedSkill !== null}
+        isWritable={false}
+        onClose={handleCloseModal}
+        onSaved={() => {
+          utils.skills.listByProject.invalidate({ projectId })
+        }}
+      />
 
       {/* Skill override modal */}
-      {overrideSkill && (
-        <SkillOverrideModal
-          skill={overrideSkill}
-          projectId={projectId}
-          onClose={handleCloseOverrideModal}
-          onSaved={() => {
-            utils.skills.listByProject.invalidate({ projectId })
-          }}
-        />
-      )}
+      <SkillOverrideModal
+        skill={overrideSkill ?? { id: '', name: '', description: '', content: '' }}
+        isOpen={overrideSkill !== null}
+        projectId={projectId}
+        onClose={handleCloseOverrideModal}
+        onSaved={() => {
+          utils.skills.listByProject.invalidate({ projectId })
+        }}
+      />
 
       {/* Agent Prompt modal */}
       {showAgentPromptModal && (

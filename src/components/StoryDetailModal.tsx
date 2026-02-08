@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
   X,
   AlertCircle,
@@ -13,6 +13,12 @@ import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { Story, StoryStatus } from './StoryCard'
 
 interface StoryDetailModalProps {
@@ -83,17 +89,6 @@ export function StoryDetailModal({
       utils.stories.listByProject.invalidate({ projectId })
     },
   })
-
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, onClose])
 
   // Get dependency stories with their status
   const getDependencyStories = useCallback(() => {
@@ -168,64 +163,49 @@ export function StoryDetailModal({
     .filter((skill) => !story?.recommendedSkills.includes(skill.id))
     .slice(0, 5)
 
-  if (!isOpen || !story) return null
+  if (!story) return null
 
   const statusConfig = STATUS_CONFIG[story.status]
   const dependencyStories = getDependencyStories()
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="story-detail-modal-title"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-        data-testid="modal-backdrop"
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-2xl mx-4 max-h-[90vh] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" showCloseButton={false}>
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex-1 min-w-0 pr-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-muted-foreground">
-                {story.id}
-              </span>
-              <Badge variant="default">
-                P{story.priority}
-              </Badge>
-              <Badge variant={story.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
-                {statusConfig.icon}
-                {statusConfig.label}
-              </Badge>
+        <DialogHeader className="flex-shrink-0 pb-4 border-b border-border">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-mono text-muted-foreground">
+                  {story.id}
+                </span>
+                <Badge variant="default">
+                  P{story.priority}
+                </Badge>
+                <Badge variant={story.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
+                  {statusConfig.icon}
+                  {statusConfig.label}
+                </Badge>
+              </div>
+              <DialogTitle className="line-clamp-2">
+                {story.title}
+              </DialogTitle>
             </div>
-            <h2
-              id="story-detail-modal-title"
-              className="text-lg font-semibold text-foreground line-clamp-2"
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="-mr-1.5 mt-0.5"
+              aria-label="Close"
+              data-testid="close-button"
             >
-              {story.title}
-            </h2>
+              <X className="w-5 h-5" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="-mr-1.5 mt-0.5"
-            aria-label="Close"
-            data-testid="close-button"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+        </DialogHeader>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto py-5 space-y-6">
           {/* Description */}
           <section>
             <h3 className="text-sm font-semibold text-foreground mb-2">
@@ -427,8 +407,8 @@ export function StoryDetailModal({
             </div>
           </section>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

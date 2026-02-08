@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, FolderOpen, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-react'
+import { FolderOpen, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 interface AddProjectModalProps {
   isOpen: boolean
@@ -77,17 +84,6 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
     }
   }, [isOpen])
 
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        handleClose()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen])
-
   const handleClose = useCallback(() => {
     setPath('')
     setName('')
@@ -150,46 +146,16 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
     (validationState === 'valid' || validationState === 'will_create_prd') &&
     !isSubmitting
 
-  if (!isOpen) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-project-modal-title"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2
-            id="add-project-modal-title"
-            className="text-lg font-semibold text-foreground"
-          >
-            Add Project
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            className="-mr-1.5"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add Project</DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-5">
+          <div className="space-y-5 py-2">
             {/* Path field */}
             <div className="space-y-2">
               <label
@@ -312,18 +278,18 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
-            <Button variant="secondary" onClick={handleClose}>
+          <DialogFooter className="mt-4">
+            <Button variant="secondary" type="button" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={!canSubmit}>
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Add Project
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
