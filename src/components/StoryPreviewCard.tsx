@@ -9,6 +9,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 
 // Generated story type (before approval, no status)
 export interface GeneratedStory {
@@ -53,163 +54,167 @@ export function StoryPreviewCard({
   }
 
   return (
-    <div
+    <Card
       className={cn(
-        'p-4 bg-card rounded-lg border shadow-sm',
+        'py-4 gap-3 shadow-sm',
         'transition-all',
         isApproved && 'border-green-500/30 bg-green-500/5',
       )}
       data-testid="story-preview-card"
     >
-      {/* Header row: priority and actions */}
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          {/* Priority badge */}
-          <span
-            className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary"
-            data-testid="priority-badge"
-          >
-            P{story.priority}
-          </span>
-          {/* Story ID */}
-          <span
-            className="text-xs font-mono text-muted-foreground"
-            data-testid="story-id"
-          >
-            {story.id}
-          </span>
-          {/* Approved badge */}
-          {isApproved && (
-            <span
-              className={cn(
-                'flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded',
-                'bg-green-500/10 text-green-600 dark:text-green-400',
-              )}
-              data-testid="approved-badge"
-            >
-              <Check className="w-3 h-3" />
-              Added
-            </span>
-          )}
-        </div>
-        {/* Action buttons */}
-        {!isApproved && (
+      <CardHeader className="py-0">
+        {/* Header row: priority and actions */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            {onDiscard && (
+            {/* Priority badge */}
+            <span
+              className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary"
+              data-testid="priority-badge"
+            >
+              P{story.priority}
+            </span>
+            {/* Story ID */}
+            <span
+              className="text-xs font-mono text-muted-foreground"
+              data-testid="story-id"
+            >
+              {story.id}
+            </span>
+            {/* Approved badge */}
+            {isApproved && (
+              <span
+                className={cn(
+                  'flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded',
+                  'bg-green-500/10 text-green-600 dark:text-green-400',
+                )}
+                data-testid="approved-badge"
+              >
+                <Check className="w-3 h-3" />
+                Added
+              </span>
+            )}
+          </div>
+          {/* Action buttons */}
+          {!isApproved && (
+            <div className="flex items-center gap-2">
+              {onDiscard && (
+                <button
+                  type="button"
+                  onClick={onDiscard}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 text-xs rounded',
+                    'border border-border text-muted-foreground',
+                    'hover:text-destructive hover:border-destructive/50 transition-colors',
+                  )}
+                  data-testid="discard-button"
+                >
+                  <X className="w-3 h-3" />
+                  Discard
+                </button>
+              )}
               <button
                 type="button"
-                onClick={onDiscard}
+                onClick={onEdit}
                 className={cn(
                   'flex items-center gap-1 px-2 py-1 text-xs rounded',
                   'border border-border text-muted-foreground',
-                  'hover:text-destructive hover:border-destructive/50 transition-colors',
+                  'hover:text-foreground hover:border-primary/50 transition-colors',
                 )}
-                data-testid="discard-button"
+                data-testid="edit-button"
               >
-                <X className="w-3 h-3" />
-                Discard
+                <Pencil className="w-3 h-3" />
+                Edit
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onEdit}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 text-xs rounded',
-                'border border-border text-muted-foreground',
-                'hover:text-foreground hover:border-primary/50 transition-colors',
-              )}
-              data-testid="edit-button"
-            >
-              <Pencil className="w-3 h-3" />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={onApprove}
-              disabled={isApproving}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 text-xs rounded',
-                'bg-primary text-primary-foreground',
-                'hover:bg-primary/90 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-              data-testid="approve-button"
-            >
-              {isApproving ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Check className="w-3 h-3" />
-                  Approve
-                </>
-              )}
-            </button>
+              <button
+                type="button"
+                onClick={onApprove}
+                disabled={isApproving}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 text-xs rounded',
+                  'bg-primary text-primary-foreground',
+                  'hover:bg-primary/90 transition-colors',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                )}
+                data-testid="approve-button"
+              >
+                {isApproving ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3 h-3" />
+                    Approve
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent className="py-0">
+        {/* Title */}
+        <h4
+          className="text-sm font-medium text-foreground"
+          data-testid="story-title"
+        >
+          {story.title}
+        </h4>
+
+        {/* Description */}
+        <p
+          className="text-xs text-muted-foreground mt-1 line-clamp-2"
+          data-testid="story-description"
+        >
+          {story.description}
+        </p>
+
+        {/* Epic label */}
+        <p
+          className="text-xs text-muted-foreground/70 mt-2"
+          data-testid="story-epic"
+        >
+          Epic: {story.epic}
+        </p>
+
+        {/* Skills tags */}
+        {hasSkills && (
+          <div className="flex flex-wrap gap-1 mt-2" data-testid="skills-list">
+            {story.recommendedSkills.map((skill) => (
+              <span
+                key={skill}
+                className={cn(
+                  'inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded',
+                  'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+                )}
+              >
+                <Sparkles className="w-2.5 h-2.5" />
+                {skill}
+              </span>
+            ))}
           </div>
         )}
-      </div>
 
-      {/* Title */}
-      <h4
-        className="text-sm font-medium text-foreground"
-        data-testid="story-title"
-      >
-        {story.title}
-      </h4>
-
-      {/* Description */}
-      <p
-        className="text-xs text-muted-foreground mt-1 line-clamp-2"
-        data-testid="story-description"
-      >
-        {story.description}
-      </p>
-
-      {/* Epic label */}
-      <p
-        className="text-xs text-muted-foreground/70 mt-2"
-        data-testid="story-epic"
-      >
-        Epic: {story.epic}
-      </p>
-
-      {/* Skills tags */}
-      {hasSkills && (
-        <div className="flex flex-wrap gap-1 mt-2" data-testid="skills-list">
-          {story.recommendedSkills.map((skill) => (
-            <span
-              key={skill}
-              className={cn(
-                'inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded',
-                'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-              )}
-            >
-              <Sparkles className="w-2.5 h-2.5" />
-              {skill}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Dependencies */}
-      {hasDependencies && (
-        <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies-list">
-          {story.dependencies.map((depId) => (
-            <span
-              key={depId}
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-            >
-              ↳ {depId}
-            </span>
-          ))}
-        </div>
-      )}
+        {/* Dependencies */}
+        {hasDependencies && (
+          <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies-list">
+            {story.dependencies.map((depId) => (
+              <span
+                key={depId}
+                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              >
+                ↳ {depId}
+              </span>
+            ))}
+          </div>
+        )}
+      </CardContent>
 
       {/* Expandable criteria section */}
       {hasCriteria && (
-        <div className="mt-3 border-t border-border/50 pt-2">
+        <CardFooter className="py-0 flex-col items-stretch border-t border-border/50 pt-2 mt-1">
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
@@ -246,8 +251,8 @@ export function StoryPreviewCard({
               ))}
             </ul>
           )}
-        </div>
+        </CardFooter>
       )}
-    </div>
+    </Card>
   )
 }

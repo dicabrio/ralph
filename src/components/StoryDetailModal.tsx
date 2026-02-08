@@ -14,6 +14,7 @@ import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
@@ -206,7 +207,8 @@ export function StoryDetailModal({
         </DialogHeader>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto py-5 space-y-6">
+        <ScrollArea className="flex-1 py-5">
+          <div className="space-y-6 pr-4">
           {/* Description */}
           <section>
             <h3 className="text-sm font-semibold text-foreground mb-2">
@@ -403,7 +405,8 @@ export function StoryDetailModal({
               )}
             </div>
           </section>
-        </div>
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

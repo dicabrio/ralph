@@ -1374,7 +1374,7 @@
       "title": "shadcn Card & ScrollArea componenten migratie",
       "description": "Migreer custom card styling en scrollable areas naar shadcn/ui Card en ScrollArea componenten. Dit omvat project cards, story cards, en skill cards.",
       "priority": 69,
-      "status": "pending",
+      "status": "done",
       "epic": "UI Refactoring",
       "dependencies": ["REFACTOR-001"],
       "recommendedSkills": ["frontend-design"],

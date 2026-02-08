@@ -31,6 +31,7 @@ import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { StoryCard, type Story, type StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
 import { RunnerLogModal } from '@/components/RunnerLogModal'
@@ -344,36 +345,38 @@ function DroppableColumn({
       data-testid={`kanban-column-${column.id}`}
     >
       <ColumnHeader column={column} count={stories.length} />
-      <div
+      <ScrollArea
         className={cn(
-          'flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)] transition-colors',
+          'flex-1 max-h-[calc(100vh-300px)] transition-colors',
           isOver && canDrop && 'bg-primary/5',
           isOver && !canDrop && 'bg-destructive/5',
         )}
       >
-        {stories.length === 0 ? (
-          <p
-            className={cn(
-              'text-xs text-muted-foreground text-center py-4',
-              isOver && canDrop && 'text-primary',
-            )}
-          >
-            {isOver && canDrop ? 'Drop here' : 'No stories'}
-          </p>
-        ) : (
-          stories
-            .sort((a, b) => a.priority - b.priority)
-            .map((story) => (
-              <DraggableStoryCard
-                key={story.id}
-                story={story}
-                allStories={allStories}
-                isDraggable={column.isDraggable}
-                onClick={onStoryClick ? () => onStoryClick(story) : undefined}
-              />
-            ))
-        )}
-      </div>
+        <div className="p-2 space-y-2">
+          {stories.length === 0 ? (
+            <p
+              className={cn(
+                'text-xs text-muted-foreground text-center py-4',
+                isOver && canDrop && 'text-primary',
+              )}
+            >
+              {isOver && canDrop ? 'Drop here' : 'No stories'}
+            </p>
+          ) : (
+            stories
+              .sort((a, b) => a.priority - b.priority)
+              .map((story) => (
+                <DraggableStoryCard
+                  key={story.id}
+                  story={story}
+                  allStories={allStories}
+                  isDraggable={column.isDraggable}
+                  onClick={onStoryClick ? () => onStoryClick(story) : undefined}
+                />
+              ))
+          )}
+        </div>
+      </ScrollArea>
     </div>
   )
 }

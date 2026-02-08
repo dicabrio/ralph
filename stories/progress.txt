@@ -1996,3 +1996,40 @@
 - The Input component uses `data-slot="input"` attribute for internal styling
 - Label component uses Radix Label primitive for proper accessibility
 - fireEvent from @testing-library/react can replace userEvent when userEvent is not installed
+
+## 2026-02-08 - REFACTOR-004
+**Title:** shadcn Card & ScrollArea componenten migratie
+
+**Implemented:**
+- Migrated project cards on Dashboard (index.tsx) to use Card with CardHeader, CardContent, CardFooter
+- Migrated StoryCard component to use Card with CardHeader, CardContent 
+- Migrated StoryPreviewCard to use Card with CardHeader, CardContent, CardFooter
+- Migrated AgentPromptCard to use Card wrapped in button for click handling
+- Migrated SkillCard on Prompts page to use Card with CardHeader
+- Added ScrollArea to StoryDetailModal content section
+- Added ScrollArea to SkillDetailModal content section  
+- Added ScrollArea to AgentPromptModal content section
+- Added ScrollArea to Kanban columns for story overflow
+- Updated StoryCard tests to expect rounded-xl instead of rounded-lg (shadcn default)
+
+**Files changed:**
+- src/routes/index.tsx (Dashboard ProjectCard migration)
+- src/components/StoryCard.tsx (Card component migration)
+- src/components/StoryCard.test.tsx (updated rounding class tests)
+- src/components/StoryPreviewCard.tsx (Card component migration)
+- src/components/AgentPromptCard.tsx (Card migration + ScrollArea for modal)
+- src/routes/prompts.tsx (SkillCard migration)
+- src/components/StoryDetailModal.tsx (ScrollArea for content)
+- src/components/SkillDetailModal.tsx (ScrollArea for content)
+- src/routes/project/$id/kanban.tsx (ScrollArea for columns)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- shadcn Card uses rounded-xl by default, not rounded-lg like custom cards
+- Card component doesn't support polymorphic `as` prop - wrap in button for clickable cards
+- When migrating to Card, use py-{n} and gap-{n} on Card itself for spacing control
+- CardHeader and CardContent have py-0 to allow custom spacing through Card props
+- ScrollArea from Radix wraps content in viewport - may conflict with manual scroll handling
+- RunnerLogModal keeps native scrolling due to complex auto-scroll logic with refs
+- ScrollArea provides consistent scrollbar styling across platforms
+- Button wrapping pattern: <button className="w-full text-left group"><Card>...</Card></button>

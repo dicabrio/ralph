@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { FileText, ChevronRight, Copy, Check, Pencil, Save, RotateCcw, Loader2, X, RefreshCw, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import CodeMirror from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -46,15 +48,17 @@ export function AgentPromptCard({ projectId, onEdit }: AgentPromptCardProps) {
 
   if (isLoading) {
     return (
-      <div className="p-4 rounded-lg border bg-card animate-pulse">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-muted" />
-          <div className="flex-1">
-            <div className="h-4 w-32 bg-muted rounded mb-2" />
-            <div className="h-3 w-48 bg-muted rounded" />
+      <Card className="py-4 gap-3 animate-pulse">
+        <CardHeader className="py-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-muted" />
+            <div className="flex-1">
+              <div className="h-4 w-32 bg-muted rounded mb-2" />
+              <div className="h-3 w-48 bg-muted rounded" />
+            </div>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
     )
   }
 
@@ -78,39 +82,47 @@ export function AgentPromptCard({ projectId, onEdit }: AgentPromptCardProps) {
     <button
       type="button"
       onClick={onEdit}
-      className={cn(
-        'w-full text-left p-4 rounded-lg border bg-card',
-        'hover:border-primary/50 hover:shadow-md',
-        'transition-all duration-200 group'
-      )}
+      className="w-full text-left group"
       data-testid="agent-prompt-card"
     >
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <FileText className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
-              Agent Prompt
-            </h3>
-            {statusBadge}
+      <Card
+        className={cn(
+          'py-4 gap-3',
+          'hover:border-primary/50 hover:shadow-md',
+          'transition-all duration-200'
+        )}
+      >
+        <CardHeader className="py-0">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
+                  Agent Prompt
+                </h3>
+                {statusBadge}
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {isProjectContext
+                  ? 'Runner prompt template for Claude containers'
+                  : 'Default prompt template for all projects'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {isProjectContext
-              ? 'Runner prompt template for Claude containers'
-              : 'Default prompt template for all projects'}
-          </p>
+        </CardHeader>
+        <CardContent className="py-0">
           {/* Preview lines */}
-          <div className="mt-3 p-2 bg-muted/50 rounded text-xs font-mono text-muted-foreground overflow-hidden">
+          <div className="p-2 bg-muted/50 rounded text-xs font-mono text-muted-foreground overflow-hidden">
             <div className="line-clamp-3">{data.preview}</div>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
             {data.lineCount} lines
           </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
-      </div>
+        </CardContent>
+      </Card>
     </button>
   )
 }
@@ -485,7 +497,7 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <ScrollArea className="flex-1">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -519,7 +531,7 @@ export function AgentPromptModal({ projectId, onClose }: AgentPromptModalProps) 
               {data?.content}
             </pre>
           )}
-        </div>
+        </ScrollArea>
       </div>
     </div>
   )

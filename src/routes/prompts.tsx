@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
+import { Card, CardHeader } from '@/components/ui/card'
 import { SkillDetailModal } from '@/components/SkillDetailModal'
 import { AgentPromptCard, AgentPromptModal } from '@/components/AgentPromptCard'
 
@@ -100,29 +101,35 @@ function SkillCard({ skill, onClick }: SkillCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        'w-full text-left p-4 rounded-lg border bg-card',
-        'hover:border-primary/50 hover:shadow-md',
-        'transition-all duration-200 group'
-      )}
+      className="w-full text-left group"
     >
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <FileCode2 className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
-              {skill.name}
-            </h3>
-            <span className={cn('shrink-0 px-2 py-0.5 rounded-full text-xs font-medium', getCategoryColor(category))}>
-              {formatCategory(category)}
-            </span>
+      <Card
+        className={cn(
+          'py-4 gap-3',
+          'hover:border-primary/50 hover:shadow-md',
+          'transition-all duration-200'
+        )}
+      >
+        <CardHeader className="py-0">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileCode2 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                  {skill.name}
+                </h3>
+                <span className={cn('shrink-0 px-2 py-0.5 rounded-full text-xs font-medium', getCategoryColor(category))}>
+                  {formatCategory(category)}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2">{skill.description}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-2">{skill.description}</p>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
-      </div>
+        </CardHeader>
+      </Card>
     </button>
   )
 }

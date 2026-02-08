@@ -14,6 +14,7 @@ import {
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { AddProjectModal } from '@/components/AddProjectModal'
 import { DiscoverProjectsModal } from '@/components/DiscoverProjectsModal'
 import { PrdConversionWizard } from '@/components/PrdConversionWizard'
@@ -89,126 +90,132 @@ function ProjectCard({ project }: ProjectCardProps) {
     <Link
       to="/project/$id"
       params={{ id: String(project.id) }}
-      className={cn(
-        'block p-6 rounded-xl border bg-card',
-        'hover:border-primary/50 hover:shadow-lg',
-        'transition-all duration-200 group'
-      )}
+      className="block group"
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-            {project.name}
-          </h3>
-          {project.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-              {project.description}
-            </p>
-          )}
-        </div>
+      <Card className={cn(
+        'py-4 gap-3 transition-all duration-200',
+        'hover:border-primary/50 hover:shadow-lg'
+      )}>
+        <CardHeader className="pb-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
+                {project.name}
+              </CardTitle>
+              {project.description && (
+                <CardDescription className="line-clamp-2 mt-1">
+                  {project.description}
+                </CardDescription>
+              )}
+            </div>
 
-        {/* Runner status indicator */}
-        <div
-          className={cn(
-            'shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-            runnerStatus === 'running' &&
-              'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-            runnerStatus === 'stopping' &&
-              'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-            runnerStatus === 'idle' &&
-              'bg-muted text-muted-foreground'
-          )}
-        >
-          {runnerStatus === 'running' && (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Running
-            </>
-          )}
-          {runnerStatus === 'stopping' && (
-            <>
-              <Clock className="w-3 h-3" />
-              Stopping
-            </>
-          )}
-          {runnerStatus === 'idle' && (
-            <>
-              <CircleDashed className="w-3 h-3" />
-              Idle
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="text-muted-foreground">Progress</span>
-          <span className="font-medium text-foreground">{stats.progress}%</span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-300 rounded-full"
-            style={{ width: `${stats.progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Stats row */}
-      <div className="flex items-center gap-4 text-xs">
-        {/* Done count */}
-        <div
-          className="flex items-center gap-1 text-muted-foreground"
-          title={`${stats.done} ${stats.done === 1 ? 'story' : 'stories'} completed`}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          <span>{stats.done}</span>
-        </div>
-
-        {/* In progress count */}
-        {stats.inProgress > 0 && (
-          <div
-            className="flex items-center gap-1 text-muted-foreground"
-            title={`${stats.inProgress} ${stats.inProgress === 1 ? 'story' : 'stories'} in progress`}
-          >
-            <PlayCircle className="w-3.5 h-3.5 text-blue-500" />
-            <span>{stats.inProgress}</span>
+            {/* Runner status indicator */}
+            <div
+              className={cn(
+                'shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+                runnerStatus === 'running' &&
+                  'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                runnerStatus === 'stopping' &&
+                  'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                runnerStatus === 'idle' &&
+                  'bg-muted text-muted-foreground'
+              )}
+            >
+              {runnerStatus === 'running' && (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Running
+                </>
+              )}
+              {runnerStatus === 'stopping' && (
+                <>
+                  <Clock className="w-3 h-3" />
+                  Stopping
+                </>
+              )}
+              {runnerStatus === 'idle' && (
+                <>
+                  <CircleDashed className="w-3 h-3" />
+                  Idle
+                </>
+              )}
+            </div>
           </div>
-        )}
+        </CardHeader>
 
-        {/* Failed count */}
-        {stats.failed > 0 && (
-          <div
-            className="flex items-center gap-1 text-muted-foreground"
-            title={`${stats.failed} ${stats.failed === 1 ? 'story' : 'stories'} failed`}
-          >
-            <AlertCircle className="w-3.5 h-3.5 text-destructive" />
-            <span className="text-destructive">{stats.failed}</span>
+        <CardContent>
+          {/* Progress bar */}
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium text-foreground">{stats.progress}%</span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300 rounded-full"
+                style={{ width: `${stats.progress}%` }}
+              />
+            </div>
           </div>
-        )}
+        </CardContent>
 
-        {/* Backlog count */}
-        <div
-          className="flex items-center gap-1 text-muted-foreground"
-          title={`${stats.backlog} ${stats.backlog === 1 ? 'story' : 'stories'} in backlog`}
-          data-testid="backlog-count"
-        >
-          <CircleDashed className="w-3.5 h-3.5" />
-          <span>{stats.backlog}</span>
-        </div>
+        <CardFooter className="pt-0">
+          {/* Stats row */}
+          <div className="flex items-center gap-4 text-xs w-full">
+            {/* Done count */}
+            <div
+              className="flex items-center gap-1 text-muted-foreground"
+              title={`${stats.done} ${stats.done === 1 ? 'story' : 'stories'} completed`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{stats.done}</span>
+            </div>
 
-        {/* Total stories */}
-        <span className="text-muted-foreground">
-          {stats.total} {stats.total === 1 ? 'story' : 'stories'}
-        </span>
+            {/* In progress count */}
+            {stats.inProgress > 0 && (
+              <div
+                className="flex items-center gap-1 text-muted-foreground"
+                title={`${stats.inProgress} ${stats.inProgress === 1 ? 'story' : 'stories'} in progress`}
+              >
+                <PlayCircle className="w-3.5 h-3.5 text-blue-500" />
+                <span>{stats.inProgress}</span>
+              </div>
+            )}
 
-        {/* Last updated */}
-        <div className="flex items-center gap-1 text-muted-foreground ml-auto">
-          <Clock className="w-3.5 h-3.5" />
-          <span>{formatRelativeTime(project.updatedAt)}</span>
-        </div>
-      </div>
+            {/* Failed count */}
+            {stats.failed > 0 && (
+              <div
+                className="flex items-center gap-1 text-muted-foreground"
+                title={`${stats.failed} ${stats.failed === 1 ? 'story' : 'stories'} failed`}
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+                <span className="text-destructive">{stats.failed}</span>
+              </div>
+            )}
+
+            {/* Backlog count */}
+            <div
+              className="flex items-center gap-1 text-muted-foreground"
+              title={`${stats.backlog} ${stats.backlog === 1 ? 'story' : 'stories'} in backlog`}
+              data-testid="backlog-count"
+            >
+              <CircleDashed className="w-3.5 h-3.5" />
+              <span>{stats.backlog}</span>
+            </div>
+
+            {/* Total stories */}
+            <span className="text-muted-foreground">
+              {stats.total} {stats.total === 1 ? 'story' : 'stories'}
+            </span>
+
+            {/* Last updated */}
+            <div className="flex items-center gap-1 text-muted-foreground ml-auto">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{formatRelativeTime(project.updatedAt)}</span>
+            </div>
+          </div>
+        </CardFooter>
+      </Card>
     </Link>
   )
 }

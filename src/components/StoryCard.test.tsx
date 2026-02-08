@@ -314,7 +314,8 @@ describe('StoryCard', () => {
       render(<StoryCard story={story} />)
 
       const card = screen.getByTestId('story-card')
-      expect(card).toHaveClass('rounded-lg')
+      // shadcn Card uses rounded-xl
+      expect(card).toHaveClass('rounded-xl')
       expect(card).not.toHaveClass('rounded-l-none')
       expect(card).not.toHaveClass('border-l-0')
     })
@@ -337,13 +338,13 @@ describe('StoryCard', () => {
       expect(card).not.toHaveClass('border-l-0')
     })
 
-    it('still has rounded-lg base class when hasDragHandle is true', () => {
+    it('still has rounded-xl base class when hasDragHandle is true', () => {
       const story = createStory()
       render(<StoryCard story={story} hasDragHandle />)
 
       const card = screen.getByTestId('story-card')
-      // The rounded-lg provides right-side corners, rounded-l-none removes left
-      expect(card).toHaveClass('rounded-lg')
+      // The rounded-xl provides right-side corners, rounded-l-none removes left
+      expect(card).toHaveClass('rounded-xl')
     })
   })
 })

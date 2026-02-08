@@ -3,6 +3,7 @@ import { FileCode2, Copy, Check, Pencil, Save, RotateCcw, Loader2 } from 'lucide
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
@@ -265,7 +266,7 @@ export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, o
         )}
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto -mx-6">
+        <ScrollArea className="flex-1 -mx-6">
           {isEditing ? (
             <CodeMirror
               value={editedContent}
@@ -294,7 +295,7 @@ export function SkillDetailModal({ skill, isOpen, isWritable = false, onClose, o
               {skill.content}
             </pre>
           )}
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

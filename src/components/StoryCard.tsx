@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { AlertCircle, Link as LinkIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 // Story status type
 export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
@@ -30,7 +31,7 @@ export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
   const isFailed = story.status === 'failed'
 
   return (
-    <div
+    <Card
       onClick={onClick}
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && onClick) {
@@ -41,7 +42,7 @@ export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       className={cn(
-        'p-3 bg-card rounded-lg border shadow-sm',
+        'py-3 gap-2 shadow-sm',
         'hover:shadow-md hover:border-primary/30 transition-all',
         onClick && 'cursor-pointer',
         isFailed && 'border-destructive/30 bg-destructive/5',
@@ -49,63 +50,67 @@ export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
       )}
       data-testid="story-card"
     >
-      {/* Header row: story ID and priority badge */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span
-          className="text-xs font-mono text-muted-foreground"
-          data-testid="story-id"
-        >
-          {story.id}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {/* Failed badge */}
-          {isFailed && (
-            <Badge variant="failed" data-testid="failed-badge">
-              <AlertCircle className="w-3 h-3" />
-              Failed
+      <CardHeader className="py-0">
+        {/* Header row: story ID and priority badge */}
+        <div className="flex items-start justify-between gap-2">
+          <span
+            className="text-xs font-mono text-muted-foreground"
+            data-testid="story-id"
+          >
+            {story.id}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {/* Failed badge */}
+            {isFailed && (
+              <Badge variant="failed" data-testid="failed-badge">
+                <AlertCircle className="w-3 h-3" />
+                Failed
+              </Badge>
+            )}
+            {/* Priority badge */}
+            <Badge variant="default" data-testid="priority-badge">
+              P{story.priority}
             </Badge>
-          )}
-          {/* Priority badge */}
-          <Badge variant="default" data-testid="priority-badge">
-            P{story.priority}
-          </Badge>
+          </div>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Title */}
-      <h4
-        className="text-sm font-medium text-foreground line-clamp-2"
-        data-testid="story-title"
-      >
-        {story.title}
-      </h4>
+      <CardContent className="py-0">
+        {/* Title */}
+        <h4
+          className="text-sm font-medium text-foreground line-clamp-2"
+          data-testid="story-title"
+        >
+          {story.title}
+        </h4>
 
-      {/* Epic label */}
-      <p
-        className="text-xs text-muted-foreground mt-1 line-clamp-1"
-        data-testid="story-epic"
-      >
-        {story.epic}
-      </p>
+        {/* Epic label */}
+        <p
+          className="text-xs text-muted-foreground mt-1 line-clamp-1"
+          data-testid="story-epic"
+        >
+          {story.epic}
+        </p>
 
-      {/* Dependencies badges */}
-      {hasDependencies && (
-        <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies">
-          {story.dependencies.map((depId) => (
-            <span
-              key={depId}
-              className={cn(
-                'inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded',
-                'bg-muted text-muted-foreground',
-              )}
-              data-testid={`dependency-${depId}`}
-            >
-              <LinkIcon className="w-2.5 h-2.5" />
-              {depId}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+        {/* Dependencies badges */}
+        {hasDependencies && (
+          <div className="flex flex-wrap gap-1 mt-2" data-testid="dependencies">
+            {story.dependencies.map((depId) => (
+              <span
+                key={depId}
+                className={cn(
+                  'inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded',
+                  'bg-muted text-muted-foreground',
+                )}
+                data-testid={`dependency-${depId}`}
+              >
+                <LinkIcon className="w-2.5 h-2.5" />
+                {depId}
+              </span>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
