@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import {
   Select,
   SelectContent,
@@ -293,13 +294,11 @@ export function PrdConversionWizard({
               )}
 
               {validationError && (
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    <span className="font-medium text-destructive">Validation Error</span>
-                  </div>
-                  <p className="text-sm text-destructive">{validationError.message}</p>
-                </div>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Validation Error</AlertTitle>
+                  <AlertDescription>{validationError.message}</AlertDescription>
+                </Alert>
               )}
 
               {validationData && !validationData.isValid && (
@@ -500,13 +499,11 @@ export function PrdConversionWizard({
               )}
 
               {previewMutation.error && (
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    <span className="font-medium text-destructive">Preview Error</span>
-                  </div>
-                  <p className="text-sm text-destructive">{previewMutation.error.message}</p>
-                </div>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Preview Error</AlertTitle>
+                  <AlertDescription>{previewMutation.error.message}</AlertDescription>
+                </Alert>
               )}
 
               {previewMutation.data && (
@@ -592,29 +589,25 @@ export function PrdConversionWizard({
               )}
 
               {convertMutation.error && (
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    <span className="font-medium text-destructive">Conversion Failed</span>
-                  </div>
-                  <p className="text-sm text-destructive">{convertMutation.error.message}</p>
-                </div>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Conversion Failed</AlertTitle>
+                  <AlertDescription>{convertMutation.error.message}</AlertDescription>
+                </Alert>
               )}
 
               {convertMutation.data && !convertMutation.data.success && (
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    <span className="font-medium text-destructive">Conversion Failed</span>
-                  </div>
-                  <div className="space-y-1">
-                    {convertMutation.data.errors.map((error, index) => (
-                      <p key={index} className="text-sm text-destructive">
-                        {error}
-                      </p>
-                    ))}
-                  </div>
-                </div>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Conversion Failed</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-1">
+                      {convertMutation.data.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               )}
 
               {convertMutation.data?.success && (

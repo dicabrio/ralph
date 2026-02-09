@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
@@ -270,12 +271,10 @@ export function DiscoverProjectsModal({ isOpen, onClose, onSuccess, onNeedsConve
 
           {/* Error message */}
           {addError && (
-            <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-              <p className="text-sm text-destructive flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {addError}
-              </p>
-            </div>
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{addError}</AlertDescription>
+            </Alert>
           )}
         </div>
 

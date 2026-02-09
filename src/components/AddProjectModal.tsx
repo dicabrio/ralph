@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
@@ -256,12 +257,10 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
 
             {/* Submit error */}
             {submitError && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-destructive flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {submitError}
-                </p>
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{submitError}</AlertDescription>
+              </Alert>
             )}
           </div>
 
