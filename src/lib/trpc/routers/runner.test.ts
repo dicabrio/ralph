@@ -29,8 +29,7 @@ import { claudeLoopService } from '@/lib/services/claudeLoopService'
 
 const createCaller = createCallerFactory(runnerRouter)
 
-// TODO: Flaky due to database race conditions with parallel test execution
-describe.skip('runnerRouter', () => {
+describe('runnerRouter', () => {
   // Clean up database before each test
   beforeEach(async () => {
     await db.delete(projects)

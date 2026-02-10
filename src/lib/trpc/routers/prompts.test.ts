@@ -46,8 +46,7 @@ import { projects } from '@/db/schema'
 
 const createCaller = createCallerFactory(promptsRouter)
 
-// TODO: Flaky due to database race conditions with parallel test execution
-describe.skip('promptsRouter', () => {
+describe('promptsRouter', () => {
   beforeEach(async () => {
     await db.delete(projects)
     vi.clearAllMocks()

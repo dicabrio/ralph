@@ -96,9 +96,7 @@ const samplePrdJson = {
   ],
 }
 
-// TODO: These tests are flaky due to database race conditions with parallel test execution
-// The test project created in beforeEach gets deleted between setup and actual test execution
-describe.skip('storiesRouter', () => {
+describe('storiesRouter', () => {
   let testProjectId: number
 
   beforeEach(async () => {
@@ -709,8 +707,7 @@ describe('addStories', () => {
     })
   })
 
-  // TODO: These tests are flaky due to database race conditions with parallel test execution
-  describe.skip('file operations error handling', () => {
+  describe('file operations error handling', () => {
     it('handles writeFile errors gracefully', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
       vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))

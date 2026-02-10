@@ -60,9 +60,7 @@ ${body}`.trim() + '\n'
 const centralSkillContent = createSkillMd('Test Skill', 'A test skill for testing', 'This is the test skill content.')
 const overrideSkillContent = createSkillMd('Test Skill Override', 'An overridden test skill', 'This is the override content.')
 
-// TODO: These tests are flaky due to database race conditions with parallel test execution
-// The project created in tests gets deleted between insert and query operations
-describe.skip('skillsRouter', () => {
+describe('skillsRouter', () => {
   // Clean up database before each test
   beforeEach(async () => {
     await db.delete(projects)
@@ -336,8 +334,7 @@ describe.skip('skillsRouter', () => {
       })
     })
 
-    // TODO: Flaky due to database race conditions with parallel test execution
-    it.skip('returns project override when projectId provided and override exists', async () => {
+    it('returns project override when projectId provided and override exists', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/test/project',
@@ -354,8 +351,7 @@ describe.skip('skillsRouter', () => {
       expect(result.isOverride).toBe(true)
     })
 
-    // TODO: Flaky due to database race conditions with parallel test execution
-    it.skip('falls back to central skill when project has no override', async () => {
+    it('falls back to central skill when project has no override', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/test/project',

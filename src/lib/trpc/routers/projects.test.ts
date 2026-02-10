@@ -108,8 +108,7 @@ describe('projectsRouter', () => {
       expect(result.map(p => p.name)).toContain('Project 2')
     })
 
-    // TODO: Flaky due to database race conditions with parallel test execution
-    it.skip('syncs project data from prd.json', async () => {
+    it('syncs project data from prd.json', async () => {
       // Setup: Create a project
       await db.insert(projects).values({
         name: 'Test Project',
@@ -386,8 +385,7 @@ describe('projectsRouter', () => {
     })
   })
 
-  // TODO: Flaky due to database race conditions with parallel test execution
-  describe.skip('update', () => {
+  describe('update', () => {
     it('updates project fields', async () => {
       vi.mocked(existsSync).mockReturnValue(true)
       vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
@@ -525,8 +523,7 @@ describe('projectsRouter', () => {
     })
   })
 
-  // TODO: Flaky due to database race conditions with parallel test execution
-  describe.skip('delete', () => {
+  describe('delete', () => {
     it('deletes a project and returns success with project details', async () => {
       const [project] = await db.insert(projects).values({
         name: 'To Delete',
@@ -611,8 +608,7 @@ describe('projectsRouter', () => {
       expect(claudeLoopService.stop).not.toHaveBeenCalled()
     })
 
-    // TODO: Flaky due to database race conditions with parallel test execution
-    it.skip('proceeds with delete even if runner stop fails', async () => {
+    it('proceeds with delete even if runner stop fails', async () => {
       // Setup: Runner is running but stop fails
       vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'running',
@@ -637,9 +633,7 @@ describe('projectsRouter', () => {
       expect(remaining).toHaveLength(0)
     })
 
-    // TODO: This test is flaky due to database race conditions with parallel test execution
-    // The test works in isolation but fails when run with other tests
-    it.skip('cascades delete to runner_logs', async () => {
+    it('cascades delete to runner_logs', async () => {
       // Reset runner status to idle
       vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'idle',
@@ -671,9 +665,7 @@ describe('projectsRouter', () => {
       expect(logsAfter).toHaveLength(0)
     })
 
-    // TODO: This test is flaky due to database race conditions with parallel test execution
-    // The test works in isolation but fails when run with other tests
-    it.skip('cascades delete to brainstorm_sessions and messages', async () => {
+    it('cascades delete to brainstorm_sessions and messages', async () => {
       // Reset runner status to idle
       vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'idle',

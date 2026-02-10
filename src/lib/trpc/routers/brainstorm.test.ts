@@ -373,8 +373,7 @@ These stories should help you get started with your project.
 // Session Persistence Tests
 // ========================================================================
 
-// TODO: Flaky due to database race conditions with parallel test execution
-describe.skip('brainstormRouter - Session Persistence', () => {
+describe('brainstormRouter - Session Persistence', () => {
   // Clean up database before each test
   beforeEach(async () => {
     await db.delete(brainstormMessages)
@@ -432,8 +431,7 @@ describe.skip('brainstormRouter - Session Persistence', () => {
     })
   })
 
-  // TODO: Flaky due to database race conditions with parallel test execution
-  describe.skip('listSessionsByProject', () => {
+  describe('listSessionsByProject', () => {
     it('should list sessions for a project', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
