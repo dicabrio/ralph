@@ -57,7 +57,8 @@ describe('projectDiscovery', () => {
       const result = await discoverProjects()
 
       expect(result.projects).toEqual([])
-      expect(result.projectsRoot).toBe('./projects')
+      // expandPath now resolves relative paths to absolute
+      expect(result.projectsRoot).toMatch(/\/projects$/)
       expect(result.scannedAt).toBeInstanceOf(Date)
     })
 
@@ -74,8 +75,8 @@ describe('projectDiscovery', () => {
       // Setup: two directories, but only project1 has prd.json
       vi.mocked(existsSync).mockImplementation((path: PathLike) => {
         const p = String(path)
-        // These paths should exist (join strips ./ prefix)
-        if (p === './projects') return true
+        // These paths should exist (expandPath converts to absolute, join combines paths)
+        if (p.endsWith('/projects') || p === './projects') return true
         if (p.includes('project1/stories/prd.json')) return true
         if (p.includes('project2/stories/prd.json')) return false
         return true // directories exist
@@ -91,13 +92,12 @@ describe('projectDiscovery', () => {
       const result = await discoverProjects()
 
       expect(result.projects).toHaveLength(1)
-      expect(result.projects[0]).toMatchObject({
-        path: 'projects/project1',
-        name: 'Test Project',
-        description: 'A test project',
-        branchName: 'main',
-        hasPrdJson: true,
-      })
+      // expandPath now resolves paths to absolute
+      expect(result.projects[0].path).toMatch(/\/projects\/project1$/)
+      expect(result.projects[0].name).toBe('Test Project')
+      expect(result.projects[0].description).toBe('A test project')
+      expect(result.projects[0].branchName).toBe('main')
+      expect(result.projects[0].hasPrdJson).toBe(true)
     })
 
     it('uses directory name when prd.json has no projectName', async () => {

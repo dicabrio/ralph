@@ -167,7 +167,8 @@ Here are the stories:
       const stories = parseStoriesFromResponse(response)
 
       expect(stories).toHaveLength(1)
-      expect(stories[0].description).toBe('')
+      // When description is missing, it falls back to the title
+      expect(stories[0].description).toBe('Minimal Story')
       expect(stories[0].priority).toBe(1)
       expect(stories[0].epic).toBe('Features')
       expect(stories[0].dependencies).toEqual([])

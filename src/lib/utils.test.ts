@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { cn } from './utils'
 import { homedir } from 'node:os'
 
@@ -71,19 +71,22 @@ describe('expandPath utility', () => {
     expect(result).toBe('/Users/someone/Projects/app')
   })
 
-  it('should leave relative paths unchanged', () => {
+  it('should resolve relative paths to absolute', () => {
     const result = expandPath('relative/path')
-    expect(result).toBe('relative/path')
+    // Relative paths should be resolved to absolute paths
+    expect(result).toMatch(/^\/.*relative\/path$/)
   })
 
-  it('should leave current directory relative paths unchanged', () => {
+  it('should resolve current directory relative paths to absolute', () => {
     const result = expandPath('./relative/path')
-    expect(result).toBe('./relative/path')
+    // Relative paths should be resolved to absolute paths
+    expect(result).toMatch(/^\/.*relative\/path$/)
   })
 
-  it('should leave parent directory relative paths unchanged', () => {
+  it('should resolve parent directory relative paths to absolute', () => {
     const result = expandPath('../parent/path')
-    expect(result).toBe('../parent/path')
+    // Relative paths should be resolved to absolute paths
+    expect(result).toMatch(/^\/.*parent\/path$/)
   })
 
   it('should return empty string for empty input', () => {
@@ -98,7 +101,8 @@ describe('expandPath utility', () => {
 
   it('should handle paths with ~ but not at start', () => {
     const result = expandPath('path/with/~/tilde')
-    expect(result).toBe('path/with/~/tilde')
+    // Relative paths are resolved to absolute, but ~ not at start is preserved
+    expect(result).toMatch(/^\/.*path\/with\/~\/tilde$/)
   })
 
   it('should handle ~/. correctly', () => {
