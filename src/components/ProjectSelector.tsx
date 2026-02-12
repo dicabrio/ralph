@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams, useLocation } from '@tanstack/react-router'
 import { Search, ChevronDown, Check, FolderOpen, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
@@ -10,6 +10,26 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+
+/**
+ * Extract the sub-page from a project URL path
+ * /project/123 -> null (overview)
+ * /project/123/kanban -> 'kanban'
+ * /project/123/brainstorm -> 'brainstorm'
+ * /project/123/brainstorm/abc -> 'brainstorm' (session detail goes to overview)
+ * /project/123/prompts -> 'prompts'
+ */
+function extractSubPage(pathname: string): string | null {
+  const match = pathname.match(/^\/project\/\d+\/(\w+)/)
+  if (!match) return null
+
+  const subPage = match[1]
+  // Only keep known sub-pages
+  if (['kanban', 'brainstorm', 'prompts'].includes(subPage)) {
+    return subPage
+  }
+  return null
+}
 
 interface ProjectSelectorProps {
   isCollapsed?: boolean
@@ -27,6 +47,8 @@ export function ProjectSelector({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const currentSubPage = extractSubPage(location.pathname)
 
   // Get project ID from URL params
   const params = useParams({ strict: false })
@@ -112,8 +134,12 @@ export function ProjectSelector({
     onProjectChange?.(projectId)
     onClose?.()
 
-    // Navigate to project overview
-    navigate({ to: '/project/$id', params: { id: String(projectId) } })
+    // Navigate to same sub-page in new project, or overview if on global page
+    if (currentSubPage) {
+      navigate({ to: `/project/$id/${currentSubPage}`, params: { id: String(projectId) } })
+    } else {
+      navigate({ to: '/project/$id', params: { id: String(projectId) } })
+    }
   }
 
   // Handle add project click

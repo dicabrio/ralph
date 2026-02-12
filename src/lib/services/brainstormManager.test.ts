@@ -454,4 +454,123 @@ Some conversational text here.
       expect(prompt).toContain('Existing Story')
     })
   })
+
+  describe('parseStoriesFromResponse additional cases', () => {
+    it('should handle nested json code blocks', () => {
+      const response = `
+\`\`\`markdown
+Here is some markdown
+\`\`\`
+
+\`\`\`json
+[{"id": "TEST-001", "title": "Test Story"}]
+\`\`\`
+      `
+
+      const stories = parseStoriesFromResponse(response)
+      expect(stories).toHaveLength(1)
+      expect(stories[0].id).toBe('TEST-001')
+    })
+
+    it('should handle empty description field', () => {
+      const response = `
+\`\`\`json
+[{"id": "TEST-001", "title": "Test Story", "description": ""}]
+\`\`\`
+      `
+
+      const stories = parseStoriesFromResponse(response)
+      expect(stories).toHaveLength(1)
+      // Empty description should fall back to title
+      expect(stories[0].description).toBe('Test Story')
+    })
+
+    it('should handle null fields in story', () => {
+      const response = `
+\`\`\`json
+[{
+  "id": "TEST-001",
+  "title": "Test Story",
+  "description": null,
+  "priority": null,
+  "epic": null
+}]
+\`\`\`
+      `
+
+      const stories = parseStoriesFromResponse(response)
+      expect(stories).toHaveLength(1)
+      expect(stories[0].priority).toBe(1) // Default
+      expect(stories[0].epic).toBe('Features') // Default
+    })
+
+    it('should convert numeric priority', () => {
+      const response = `
+\`\`\`json
+[{"id": "TEST-001", "title": "Test Story", "priority": "5"}]
+\`\`\`
+      `
+
+      const stories = parseStoriesFromResponse(response)
+      expect(stories).toHaveLength(1)
+      expect(stories[0].priority).toBe(1) // String priority becomes default
+    })
+  })
+
+  describe('summarizeConversation edge cases', () => {
+    it('should handle empty conversation', () => {
+      const summary = summarizeConversation([])
+      expect(summary).toBe('')
+    })
+
+    it('should handle single message', () => {
+      const history = [
+        { role: 'user' as const, content: 'Hello' },
+      ]
+
+      const summary = summarizeConversation(history)
+      expect(summary).toContain('User: Hello')
+    })
+
+    it('should handle very long messages', () => {
+      const longMessage = 'A'.repeat(1000)
+      const history = [
+        { role: 'user' as const, content: longMessage },
+      ]
+
+      const summary = summarizeConversation(history)
+      expect(summary).toContain('User: ')
+    })
+
+    it('should handle multiple status blocks', () => {
+      const history = [
+        {
+          role: 'assistant' as const,
+          content: `First part.
+
+\`\`\`status
+{"what": true}
+\`\`\`
+
+Second part.
+
+\`\`\`status
+{"why": true}
+\`\`\``,
+        },
+      ]
+
+      const summary = summarizeConversation(history)
+      expect(summary).toContain('First part.')
+      expect(summary).toContain('Second part.')
+      expect(summary).not.toContain('status')
+    })
+  })
+
+  describe('brainstormManager.cleanupOldSessions', () => {
+    it('should not fail on empty sessions', () => {
+      // Should not throw
+      expect(() => brainstormManager.cleanupOldSessions(1000)).not.toThrow()
+    })
+  })
 })

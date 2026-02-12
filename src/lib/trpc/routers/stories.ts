@@ -23,7 +23,7 @@ export const storySchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
-  priority: z.number().int().positive(),
+  priority: z.number().int(), // Allow negative priorities for deprioritized items
   status: storyStatusEnum,
   epic: z.string(),
   dependencies: z.array(z.string()),

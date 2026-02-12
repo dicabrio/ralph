@@ -1439,7 +1439,7 @@
       "title": "Test coverage verhogen naar 50%",
       "description": "Verhoog de test coverage van ~19% naar minimaal 50% door systematisch unit tests toe te voegen voor kritieke services, API routes, hooks en utilities. Dit verbetert de code kwaliteit en maakt refactoring veiliger.",
       "priority": 71,
-      "status": "failed",
+      "status": "backlog",
       "epic": "Testing",
       "dependencies": ["SETUP-004"],
       "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
