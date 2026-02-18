@@ -2,6 +2,7 @@ import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
+  Link,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
@@ -42,6 +43,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   }),
 
   shellComponent: RootDocument,
+
+  notFoundComponent: () => (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+      <h1 className="text-4xl font-bold text-foreground">404</h1>
+      <p className="text-muted-foreground">Page not found</p>
+      <Link
+        to="/"
+        className="text-primary hover:underline"
+      >
+        Go back home
+      </Link>
+    </div>
+  ),
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {

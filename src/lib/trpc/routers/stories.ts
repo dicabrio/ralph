@@ -15,16 +15,27 @@ import { db } from '@/db'
 import { projects } from '@/db/schema'
 
 // Valid story statuses
-export const storyStatusEnum = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog'])
+export const VALID_STATUSES = ['pending', 'in_progress', 'done', 'failed', 'backlog'] as const
+export const storyStatusEnum = z.enum(VALID_STATUSES)
 export type StoryStatus = z.infer<typeof storyStatusEnum>
 
-// Story schema from prd.json
+// Lenient status schema: accepts any string, maps unknown values to 'backlog'
+const lenientStatusSchema = z.string().transform((val): StoryStatus => {
+  if (VALID_STATUSES.includes(val as StoryStatus)) {
+    return val as StoryStatus
+  }
+  // Map unknown statuses (e.g., 'review', 'blocked', etc.) to 'backlog'
+  console.log(`[Stories] Unknown status "${val}" mapped to "backlog"`)
+  return 'backlog'
+})
+
+// Story schema from prd.json (lenient for reading)
 export const storySchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
   priority: z.number().int(), // Allow negative priorities for deprioritized items
-  status: storyStatusEnum,
+  status: lenientStatusSchema,
   epic: z.string(),
   dependencies: z.array(z.string()),
   recommendedSkills: z.array(z.string()),

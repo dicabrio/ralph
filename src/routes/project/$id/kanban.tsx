@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { StoryCard, type Story, type StoryStatus } from '@/components/StoryCard'
 import { StoryDetailModal } from '@/components/StoryDetailModal'
 import { RunnerLogModal } from '@/components/RunnerLogModal'
@@ -715,7 +716,7 @@ function KanbanBoard() {
   )
 
   // Fetch stories
-  const { data: stories = [], isLoading: isLoadingStories } =
+  const { data: stories = [], isLoading: isLoadingStories, error: storiesError } =
     trpc.stories.listByProject.useQuery(
       { projectId },
       { enabled: !isNaN(projectId), staleTime: 10000 },
@@ -1005,7 +1006,7 @@ function KanbanBoard() {
     )
   }
 
-  // Error state
+  // Error state - project not found
   if (projectError || !project) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -1026,6 +1027,71 @@ function KanbanBoard() {
           <p className="text-muted-foreground text-center max-w-md">
             The project you're looking for doesn't exist or has been removed.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Helper to parse prd.json error messages
+  const getPrdErrorMessage = (error: unknown): { title: string; description: string } => {
+    const message = error instanceof Error ? error.message : String(error)
+
+    if (message.includes('not found') || message.includes('NOT_FOUND')) {
+      return {
+        title: 'prd.json niet gevonden',
+        description: `Zorg ervoor dat er een prd.json bestand bestaat in ${project.path}/stories/`,
+      }
+    }
+    if (message.includes('Invalid prd.json format') || message.includes('BAD_REQUEST')) {
+      // Extract the specific validation error if present
+      const match = message.match(/Invalid prd.json format: (.+)/)
+      return {
+        title: 'Ongeldig prd.json formaat',
+        description: match?.[1] || 'Het prd.json bestand bevat ongeldige data. Controleer de structuur en waarden.',
+      }
+    }
+    return {
+      title: 'Kan stories niet laden',
+      description: message || 'Er is een onbekende fout opgetreden bij het laden van de stories.',
+    }
+  }
+
+  // Error state - stories/prd.json error
+  if (storiesError) {
+    const { title, description } = getPrdErrorMessage(storiesError)
+    return (
+      <div className="flex flex-col h-[calc(100vh-64px)]">
+        {/* Header */}
+        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-6 py-4">
+            <div className="flex items-center gap-4">
+              <Link
+                to="/project/$id"
+                params={{ id }}
+                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm">Back</span>
+              </Link>
+              <h1 className="text-xl font-bold text-foreground">
+                {project.name}
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Error content */}
+        <div className="flex-1 p-6">
+          <Alert variant="destructive" className="max-w-2xl">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{title}</AlertTitle>
+            <AlertDescription>
+              <p>{description}</p>
+              <p className="mt-2 text-xs font-mono opacity-75">
+                {project.path}/stories/prd.json
+              </p>
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
     )
