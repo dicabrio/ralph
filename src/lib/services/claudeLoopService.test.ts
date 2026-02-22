@@ -549,8 +549,7 @@ describe('ClaudeLoopService', () => {
 
       // Process should no longer be running
       const status = service.getStatus(1)
-      // Note: status might be 'running' if auto-restart kicked in
-      expect(['idle', 'running']).toContain(status.status)
+      expect(status.status).toBe('idle')
     })
 
     it('handles error exit', async () => {

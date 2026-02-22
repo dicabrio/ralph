@@ -162,6 +162,27 @@ describe('storiesRouter', () => {
         code: 'BAD_REQUEST',
       })
     })
+
+    it('dedupes stories with duplicate IDs (keeps first occurrence)', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({
+        ...samplePrdJson,
+        userStories: [
+          ...samplePrdJson.userStories,
+          {
+            ...samplePrdJson.userStories[0],
+            title: 'Duplicate copy of first story',
+          },
+        ],
+      }))
+
+      const caller = createCaller({})
+      const result = await caller.listByProject({ projectId: testProjectId })
+
+      expect(result).toHaveLength(4)
+      expect(result.filter(s => s.id === 'STORY-001')).toHaveLength(1)
+      expect(result.find(s => s.id === 'STORY-001')?.title).toBe('First Story')
+    })
   })
 
   describe('getById', () => {
@@ -646,6 +667,41 @@ describe('addStories', () => {
       })).rejects.toMatchObject({
         code: 'CONFLICT',
         message: expect.stringContaining('STORY-001'),
+      })
+    })
+
+    it('throws CONFLICT when request contains duplicate IDs', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+      await expect(caller.addStories({
+        projectId: testProjectId,
+        stories: [
+          {
+            id: 'BATCH-DUP',
+            title: 'Story A',
+            description: 'Description A',
+            priority: 20,
+            epic: 'Test',
+            dependencies: [],
+            recommendedSkills: [],
+            acceptanceCriteria: [],
+          },
+          {
+            id: 'BATCH-DUP',
+            title: 'Story B',
+            description: 'Description B',
+            priority: 21,
+            epic: 'Test',
+            dependencies: [],
+            recommendedSkills: [],
+            acceptanceCriteria: [],
+          },
+        ],
+      })).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: expect.stringContaining('BATCH-DUP'),
       })
     })
 

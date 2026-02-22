@@ -69,6 +69,30 @@ const validTransitions: Record<StoryStatus, StoryStatus[]> = {
 }
 
 /**
+ * Ensure story IDs are unique.
+ * If duplicates are found in prd.json, keep the first occurrence to stabilize UI behavior.
+ */
+function dedupeStoriesById(stories: Story[]): { stories: Story[]; duplicateIds: string[] } {
+  const seen = new Set<string>()
+  const duplicateIds = new Set<string>()
+  const uniqueStories: Story[] = []
+
+  for (const story of stories) {
+    if (seen.has(story.id)) {
+      duplicateIds.add(story.id)
+      continue
+    }
+    seen.add(story.id)
+    uniqueStories.push(story)
+  }
+
+  return {
+    stories: uniqueStories,
+    duplicateIds: [...duplicateIds],
+  }
+}
+
+/**
  * Check if a status transition is valid
  */
 function isValidTransition(from: StoryStatus, to: StoryStatus): boolean {
@@ -98,7 +122,17 @@ async function readPrdJson(projectPath: string): Promise<PrdJson> {
   try {
     const content = await readFile(prdPath, 'utf-8')
     const data = JSON.parse(content)
-    return prdJsonSchema.parse(data)
+    const parsed = prdJsonSchema.parse(data)
+    const { stories: uniqueStories, duplicateIds } = dedupeStoriesById(parsed.userStories)
+
+    if (duplicateIds.length > 0) {
+      console.warn(
+        `[Stories] Duplicate story IDs in ${prdPath}: ${duplicateIds.join(', ')}. Keeping first occurrence.`
+      )
+      parsed.userStories = uniqueStories
+    }
+
+    return parsed
   } catch (error) {
     if (error instanceof TRPCError) throw error
     if (error instanceof z.ZodError) {
@@ -267,6 +301,18 @@ export const storiesRouter = router({
     .mutation(async ({ input }) => {
       const project = await getProjectById(input.projectId)
       const prdData = await readPrdJson(project.path)
+
+      // Check for duplicate IDs inside the incoming batch itself
+      const incomingIds = input.stories.map(s => s.id)
+      const incomingDuplicateIds = [...new Set(
+        incomingIds.filter((id, index) => incomingIds.indexOf(id) !== index)
+      )]
+      if (incomingDuplicateIds.length > 0) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Duplicate story IDs in request: ${incomingDuplicateIds.join(', ')}`,
+        })
+      }
 
       // Check for duplicate story IDs
       const existingIds = new Set(prdData.userStories.map(s => s.id))

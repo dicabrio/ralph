@@ -577,6 +577,17 @@ class ClaudeLoopService {
 
     const willAutoRestart =
       this.isAutoRestartEnabled(projectId) && !!nextStoryId;
+    const isSameStoryRestart = !!storyId && nextStoryId === storyId;
+
+    if (willAutoRestart && isSameStoryRestart) {
+      console.warn(
+        `[ClaudeLoop] Prevented restart loop for project ${projectId} on story ${storyId}`,
+      );
+      nextStoryId = undefined;
+    }
+
+    const finalWillAutoRestart =
+      this.isAutoRestartEnabled(projectId) && !!nextStoryId;
 
     // Broadcast completion
     this.broadcastCompletion(
@@ -586,11 +597,11 @@ class ClaudeLoopService {
       success,
       completedStoryStatus,
       nextStoryId,
-      willAutoRestart,
+      finalWillAutoRestart,
     );
 
     // Trigger auto-restart if enabled
-    if (willAutoRestart && nextStoryId) {
+    if (finalWillAutoRestart && nextStoryId) {
       console.log(
         `[ClaudeLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
       );

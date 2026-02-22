@@ -568,6 +568,17 @@ class CodexLoopService {
 
     const willAutoRestart =
       this.isAutoRestartEnabled(projectId) && !!nextStoryId;
+    const isSameStoryRestart = !!storyId && nextStoryId === storyId;
+
+    if (willAutoRestart && isSameStoryRestart) {
+      console.warn(
+        `[CodexLoop] Prevented restart loop for project ${projectId} on story ${storyId}`,
+      );
+      nextStoryId = undefined;
+    }
+
+    const finalWillAutoRestart =
+      this.isAutoRestartEnabled(projectId) && !!nextStoryId;
 
     // Broadcast completion
     this.broadcastCompletion(
@@ -577,11 +588,11 @@ class CodexLoopService {
       success,
       completedStoryStatus,
       nextStoryId,
-      willAutoRestart,
+      finalWillAutoRestart,
     );
 
     // Trigger auto-restart if enabled
-    if (willAutoRestart && nextStoryId) {
+    if (finalWillAutoRestart && nextStoryId) {
       console.log(
         `[CodexLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
       );
