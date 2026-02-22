@@ -1,10 +1,8 @@
 /**
  * Runner Router
  *
- * API endpoints for managing Claude runners.
+ * API endpoints for managing Claude/Codex runners.
  * Handles starting, stopping, and querying runner status.
- *
- * Uses Claude Code CLI directly (not Docker) with `claude login` authentication.
  */
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
@@ -13,12 +11,17 @@ import { router, publicProcedure } from '../trpc'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { codexLoopService } from '@/lib/services/codexLoopService'
 import { expandPath } from '@/lib/utils.server'
+
+const runnerProviderSchema = z.enum(['claude', 'codex'])
+type RunnerProvider = z.infer<typeof runnerProviderSchema>
 
 // Input schemas
 const startRunnerSchema = z.object({
   projectId: z.number().int().positive(),
   storyId: z.string().optional(),
+  provider: runnerProviderSchema.optional().default('claude'),
 })
 
 const stopRunnerSchema = z.object({
@@ -28,12 +31,38 @@ const stopRunnerSchema = z.object({
 
 const getStatusSchema = z.object({
   projectId: z.number().int().positive(),
+  provider: runnerProviderSchema.optional().default('claude'),
 })
 
 const setAutoRestartSchema = z.object({
   projectId: z.number().int().positive(),
   enabled: z.boolean(),
 })
+
+function getService(provider: RunnerProvider) {
+  return provider === 'codex' ? codexLoopService : claudeLoopService
+}
+
+function getOtherProvider(provider: RunnerProvider): RunnerProvider {
+  return provider === 'codex' ? 'claude' : 'codex'
+}
+
+function getProviderAwareStatus(projectId: number, preferredProvider: RunnerProvider) {
+  const preferredService = getService(preferredProvider)
+  const preferredState = preferredService.getStatus(projectId)
+  if (preferredState.status !== 'idle') {
+    return { ...preferredState, provider: preferredProvider }
+  }
+
+  const fallbackProvider = getOtherProvider(preferredProvider)
+  const fallbackService = getService(fallbackProvider)
+  const fallbackState = fallbackService.getStatus(projectId)
+  if (fallbackState.status !== 'idle') {
+    return { ...fallbackState, provider: fallbackProvider }
+  }
+
+  return { ...preferredState, provider: preferredProvider }
+}
 
 export const runnerRouter = router({
   /**
@@ -42,7 +71,7 @@ export const runnerRouter = router({
   start: publicProcedure
     .input(startRunnerSchema)
     .mutation(async ({ input }) => {
-      const { projectId, storyId } = input
+      const { projectId, storyId, provider } = input
 
       // Verify project exists
       const [project] = await db
@@ -58,10 +87,21 @@ export const runnerRouter = router({
       }
 
       try {
+        const selectedService = getService(provider)
+        const otherProvider = getOtherProvider(provider)
+        const otherService = getService(otherProvider)
+
+        const otherStatus = otherService.getStatus(projectId)
+        if (otherStatus.status !== 'idle') {
+          throw new Error(
+            `Cannot start ${provider} runner while ${otherProvider} runner is ${otherStatus.status}. Stop it first.`,
+          )
+        }
+
         // Ensure absolute path - CLI runs directly on filesystem
         const absolutePath = expandPath(project.path)
-        const state = await claudeLoopService.start(projectId, absolutePath, storyId)
-        return state
+        const state = await selectedService.start(projectId, absolutePath, storyId)
+        return { ...state, provider }
       } catch (error) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -92,8 +132,18 @@ export const runnerRouter = router({
       }
 
       try {
-        const state = await claudeLoopService.stop(projectId, force)
-        return state
+        const claudeStatus = claudeLoopService.getStatus(projectId)
+        const codexStatus = codexLoopService.getStatus(projectId)
+
+        if (claudeStatus.status !== 'idle') {
+          await claudeLoopService.stop(projectId, force)
+        }
+
+        if (codexStatus.status !== 'idle') {
+          await codexLoopService.stop(projectId, force)
+        }
+
+        return { status: 'idle' as const, projectId }
       } catch (error) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -108,7 +158,7 @@ export const runnerRouter = router({
   getStatus: publicProcedure
     .input(getStatusSchema)
     .query(async ({ input }) => {
-      const { projectId } = input
+      const { projectId, provider } = input
 
       // Verify project exists
       const [project] = await db
@@ -124,8 +174,7 @@ export const runnerRouter = router({
       }
 
       try {
-        const state = await claudeLoopService.getStatus(projectId)
-        return state
+        return getProviderAwareStatus(projectId, provider)
       } catch (error) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -139,8 +188,15 @@ export const runnerRouter = router({
    */
   getAllStatus: publicProcedure.query(async () => {
     try {
-      const states = await claudeLoopService.getAllStatus()
-      return states
+      const claudeStates = claudeLoopService.getAllStatus().map((state) => ({
+        ...state,
+        provider: 'claude' as const,
+      }))
+      const codexStates = codexLoopService.getAllStatus().map((state) => ({
+        ...state,
+        provider: 'codex' as const,
+      }))
+      return [...claudeStates, ...codexStates]
     } catch (error) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
@@ -171,6 +227,7 @@ export const runnerRouter = router({
       }
 
       claudeLoopService.setAutoRestart(projectId, enabled)
+      codexLoopService.setAutoRestart(projectId, enabled)
 
       return {
         projectId,
@@ -201,7 +258,9 @@ export const runnerRouter = router({
 
       return {
         projectId,
-        autoRestartEnabled: claudeLoopService.isAutoRestartEnabled(projectId),
+        autoRestartEnabled:
+          claudeLoopService.isAutoRestartEnabled(projectId) &&
+          codexLoopService.isAutoRestartEnabled(projectId),
       }
     }),
 })

@@ -17,6 +17,7 @@ import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDisc
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { codexLoopService } from '@/lib/services/codexLoopService'
 import { validatePrd } from '@/lib/schemas/prdSchema'
 import { getPrdFileWatcher } from '@/lib/services/prdFileWatcher'
 
@@ -403,9 +404,14 @@ export const projectsRouter = router({
 
       // Stop the runner if it's running for this project
       try {
-        const runnerStatus = claudeLoopService.getStatus(projectId)
-        if (runnerStatus.status === 'running') {
-          await claudeLoopService.stop(projectId, true) // Force stop
+        const claudeStatus = claudeLoopService.getStatus(projectId)
+        const codexStatus = codexLoopService.getStatus(projectId)
+
+        if (claudeStatus.status !== 'idle') {
+          await claudeLoopService.stop(projectId, true)
+        }
+        if (codexStatus.status !== 'idle') {
+          await codexLoopService.stop(projectId, true)
         }
       } catch (error) {
         // Log but don't fail - runner might not be running

@@ -72,6 +72,7 @@ export const Route = createFileRoute('/project/$id/kanban')({
 
 // Runner status type
 type RunnerStatus = 'idle' | 'running' | 'stopping'
+type RunnerProvider = 'claude' | 'codex'
 
 // Kanban column definition
 interface KanbanColumn {
@@ -459,7 +460,10 @@ function RunnerStatusBadge({ status, storyId }: RunnerStatusBadgeProps) {
 interface KanbanRunnerControlsProps {
   projectId: number
   runnerStatus: RunnerStatus
+  selectedProvider: RunnerProvider
+  activeProvider?: RunnerProvider
   currentStoryId?: string | null
+  onProviderChange: (provider: RunnerProvider) => void
   onStart: () => void
   onStop: () => void
   isStarting: boolean
@@ -468,7 +472,10 @@ interface KanbanRunnerControlsProps {
 
 function KanbanRunnerControls({
   runnerStatus,
+  selectedProvider,
+  activeProvider,
   currentStoryId,
+  onProviderChange,
   onStart,
   onStop,
   isStarting,
@@ -479,7 +486,43 @@ function KanbanRunnerControls({
 
   return (
     <div className="flex items-center gap-3">
-      <RunnerStatusBadge status={runnerStatus} storyId={currentStoryId} />
+      <div className="flex items-center gap-1.5 rounded-md border bg-background p-1">
+        <button
+          type="button"
+          onClick={() => onProviderChange('claude')}
+          disabled={isBusy || isRunning}
+          className={cn(
+            'rounded px-2 py-1 text-xs font-medium transition-colors',
+            selectedProvider === 'claude'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Claude
+        </button>
+        <button
+          type="button"
+          onClick={() => onProviderChange('codex')}
+          disabled={isBusy || isRunning}
+          className={cn(
+            'rounded px-2 py-1 text-xs font-medium transition-colors',
+            selectedProvider === 'codex'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Codex
+        </button>
+      </div>
+      <RunnerStatusBadge
+        status={runnerStatus}
+        storyId={currentStoryId}
+      />
+      {activeProvider && runnerStatus === 'running' && (
+        <Badge variant="outline" className="text-xs uppercase tracking-wide">
+          {activeProvider}
+        </Badge>
+      )}
       {!isRunning ? (
         <Button
           size="sm"
@@ -681,6 +724,16 @@ function KanbanBoard() {
   const { id } = Route.useParams()
   const projectId = parseInt(id, 10)
   const utils = trpc.useUtils()
+  const [runnerProvider, setRunnerProvider] = useState<RunnerProvider>('claude')
+
+  // Restore provider preference for this project
+  useEffect(() => {
+    if (typeof window === 'undefined' || Number.isNaN(projectId)) return
+    const stored = window.localStorage.getItem(`ralph.runner-provider.${projectId}`)
+    if (stored === 'claude' || stored === 'codex') {
+      setRunnerProvider(stored)
+    }
+  }, [projectId])
 
   // Drag state
   const [activeStory, setActiveStory] = useState<Story | null>(null)
@@ -724,7 +777,7 @@ function KanbanBoard() {
 
   // Fetch runner status
   const { data: runnerState } = trpc.runner.getStatus.useQuery(
-    { projectId },
+    { projectId, provider: runnerProvider },
     { enabled: !isNaN(projectId), refetchInterval: 3000 },
   )
 
@@ -751,7 +804,7 @@ function KanbanBoard() {
       if (data.projectId === String(projectId)) {
         console.log('[Kanban] Runner completed, invalidating stories cache')
         utils.stories.listByProject.invalidate({ projectId })
-        utils.runner.getStatus.invalidate({ projectId })
+        utils.runner.getStatus.invalidate()
       }
     }, [projectId, utils]),
   })
@@ -771,9 +824,9 @@ function KanbanBoard() {
 
   // Mutations
   const startRunner = trpc.runner.start.useMutation({
-    onSuccess: () => {
-      utils.runner.getStatus.invalidate({ projectId })
-      toast.success('Runner started successfully')
+    onSuccess: (data) => {
+      utils.runner.getStatus.invalidate()
+      toast.success(`Runner (${data.provider}) started successfully`)
     },
     onError: (error) => {
       toast.error('Failed to start runner', {
@@ -784,7 +837,7 @@ function KanbanBoard() {
 
   const stopRunner = trpc.runner.stop.useMutation({
     onSuccess: () => {
-      utils.runner.getStatus.invalidate({ projectId })
+      utils.runner.getStatus.invalidate()
       toast.success('Runner stopped successfully')
     },
     onError: (error) => {
@@ -847,11 +900,18 @@ function KanbanBoard() {
 
   // Handle runner start/stop
   const handleStartRunner = () => {
-    startRunner.mutate({ projectId })
+    startRunner.mutate({ projectId, provider: runnerProvider })
   }
 
   const handleStopRunner = () => {
     stopRunner.mutate({ projectId })
+  }
+
+  const handleRunnerProviderChange = (provider: RunnerProvider) => {
+    setRunnerProvider(provider)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(`ralph.runner-provider.${projectId}`, provider)
+    }
   }
 
   // Filter columns: only show 'failed' column if there are failed stories
@@ -1127,7 +1187,10 @@ function KanbanBoard() {
               <KanbanRunnerControls
                 projectId={projectId}
                 runnerStatus={runnerStatus}
+                selectedProvider={runnerProvider}
+                activeProvider={runnerState?.provider as RunnerProvider | undefined}
                 currentStoryId={runnerState?.storyId}
+                onProviderChange={handleRunnerProviderChange}
                 onStart={handleStartRunner}
                 onStop={handleStopRunner}
                 isStarting={startRunner.isPending}

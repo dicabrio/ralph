@@ -57,6 +57,14 @@ vi.mock('@/lib/services/claudeLoopService', () => ({
   },
 }))
 
+// Mock the codexLoopService for delete tests
+vi.mock('@/lib/services/codexLoopService', () => ({
+  codexLoopService: {
+    getStatus: vi.fn(() => ({ status: 'idle', projectId: 1 })),
+    stop: vi.fn(() => Promise.resolve({ status: 'idle', projectId: 1 })),
+  },
+}))
+
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createCallerFactory } from '../trpc'
@@ -65,6 +73,7 @@ import { db } from '@/db'
 import { projects, runnerLogs, brainstormSessions, brainstormMessages } from '@/db/schema'
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { codexLoopService } from '@/lib/services/codexLoopService'
 
 const createCaller = createCallerFactory(projectsRouter)
 
@@ -585,6 +594,7 @@ describe('projectsRouter', () => {
       // Verify runner.stop was called with force=true
       expect(claudeLoopService.getStatus).toHaveBeenCalledWith(project.id)
       expect(claudeLoopService.stop).toHaveBeenCalledWith(project.id, true)
+      expect(codexLoopService.getStatus).toHaveBeenCalledWith(project.id)
     })
 
     it('does not call stop if runner is not running', async () => {
@@ -606,6 +616,8 @@ describe('projectsRouter', () => {
       // Verify stop was NOT called
       expect(claudeLoopService.getStatus).toHaveBeenCalledWith(project.id)
       expect(claudeLoopService.stop).not.toHaveBeenCalled()
+      expect(codexLoopService.getStatus).toHaveBeenCalledWith(project.id)
+      expect(codexLoopService.stop).not.toHaveBeenCalled()
     })
 
     it('proceeds with delete even if runner stop fails', async () => {

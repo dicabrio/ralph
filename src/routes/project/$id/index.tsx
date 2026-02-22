@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -97,6 +97,7 @@ interface Story {
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
+type RunnerProvider = "claude" | "codex";
 
 // Compute project stats from stories
 function computeProjectStats(stories: Story[]) {
@@ -258,7 +259,10 @@ function SettingsRow({
 interface RunnerControlsProps {
   projectId: number;
   runnerStatus: RunnerStatus;
+  selectedProvider: RunnerProvider;
+  activeProvider?: RunnerProvider;
   currentStoryId?: string | null;
+  onProviderChange: (provider: RunnerProvider) => void;
   onStart: () => void;
   onStop: () => void;
   isStarting: boolean;
@@ -267,7 +271,10 @@ interface RunnerControlsProps {
 
 function RunnerControls({
   runnerStatus,
+  selectedProvider,
+  activeProvider,
   currentStoryId,
+  onProviderChange,
   onStart,
   onStop,
   isStarting,
@@ -315,8 +322,34 @@ function RunnerControls({
         <p className="text-xs text-muted-foreground mb-4">
           Working on:{" "}
           <span className="font-mono text-foreground">{currentStoryId}</span>
+          {activeProvider && (
+            <span className="ml-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+              ({activeProvider})
+            </span>
+          )}
         </p>
       )}
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <Button
+          type="button"
+          size="sm"
+          variant={selectedProvider === "claude" ? "default" : "outline"}
+          onClick={() => onProviderChange("claude")}
+          disabled={isBusy || isRunning}
+        >
+          Claude
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={selectedProvider === "codex" ? "default" : "outline"}
+          onClick={() => onProviderChange("codex")}
+          disabled={isBusy || isRunning}
+        >
+          Codex
+        </Button>
+      </div>
 
       <div className="flex gap-2">
         {!isRunning ? (
@@ -512,6 +545,16 @@ function ProjectDetail() {
 
   // State for delete confirmation dialog
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [runnerProvider, setRunnerProvider] = useState<RunnerProvider>("claude");
+
+  // Restore provider preference for this project
+  useEffect(() => {
+    if (typeof window === "undefined" || Number.isNaN(projectId)) return;
+    const stored = window.localStorage.getItem(`ralph.runner-provider.${projectId}`);
+    if (stored === "claude" || stored === "codex") {
+      setRunnerProvider(stored);
+    }
+  }, [projectId]);
 
   // Fetch project data
   const {
@@ -531,7 +574,7 @@ function ProjectDetail() {
 
   // Fetch runner status
   const { data: runnerState } = trpc.runner.getStatus.useQuery(
-    { projectId },
+    { projectId, provider: runnerProvider },
     { enabled: !isNaN(projectId), refetchInterval: 3000 },
   );
 
@@ -563,9 +606,9 @@ function ProjectDetail() {
   });
 
   const startRunner = trpc.runner.start.useMutation({
-    onSuccess: () => {
-      utils.runner.getStatus.invalidate({ projectId });
-      toast.success("Runner started successfully");
+    onSuccess: (data) => {
+      utils.runner.getStatus.invalidate();
+      toast.success(`Runner (${data.provider}) started successfully`);
     },
     onError: (error) => {
       toast.error("Failed to start runner", {
@@ -576,7 +619,7 @@ function ProjectDetail() {
 
   const stopRunner = trpc.runner.stop.useMutation({
     onSuccess: () => {
-      utils.runner.getStatus.invalidate({ projectId });
+      utils.runner.getStatus.invalidate();
       toast.success("Runner stopped successfully");
     },
     onError: (error) => {
@@ -600,11 +643,18 @@ function ProjectDetail() {
 
   // Handle runner start/stop
   const handleStartRunner = () => {
-    startRunner.mutate({ projectId });
+    startRunner.mutate({ projectId, provider: runnerProvider });
   };
 
   const handleStopRunner = () => {
     stopRunner.mutate({ projectId });
+  };
+
+  const handleRunnerProviderChange = (provider: RunnerProvider) => {
+    setRunnerProvider(provider);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`ralph.runner-provider.${projectId}`, provider);
+    }
   };
 
   // Handle project delete
@@ -778,7 +828,10 @@ function ProjectDetail() {
           <RunnerControls
             projectId={projectId}
             runnerStatus={runnerStatus}
+            selectedProvider={runnerProvider}
+            activeProvider={runnerState?.provider as RunnerProvider | undefined}
             currentStoryId={runnerState?.storyId}
+            onProviderChange={handleRunnerProviderChange}
             onStart={handleStartRunner}
             onStop={handleStopRunner}
             isStarting={startRunner.isPending}

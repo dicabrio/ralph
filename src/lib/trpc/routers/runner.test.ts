@@ -4,7 +4,7 @@
  * Runner Router Tests
  *
  * Unit tests for the runner tRPC endpoints.
- * Uses mocked claudeLoopService and in-memory SQLite for isolation.
+ * Uses mocked claude/codex loop services and in-memory SQLite for isolation.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { TRPCError } from '@trpc/server'
@@ -21,11 +21,24 @@ vi.mock('@/lib/services/claudeLoopService', () => ({
   },
 }))
 
+// Mock the codexLoopService
+vi.mock('@/lib/services/codexLoopService', () => ({
+  codexLoopService: {
+    start: vi.fn(),
+    stop: vi.fn(),
+    getStatus: vi.fn(),
+    getAllStatus: vi.fn(),
+    setAutoRestart: vi.fn(),
+    isAutoRestartEnabled: vi.fn(() => false),
+  },
+}))
+
 import { createCallerFactory } from '../trpc'
 import { runnerRouter } from './runner'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
+import { codexLoopService } from '@/lib/services/codexLoopService'
 
 const createCaller = createCallerFactory(runnerRouter)
 
@@ -34,6 +47,10 @@ describe('runnerRouter', () => {
   beforeEach(async () => {
     await db.delete(projects)
     vi.clearAllMocks()
+    vi.mocked(claudeLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
+    vi.mocked(codexLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
+    vi.mocked(claudeLoopService.getAllStatus).mockReturnValue([])
+    vi.mocked(codexLoopService.getAllStatus).mockReturnValue([])
   })
 
   afterEach(() => {
@@ -67,6 +84,34 @@ describe('runnerRouter', () => {
       expect(result.storyId).toBe('STORY-001')
       // CLI uses full project path, not relative
       expect(claudeLoopService.start).toHaveBeenCalledWith(project.id, '/projects/test-project', 'STORY-001')
+    })
+
+    it('starts codex runner when provider=codex', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test-project',
+      }).returning()
+
+      vi.mocked(codexLoopService.start).mockResolvedValue({
+        status: 'running',
+        projectId: project.id,
+        storyId: 'STORY-001',
+        pid: 99999,
+        startedAt: new Date(),
+      })
+
+      const caller = createCaller({})
+      const result = await caller.start({
+        projectId: project.id,
+        storyId: 'STORY-001',
+        provider: 'codex',
+      })
+
+      expect(result.status).toBe('running')
+      expect(result.projectId).toBe(project.id)
+      expect(result.provider).toBe('codex')
+      expect(codexLoopService.start).toHaveBeenCalledWith(project.id, '/projects/test-project', 'STORY-001')
+      expect(claudeLoopService.start).not.toHaveBeenCalled()
     })
 
     it('uses full project path for CLI', async () => {
@@ -154,6 +199,10 @@ describe('runnerRouter', () => {
         status: 'idle',
         projectId: project.id,
       })
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: project.id,
+      })
 
       const caller = createCaller({})
       const result = await caller.stop({ projectId: project.id })
@@ -171,6 +220,10 @@ describe('runnerRouter', () => {
 
       vi.mocked(claudeLoopService.stop).mockResolvedValue({
         status: 'idle',
+        projectId: project.id,
+      })
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
         projectId: project.id,
       })
 
@@ -196,6 +249,10 @@ describe('runnerRouter', () => {
       }).returning()
 
       vi.mocked(claudeLoopService.stop).mockRejectedValue(new Error('Container not responding'))
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: project.id,
+      })
 
       const caller = createCaller({})
 
@@ -216,6 +273,10 @@ describe('runnerRouter', () => {
         status: 'idle',
         projectId: project.id,
       })
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: project.id,
+      })
 
       const caller = createCaller({})
       await caller.stop({ projectId: project.id })
@@ -232,7 +293,7 @@ describe('runnerRouter', () => {
       }).returning()
 
       const startedAt = new Date()
-      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'running',
         projectId: project.id,
         storyId: 'STORY-001',
@@ -248,6 +309,7 @@ describe('runnerRouter', () => {
       expect(result.storyId).toBe('STORY-001')
       expect(result.pid).toBe(12345)
       expect(result.startedAt).toEqual(startedAt)
+      expect(result.provider).toBe('claude')
     })
 
     it('returns idle status when not running', async () => {
@@ -256,7 +318,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'idle',
         projectId: project.id,
       })
@@ -275,7 +337,7 @@ describe('runnerRouter', () => {
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(claudeLoopService.getStatus).mockResolvedValue({
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
         status: 'stopping',
         projectId: project.id,
       })
@@ -295,26 +357,35 @@ describe('runnerRouter', () => {
       })
     })
 
-    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
+    it('returns codex status when preferred provider is idle', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test',
       }).returning()
 
-      vi.mocked(claudeLoopService.getStatus).mockRejectedValue(new Error('Failed to query Docker'))
+      vi.mocked(claudeLoopService.getStatus).mockReturnValue({
+        status: 'idle',
+        projectId: project.id,
+      })
+      vi.mocked(codexLoopService.getStatus).mockReturnValue({
+        status: 'running',
+        projectId: project.id,
+        storyId: 'STORY-009',
+        pid: 321,
+      })
 
       const caller = createCaller({})
+      const result = await caller.getStatus({ projectId: project.id })
 
-      await expect(caller.getStatus({ projectId: project.id })).rejects.toThrow(TRPCError)
-      await expect(caller.getStatus({ projectId: project.id })).rejects.toMatchObject({
-        code: 'INTERNAL_SERVER_ERROR',
-      })
+      expect(result.status).toBe('running')
+      expect(result.provider).toBe('codex')
     })
   })
 
   describe('getAllStatus', () => {
     it('returns empty array when no runners', async () => {
-      vi.mocked(claudeLoopService.getAllStatus).mockResolvedValue([])
+      vi.mocked(claudeLoopService.getAllStatus).mockReturnValue([])
+      vi.mocked(codexLoopService.getAllStatus).mockReturnValue([])
 
       const caller = createCaller({})
       const result = await caller.getAllStatus()
@@ -324,7 +395,7 @@ describe('runnerRouter', () => {
 
     it('returns status for all tracked runners', async () => {
       const startedAt = new Date()
-      vi.mocked(claudeLoopService.getAllStatus).mockResolvedValue([
+      vi.mocked(claudeLoopService.getAllStatus).mockReturnValue([
         {
           status: 'running',
           projectId: 1,
@@ -337,27 +408,28 @@ describe('runnerRouter', () => {
           projectId: 2,
         },
       ])
+      vi.mocked(codexLoopService.getAllStatus).mockReturnValue([
+        {
+          status: 'running',
+          projectId: 3,
+          storyId: 'STORY-010',
+          pid: 3333,
+        },
+      ])
 
       const caller = createCaller({})
       const result = await caller.getAllStatus()
 
-      expect(result).toHaveLength(2)
+      expect(result).toHaveLength(3)
       expect(result[0].status).toBe('running')
       expect(result[0].projectId).toBe(1)
-      expect(result[1].status).toBe('idle')
-      expect(result[1].projectId).toBe(2)
+      expect(result[1].provider).toBe('claude')
+      expect(result[2].status).toBe('running')
+      expect(result[2].projectId).toBe(3)
+      expect(result[2].provider).toBe('codex')
     })
 
-    it('throws INTERNAL_SERVER_ERROR when claudeLoopService fails', async () => {
-      vi.mocked(claudeLoopService.getAllStatus).mockRejectedValue(new Error('Docker daemon error'))
-
-      const caller = createCaller({})
-
-      await expect(caller.getAllStatus()).rejects.toThrow(TRPCError)
-      await expect(caller.getAllStatus()).rejects.toMatchObject({
-        code: 'INTERNAL_SERVER_ERROR',
-      })
-    })
+    // Service-level getAllStatus methods are synchronous in current loop services.
   })
 
   describe('setAutoRestart', () => {
@@ -376,6 +448,7 @@ describe('runnerRouter', () => {
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(true)
       expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
     })
 
     it('disables auto-restart for an existing project', async () => {
@@ -393,6 +466,7 @@ describe('runnerRouter', () => {
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(false)
       expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
     })
 
     it('throws NOT_FOUND for non-existent project', async () => {
@@ -417,6 +491,7 @@ describe('runnerRouter', () => {
       }).returning()
 
       vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(codexLoopService.isAutoRestartEnabled).mockReturnValue(true)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })
@@ -424,6 +499,7 @@ describe('runnerRouter', () => {
       expect(result.projectId).toBe(project.id)
       expect(result.autoRestartEnabled).toBe(true)
       expect(claudeLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
+      expect(codexLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
     })
 
     it('returns false when auto-restart is not enabled', async () => {
@@ -433,6 +509,7 @@ describe('runnerRouter', () => {
       }).returning()
 
       vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(false)
+      vi.mocked(codexLoopService.isAutoRestartEnabled).mockReturnValue(true)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })

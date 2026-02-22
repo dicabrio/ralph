@@ -1,11 +1,10 @@
 /**
- * Claude Loop Service
+ * Codex Loop Service
  *
- * Manages Claude Code CLI processes for running stories.
+ * Manages Codex CLI processes for running stories.
  * Uses direct CLI invocation instead of Docker containers.
  *
- * Authentication via `claude login` (Claude Pro/Max subscription).
- * No API key required.
+ * Authentication via `codex login` or OPENAI_API_KEY.
  */
 import { spawn, exec, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,14 +15,8 @@ import { db } from "@/db";
 import { runnerLogs } from "@/db/schema";
 import { getWebSocketServer } from "@/lib/websocket/server";
 import { getEffectivePrompt } from "@/lib/services/promptTemplate";
-import { DEFAULT_CLAUDE_PERMISSIONS } from "@/lib/services/claudePermissions";
 
 const execAsync = promisify(exec);
-const CLAUDE_PERMISSION_MODE = "dontAsk";
-const CLAUDE_ALLOWED_TOOLS =
-  DEFAULT_CLAUDE_PERMISSIONS.permissions.allow.join(",");
-const CLAUDE_DISALLOWED_TOOLS =
-  DEFAULT_CLAUDE_PERMISSIONS.permissions.deny.join(",");
 
 /**
  * Runner status enum
@@ -83,7 +76,7 @@ interface LogEntry {
 /**
  * Active process handle
  */
-interface ClaudeProcess {
+interface CodexProcess {
   projectId: number;
   process: ChildProcess;
   storyId?: string;
@@ -92,13 +85,13 @@ interface ClaudeProcess {
 }
 
 /**
- * ClaudeLoopService class
+ * CodexLoopService class
  *
- * Singleton that tracks running Claude CLI processes.
- * Spawns Claude Code CLI directly without Docker.
+ * Singleton that tracks running Codex CLI processes.
+ * Spawns Codex Code CLI directly without Docker.
  */
-class ClaudeLoopService {
-  private processes: Map<number, ClaudeProcess> = new Map();
+class CodexLoopService {
+  private processes: Map<number, CodexProcess> = new Map();
   private stoppingProcesses: Set<number> = new Set();
   private stopRequestedProcesses: Set<number> = new Set();
   private projectPaths: Map<number, string> = new Map();
@@ -106,11 +99,11 @@ class ClaudeLoopService {
   private logBuffers: Map<number, LogEntry[]> = new Map();
 
   /**
-   * Check if Claude CLI is available
+   * Check if Codex CLI is available
    */
-  async isClaudeAvailable(): Promise<boolean> {
+  async isCodexAvailable(): Promise<boolean> {
     try {
-      await execAsync("claude --version");
+      await execAsync("codex --version");
       return true;
     } catch {
       return false;
@@ -118,14 +111,23 @@ class ClaudeLoopService {
   }
 
   /**
-   * Check if user is logged in to Claude
+   * Check if user is logged in to Codex
    */
-  async isClaudeLoggedIn(): Promise<boolean> {
+  async isCodexLoggedIn(): Promise<boolean> {
     try {
-      // Check if ~/.claude.json exists
+      if (process.env.OPENAI_API_KEY?.trim()) {
+        return true;
+      }
+
+      // Check if ~/.codex/auth.json exists
       const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-      const configPath = path.join(homeDir, ".claude.json");
-      return existsSync(configPath);
+      const configPath = path.join(homeDir, ".codex", "auth.json");
+      if (existsSync(configPath)) {
+        return true;
+      }
+
+      const { stdout } = await execAsync("codex login status");
+      return stdout.toLowerCase().includes("logged in");
     } catch {
       return false;
     }
@@ -161,16 +163,18 @@ class ClaudeLoopService {
       throw new Error(`Runner for project ${projectId} is currently stopping`);
     }
 
-    // Check if Claude CLI is available
-    if (!(await this.isClaudeAvailable())) {
+    // Check if Codex CLI is available
+    if (!(await this.isCodexAvailable())) {
       throw new Error(
-        "Claude Code CLI is not installed. Install with: npm install -g @anthropic-ai/claude-code",
+        "Codex CLI is not installed. Install with: npm install -g @openai/codex",
       );
     }
 
     // Check if logged in
-    if (!(await this.isClaudeLoggedIn())) {
-      throw new Error("Not logged in to Claude. Run: claude login");
+    if (!(await this.isCodexLoggedIn())) {
+      throw new Error(
+        "Not logged in to Codex. Run: codex login or set OPENAI_API_KEY",
+      );
     }
 
     // Store project path for auto-restart
@@ -181,20 +185,17 @@ class ClaudeLoopService {
       this.logBuffers.set(projectId, []);
     }
 
-    // Generate the prompt for Claude
+    // Generate the prompt for Codex
     const prompt = await this.generatePrompt(projectPath, storyId);
 
-    // Spawn Claude CLI process with autonomous execution in safe permission mode.
-    const claudeProcess = spawn(
-      "claude",
+    // Spawn Codex CLI process - read prompt from stdin via trailing "-"
+    const codexProcess = spawn(
+      "codex",
       [
-        "-p", // Read prompt from stdin
-        "--permission-mode",
-        CLAUDE_PERMISSION_MODE,
-        "--allowedTools",
-        CLAUDE_ALLOWED_TOOLS,
-        "--disallowedTools",
-        CLAUDE_DISALLOWED_TOOLS,
+        "exec",
+        "--full-auto",
+        "--skip-git-repo-check",
+        "-", // Read prompt from stdin
       ],
       {
         cwd: projectPath,
@@ -203,9 +204,9 @@ class ClaudeLoopService {
       },
     );
 
-    const processHandle: ClaudeProcess = {
+    const processHandle: CodexProcess = {
       projectId,
-      process: claudeProcess,
+      process: codexProcess,
       storyId,
       startedAt: new Date(),
       projectPath,
@@ -213,36 +214,36 @@ class ClaudeLoopService {
 
     this.processes.set(projectId, processHandle);
 
-    console.log(`[ClaudeLoop] ========================================`);
-    console.log(`[ClaudeLoop] Starting Claude CLI`);
-    console.log(`[ClaudeLoop] Project ID: ${projectId}`);
-    console.log(`[ClaudeLoop] Story: ${storyId || "auto-pick"}`);
-    console.log(`[ClaudeLoop] Path: ${projectPath}`);
-    console.log(`[ClaudeLoop] PID: ${claudeProcess.pid}`);
-    console.log(`[ClaudeLoop] Prompt length: ${prompt.length} chars`);
-    console.log(`[ClaudeLoop] ========================================`);
+    console.log(`[CodexLoop] ========================================`);
+    console.log(`[CodexLoop] Starting Codex CLI`);
+    console.log(`[CodexLoop] Project ID: ${projectId}`);
+    console.log(`[CodexLoop] Story: ${storyId || "auto-pick"}`);
+    console.log(`[CodexLoop] Path: ${projectPath}`);
+    console.log(`[CodexLoop] PID: ${codexProcess.pid}`);
+    console.log(`[CodexLoop] Prompt length: ${prompt.length} chars`);
+    console.log(`[CodexLoop] ========================================`);
 
-    // Pipe prompt to stdin (like: cat prompt.md | claude -p)
-    claudeProcess.stdin?.write(prompt);
-    claudeProcess.stdin?.end();
+    // Pipe prompt to stdin (like: cat prompt.md | codex exec -)
+    codexProcess.stdin?.write(prompt);
+    codexProcess.stdin?.end();
 
     // Handle stdout
-    claudeProcess.stdout?.on("data", (data: Buffer) => {
+    codexProcess.stdout?.on("data", (data: Buffer) => {
       this.handleLogData(projectId, storyId, data.toString(), "stdout");
     });
 
     // Handle stderr
-    claudeProcess.stderr?.on("data", (data: Buffer) => {
+    codexProcess.stderr?.on("data", (data: Buffer) => {
       this.handleLogData(projectId, storyId, data.toString(), "stderr");
     });
 
     // Handle process exit
-    claudeProcess.on("close", async (exitCode) => {
-      console.log(`[ClaudeLoop] ========================================`);
-      console.log(`[ClaudeLoop] Claude CLI exited`);
-      console.log(`[ClaudeLoop] Project ID: ${projectId}`);
-      console.log(`[ClaudeLoop] Exit code: ${exitCode}`);
-      console.log(`[ClaudeLoop] ========================================`);
+    codexProcess.on("close", async (exitCode) => {
+      console.log(`[CodexLoop] ========================================`);
+      console.log(`[CodexLoop] Codex CLI exited`);
+      console.log(`[CodexLoop] Project ID: ${projectId}`);
+      console.log(`[CodexLoop] Exit code: ${exitCode}`);
+      console.log(`[CodexLoop] ========================================`);
       this.processes.delete(projectId);
 
       // Manual stop should never trigger completion handling or auto-restart.
@@ -263,8 +264,8 @@ class ClaudeLoopService {
     });
 
     // Handle errors
-    claudeProcess.on("error", (error) => {
-      console.error(`[ClaudeLoop] Error for project ${projectId}:`, error);
+    codexProcess.on("error", (error) => {
+      console.error(`[CodexLoop] Error for project ${projectId}:`, error);
       this.processes.delete(projectId);
       this.stopRequestedProcesses.delete(projectId);
       this.stoppingProcesses.delete(projectId);
@@ -272,13 +273,13 @@ class ClaudeLoopService {
     });
 
     // Broadcast running status
-    this.broadcastStatus(projectId, "running", storyId, claudeProcess.pid);
+    this.broadcastStatus(projectId, "running", storyId, codexProcess.pid);
 
     return {
       status: "running",
       projectId,
       storyId,
-      pid: claudeProcess.pid,
+      pid: codexProcess.pid,
       startedAt: new Date(),
     };
   }
@@ -410,7 +411,7 @@ class ClaudeLoopService {
   setAutoRestart(projectId: number, enabled: boolean): void {
     this.autoRestartEnabled.set(projectId, enabled);
     console.log(
-      `[ClaudeLoop] Auto-restart ${enabled ? "enabled" : "disabled"} for project ${projectId}`,
+      `[CodexLoop] Auto-restart ${enabled ? "enabled" : "disabled"} for project ${projectId}`,
     );
   }
 
@@ -430,7 +431,7 @@ class ClaudeLoopService {
   }
 
   /**
-   * Generate a prompt for Claude based on the project and story
+   * Generate a prompt for Codex based on the project and story
    *
    * Reads the prompt from stories/prompt.md if it exists,
    * otherwise uses the default template from promptTemplate.ts
@@ -463,18 +464,8 @@ class ClaudeLoopService {
 
     for (const line of lines) {
       // Log to server console for visibility
-      const prefix = logType === "stderr" ? "[Claude ERR]" : "[Claude]";
+      const prefix = logType === "stderr" ? "[Codex ERR]" : "[Codex]";
       console.log(`${prefix} [P${projectId}]`, line);
-
-      if (
-        logType === "stderr" &&
-        /permission/i.test(line) &&
-        /(denied|reject|not allowed|blocked)/i.test(line)
-      ) {
-        console.warn(
-          `[ClaudeLoop] Permission denied for project ${projectId}: ${line}`,
-        );
-      }
 
       const entry: LogEntry = {
         projectId,
@@ -492,7 +483,7 @@ class ClaudeLoopService {
 
       // Persist to database (async)
       this.persistLog(entry).catch((error) => {
-        console.error(`[ClaudeLoop] Failed to persist log:`, error);
+        console.error(`[CodexLoop] Failed to persist log:`, error);
       });
     }
   }
@@ -572,7 +563,7 @@ class ClaudeLoopService {
         nextStoryId = this.findNextPendingStory(prdData.userStories);
       }
     } catch (error) {
-      console.error(`[ClaudeLoop] Failed to read prd.json:`, error);
+      console.error(`[CodexLoop] Failed to read prd.json:`, error);
     }
 
     const willAutoRestart =
@@ -592,14 +583,14 @@ class ClaudeLoopService {
     // Trigger auto-restart if enabled
     if (willAutoRestart && nextStoryId) {
       console.log(
-        `[ClaudeLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
+        `[CodexLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
       );
 
       setTimeout(async () => {
         try {
           await this.start(projectId, projectPath, nextStoryId);
         } catch (error) {
-          console.error(`[ClaudeLoop] Failed to auto-restart:`, error);
+          console.error(`[CodexLoop] Failed to auto-restart:`, error);
           this.broadcastStatus(projectId, "idle");
         }
       }, 1000);
@@ -709,7 +700,7 @@ class ClaudeLoopService {
 }
 
 // Export singleton instance
-export const claudeLoopService = new ClaudeLoopService();
+export const codexLoopService = new CodexLoopService();
 
 // Export class for testing
-export { ClaudeLoopService };
+export { CodexLoopService };

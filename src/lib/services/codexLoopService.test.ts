@@ -1,9 +1,9 @@
 /**
  * @vitest-environment node
  *
- * ClaudeLoopService Tests
+ * CodexLoopService Tests
  *
- * Unit tests for the Claude Code CLI process management service.
+ * Unit tests for the Codex CLI process management service.
  * Uses mocked child_process for CLI operations.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -68,8 +68,8 @@ vi.mock('node:fs', async (importOriginal) => {
       if (path.includes('data/') || path.includes('ralph.db')) {
         return original.existsSync(path)
       }
-      // Mock claude.json for login check
-      if (path.includes('.claude.json')) {
+      // Mock codex auth file for login check
+      if (path.includes('.codex/auth.json')) {
         return true
       }
       return false
@@ -118,10 +118,10 @@ vi.mock('@/db/schema', () => ({
   runnerLogs: {},
 }))
 
-import type { ClaudeLoopService } from './claudeLoopService'
+import type { CodexLoopService } from './codexLoopService'
 
-// Helper to create a fresh ClaudeLoopService instance
-async function createTestService(): Promise<ClaudeLoopService> {
+// Helper to create a fresh CodexLoopService instance
+async function createTestService(): Promise<CodexLoopService> {
   vi.resetModules()
   mockExecAsync = vi.fn()
   spawnedProcesses.length = 0
@@ -130,11 +130,11 @@ async function createTestService(): Promise<ClaudeLoopService> {
     content: '# Test Prompt\nThis is a test prompt.',
     source: 'default',
   })
-  const module = await import('./claudeLoopService')
-  return new module.ClaudeLoopService()
+  const module = await import('./codexLoopService')
+  return new module.CodexLoopService()
 }
 
-describe('ClaudeLoopService', () => {
+describe('CodexLoopService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     spawnedProcesses.length = 0
@@ -146,47 +146,57 @@ describe('ClaudeLoopService', () => {
     delete process.env.HOME
   })
 
-  describe('isClaudeAvailable', () => {
-    it('returns true when claude CLI is available', async () => {
+  describe('isCodexAvailable', () => {
+    it('returns true when codex CLI is available', async () => {
       const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: 'claude 1.0.0', stderr: '' })
+      mockExecAsync.mockResolvedValue({ stdout: 'codex 1.0.0', stderr: '' })
 
-      const result = await service.isClaudeAvailable()
+      const result = await service.isCodexAvailable()
 
       expect(result).toBe(true)
     })
 
-    it('returns false when claude CLI is not installed', async () => {
+    it('returns false when codex CLI is not installed', async () => {
       const service = await createTestService()
-      mockExecAsync.mockRejectedValue(new Error('command not found: claude'))
+      mockExecAsync.mockRejectedValue(new Error('command not found: codex'))
 
-      const result = await service.isClaudeAvailable()
+      const result = await service.isCodexAvailable()
 
       expect(result).toBe(false)
     })
   })
 
-  describe('isClaudeLoggedIn', () => {
-    it('returns true when .claude.json exists', async () => {
+  describe('isCodexLoggedIn', () => {
+    it('returns true when OPENAI_API_KEY is set', async () => {
+      process.env.OPENAI_API_KEY = 'test-key'
       const service = await createTestService()
 
-      const result = await service.isClaudeLoggedIn()
+      const result = await service.isCodexLoggedIn()
+
+      expect(result).toBe(true)
+      delete process.env.OPENAI_API_KEY
+    })
+
+    it('returns true when .codex/auth.json exists', async () => {
+      const service = await createTestService()
+
+      const result = await service.isCodexLoggedIn()
 
       expect(result).toBe(true)
     })
 
-    it('returns false when .claude.json does not exist', async () => {
-      // Re-mock existsSync to return false for .claude.json
+    it('returns false when .codex/auth.json does not exist', async () => {
+      // Re-mock existsSync to return false for .codex/auth.json
       const fs = await import('node:fs')
       vi.mocked(fs.existsSync).mockImplementation((path: unknown) => {
-        if (typeof path === 'string' && path.includes('.claude.json')) {
+        if (typeof path === 'string' && path.includes('.codex/auth.json')) {
           return false
         }
         return false
       })
 
       const service = await createTestService()
-      const result = await service.isClaudeLoggedIn()
+      const result = await service.isCodexLoggedIn()
 
       expect(result).toBe(false)
     })
@@ -284,19 +294,19 @@ describe('ClaudeLoopService', () => {
   })
 
   describe('start', () => {
-    it('throws error when Claude CLI is not available', async () => {
+    it('throws error when Codex CLI is not available', async () => {
       const service = await createTestService()
       mockExecAsync.mockRejectedValue(new Error('command not found'))
 
       await expect(service.start(1, '/test/project')).rejects.toThrow(
-        'Claude Code CLI is not installed'
+        'Codex CLI is not installed'
       )
     })
 
     it('throws error when not logged in', async () => {
       const fs = await import('node:fs')
       vi.mocked(fs.existsSync).mockImplementation((path: unknown) => {
-        if (typeof path === 'string' && path.includes('.claude.json')) {
+        if (typeof path === 'string' && path.includes('.codex/auth.json')) {
           return false
         }
         // Allow database paths
@@ -307,10 +317,10 @@ describe('ClaudeLoopService', () => {
       })
 
       const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: 'claude 1.0.0', stderr: '' })
+      mockExecAsync.mockResolvedValue({ stdout: 'codex 1.0.0', stderr: '' })
 
       await expect(service.start(1, '/test/project')).rejects.toThrow(
-        'Not logged in to Claude'
+        'Run: codex login or set OPENAI_API_KEY'
       )
     })
 
@@ -364,7 +374,7 @@ describe('ClaudeLoopService', () => {
       expect(spawnedProcesses[0].stdin.end).toHaveBeenCalled()
     })
 
-    it('starts in autonomous safe permission mode (no dangerous bypass)', async () => {
+    it('spawns codex exec in stdin mode', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
 
@@ -372,22 +382,13 @@ describe('ClaudeLoopService', () => {
 
       const childProcess = await import('node:child_process')
       expect(childProcess.spawn).toHaveBeenCalledWith(
-        'claude',
-        expect.arrayContaining([
-          '-p',
-          '--permission-mode',
-          'dontAsk',
-          '--allowedTools',
-          '--disallowedTools',
-        ]),
+        'codex',
+        ['exec', '--full-auto', '--skip-git-repo-check', '-'],
         expect.objectContaining({
           cwd: '/test/project',
           stdio: ['pipe', 'pipe', 'pipe'],
         }),
       )
-
-      const spawnArgs = vi.mocked(childProcess.spawn).mock.calls[0][1] as string[]
-      expect(spawnArgs).not.toContain('--dangerously-skip-permissions')
     })
   })
 
