@@ -1,6 +1,6 @@
 {
   "projectName": "Ralph Dashboard",
-  "branchName": "feature/ralph-dashboard",
+  "branchName": "main",
   "projectDescription": "Een Docker-based dashboard voor het beheren van AI-gestuurde development met Ralph loops. Centrale plek voor projecten, stories, skills en runners.",
   "implementationGuides": [
     {
