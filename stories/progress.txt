@@ -2354,3 +2354,36 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
    - WebSocket context mock
    - Common test utilities
 4. **Alternative metrics**: Consider statement coverage or focus on critical path coverage rather than line coverage
+
+## 2026-02-23 - RUNNER-008
+**Title:** Run single story via Kanban card
+
+**Implemented:**
+- Added `singleStoryMode` parameter to runner.start tRPC procedure
+- When `singleStoryMode=true`, disables auto-restart before starting the runner
+- Added play button to story cards (visible on hover for pending/failed/backlog stories)
+- Play button only visible when runner status is `idle`
+- Created `RunSingleStoryDialog` confirmation dialog showing:
+  - Story ID, title, description, priority
+  - Dependency status with checkmark/warning icons
+  - Warning message when dependencies are unmet
+- Wired up mutation to start runner with `singleStoryMode: true`
+- Added unit tests for `singleStoryMode` in runner.test.ts (5 new tests)
+- Added unit tests for play button visibility logic in kanban.test.tsx
+- Added E2E tests for play button and confirmation dialog (10 new tests)
+
+**Files changed:**
+- src/lib/trpc/routers/runner.ts (added singleStoryMode parameter, calls setAutoRestart)
+- src/lib/trpc/routers/runner.test.ts (5 new unit tests for singleStoryMode)
+- src/routes/project/$id/kanban.tsx (RunSingleStoryDialog, play button in DraggableStoryCard)
+- src/routes/project/$id/-kanban.test.tsx (play button visibility logic tests)
+- e2e/kanban-board.spec.ts (E2E tests for RUNNER-008 feature)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- API already supported optional `storyId` parameter - only needed to add `singleStoryMode` flag
+- Play button uses hover reveal pattern with `opacity-0 group-hover:opacity-100` and focus state
+- Dialog follows existing DependencyConfirmDialog pattern with custom styling
+- Test data-testid pattern: `play-story-{storyId}` for play buttons, `dep-status-{depId}` for dependency items
+- `PLAYABLE_STATUSES` constant makes visibility logic clear and testable
+- Runner status is polled every 3 seconds - play button automatically hides when runner starts
