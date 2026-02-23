@@ -2,6 +2,478 @@
   "projectName": "Ralph Dashboard",
   "projectDescription": "Een Docker-based dashboard voor het beheren van AI-gestuurde development met Ralph loops. Centrale plek voor projecten, stories, skills en runners.",
   "branchName": "main",
+  "userStories": [
+    {
+      "id": "TEST-001",
+      "title": "Test coverage verhogen naar 50%",
+      "description": "Verhoog de test coverage van ~19% naar minimaal 50% door systematisch unit tests toe te voegen voor kritieke services, API routes, hooks en utilities. Dit verbetert de code kwaliteit en maakt refactoring veiliger.",
+      "priority": 71,
+      "status": "backlog",
+      "epic": "Testing",
+      "dependencies": [
+        "SETUP-004"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Services: runnerManager.ts - tests voor start/stop container, status tracking",
+        "Services: promptGenerator.ts - tests voor prompt template generatie",
+        "Services: projectDiscovery.ts - tests voor project scanning met mocked filesystem",
+        "Services: brainstormManager.ts - tests voor session management",
+        "Services: claudeLoopService.ts - tests voor Claude container lifecycle",
+        "tRPC: projects.ts - tests voor CRUD operaties met mocked database",
+        "tRPC: stories.ts - tests voor story listing, status updates",
+        "tRPC: skills.ts - tests voor skill loading, override management",
+        "tRPC: runner.ts - tests voor runner start/stop procedures",
+        "tRPC: brainstorm.ts - tests voor chat procedure",
+        "tRPC: prompts.ts - tests voor prompt CRUD operaties",
+        "Hooks: useWebSocket - tests voor connection, reconnection, message handling",
+        "Hooks: useSelectedProject - tests voor project selection state",
+        "Hooks: useBrainstormChat - tests voor chat state management",
+        "Components: ProjectSelector - tests voor rendering, selection, filtering",
+        "Components: StoryCard - tests voor status badge rendering, click handlers",
+        "Components: Sidebar - tests voor collapsed state, navigation",
+        "Vitest coverage rapport toont minimaal 50% line coverage",
+        "Coverage rapport toont minimaal 50% branch coverage",
+        "Alle nieuwe tests passing (pnpm test)",
+        "E2E tests blijven passing (pnpm test:e2e)",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "UI-030",
+      "title": "Claude Usage statistieken dashboard",
+      "description": "Toon Claude Code usage statistieken in Ralph door de lokale stats-cache.json te lezen. Geeft inzicht in dagelijks/wekelijks token verbruik, sessies en model gebruik. Let op: de echte session/week limits van Anthropic zijn niet beschikbaar via API, alleen lokale usage data.",
+      "priority": 72,
+      "status": "backlog",
+      "epic": "Dashboard",
+      "dependencies": [
+        "SETUP-002"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Docker: volume mount ~/.claude:/claude-stats:ro toevoegen aan docker-compose.yml",
+        "Environment: CLAUDE_STATS_PATH variabele voor stats-cache.json locatie",
+        "tRPC: stats router met getUsage procedure",
+        "API: parse stats-cache.json en bereken dagelijkse/wekelijkse totals",
+        "API: retourneer today stats (messages, sessions, tool calls)",
+        "API: retourneer weekly token totals per model (Opus/Sonnet)",
+        "API: retourneer totale sessies en model usage breakdown",
+        "API: graceful fallback als stats file niet bestaat",
+        "Frontend: Usage widget component voor sidebar of dashboard",
+        "Frontend: toon vandaag messages/sessions/tool calls",
+        "Frontend: toon deze week tokens met model breakdown",
+        "Frontend: toon totaal aantal sessies all-time",
+        "Frontend: polling elke 30 seconden voor updates (of file watcher)",
+        "Frontend: loading en error states",
+        "Frontend: tooltip met uitleg dat limits niet beschikbaar zijn",
+        "Unit tests voor stats parsing en berekeningen",
+        "Unit test: fallback wanneer file niet bestaat",
+        "E2E test: usage widget toont data correct",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "UI-031",
+      "title": "Favicon met Ralph logo",
+      "description": "Vervang de standaard TanStack favicon door het Ralph logo. Genereer meerdere icon formaten voor browser tabs, bookmarks en PWA ondersteuning.",
+      "priority": 79,
+      "status": "backlog",
+      "epic": "Dashboard",
+      "dependencies": [],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Genereer favicon.ico (16x16, 32x32) van src/logo.svg",
+        "Genereer apple-touch-icon.png (180x180) voor iOS bookmarks",
+        "Genereer favicon-32x32.png en favicon-16x16.png",
+        "Update public/logo192.png en public/logo512.png met Ralph logo",
+        "Voeg favicon link tags toe aan __root.tsx head configuratie",
+        "Voeg apple-touch-icon link tag toe voor iOS ondersteuning",
+        "Favicon zichtbaar in browser tab op alle pagina's",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-001",
+      "title": "Claude CLI read-only brainstorm service",
+      "description": "Nieuwe brainstorm service die Claude CLI gebruikt in read-only mode. Claude kan de codebase lezen en analyseren maar voert geen wijzigingen uit. Vervangt de huidige OpenAI-based brainstormManager.",
+      "priority": 80,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "BRAIN-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Nieuwe service: src/lib/services/claudeChatService.ts",
+        "Claude CLI spawn met --tools 'Read,Glob,Grep' (read-only)",
+        "Geen --dangerously-skip-permissions (veilige mode)",
+        "Streaming output parsing via stdout",
+        "Conversation history opbouwen uit brainstormMessages tabel",
+        "System prompt: 'Je bent in chat mode. Je mag code LEZEN en ANALYSEREN, maar voer GEEN wijzigingen uit.'",
+        "Bij elk bericht: volledige history meegeven als context",
+        "WebSocket broadcast van streaming chunks",
+        "Graceful error handling als CLI niet beschikbaar",
+        "Config toggle: BRAINSTORM_USE_CLI=true (default) vs OpenAI fallback",
+        "Unit tests voor CLI spawn en output parsing",
+        "Unit tests voor conversation context building",
+        "E2E test: chat vraag → Claude leest file → antwoord",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-002",
+      "title": "@-mention file parsing in chat input",
+      "description": "Implementeer @-mention syntax voor file referenties in de brainstorm chat. Gebruikers kunnen @path/to/file.ts of @path/to/file.ts:10-20 typen om specifieke files of line ranges als context mee te geven.",
+      "priority": 81,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Regex parser voor @-mentions: @path/to/file.ts en @path/to/file.ts:10-20",
+        "Backend: extractMentions(message) → [{path, startLine?, endLine?}]",
+        "Backend: voor elke mention, lees file content (of line range)",
+        "Backend: voeg file content toe aan Claude context als 'Referenced files:'",
+        "Frontend: autocomplete dropdown bij typen van @",
+        "Frontend: fuzzy search door project files bij autocomplete",
+        "Frontend: line range picker na file selectie (optioneel)",
+        "Frontend: @-mentions worden styled als chips/badges in input",
+        "Frontend: klikbare chips om file te previews",
+        "Validatie: warning als file niet bestaat",
+        "Max 5 @-mentions per bericht (performance)",
+        "Unit tests voor mention parsing regex",
+        "Unit tests voor file content extraction",
+        "E2E test: type @, selecteer file, verstuur, Claude ziet content",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-003",
+      "title": "Diff preview rendering voor code suggesties",
+      "description": "Wanneer Claude code wijzigingen suggereert in chat, render deze als visuele diff preview. Gebruikers zien side-by-side of unified diff view van voorgestelde changes, zonder dat deze automatisch worden toegepast.",
+      "priority": 82,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Claude output parser detecteert code blocks met wijzigingen",
+        "Heuristiek: code block met '+'/'-' lines, of '// BEFORE' / '// AFTER' markers",
+        "Instructie in system prompt: 'Toon wijzigingen als unified diff format'",
+        "DiffPreview component met syntax highlighting",
+        "Toggle: unified view vs side-by-side view",
+        "Line numbers in diff view",
+        "Collapsible: toon eerste 10 lines, expand voor meer",
+        "Copy button voor voorgestelde code",
+        "[→ Maak Story] button onder diff preview",
+        "Diff preview styling consistent met VS Code diff colors",
+        "Mobile responsive: stack side-by-side op kleine schermen",
+        "Unit tests voor diff detection heuristiek",
+        "Unit tests voor DiffPreview component rendering",
+        "E2E test: Claude suggereert wijziging → diff preview getoond",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-004",
+      "title": "VS Code-style chat UI redesign",
+      "description": "Herontwerp de brainstorm chat UI naar een VS Code-achtige interface met collapsible file context, inline code highlighting, en verbeterde message bubbles voor assistant responses.",
+      "priority": 83,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "CHAT-002",
+        "CHAT-003"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Chat container met donkere/lichte theme support (VS Code-style)",
+        "User messages: rechts uitgelijnd, accent kleur",
+        "Assistant messages: links uitgelijnd, subtle background",
+        "Inline code highlighting in messages (backticks → styled)",
+        "Code blocks met syntax highlighting en copy button",
+        "Collapsible 'Referenced files' sectie boven assistant response",
+        "Typing indicator met animated dots tijdens Claude response",
+        "Timestamp per message (hover to reveal)",
+        "Message actions: copy, retry (user), regenerate (assistant)",
+        "Scroll-to-bottom button wanneer niet at bottom",
+        "Keyboard shortcuts: Enter send, Shift+Enter newline, Cmd+K clear",
+        "Empty state met suggesties: 'Probeer: Leg uit hoe..., Review @file...'",
+        "Unit tests voor message rendering variants",
+        "E2E test: volledige chat flow met code blocks en diffs",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-005",
+      "title": "Story generatie vanuit chat context",
+      "description": "Voeg de mogelijkheid toe om vanuit een chat gesprek direct een story te genereren. De volledige chat context (discussie, suggesties, diffs) wordt samengevat en omgezet naar een gestructureerde story.",
+      "priority": 84,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "CHAT-004",
+        "BRAIN-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "[📝 Genereer Story] button in chat header (altijd zichtbaar)",
+        "[→ Maak Story] button onder specifieke diff previews",
+        "API: chat.generateStory(sessionId, context?) - genereert story",
+        "Context parameter: 'full' (hele chat) of specifiek message ID",
+        "Claude samenvatting van chat → story-generator skill",
+        "Story preview modal met edit mogelijkheid",
+        "StoryPreviewCard toont: title, description, criteria (editable)",
+        "Approve: voegt story toe aan prd.json",
+        "Edit: open edit modal voor aanpassingen",
+        "Discard: sluit preview zonder actie",
+        "Na approve: success toast met link naar Kanban",
+        "Chat message: 'Story [ID] aangemaakt' na succesvolle creatie",
+        "Unit tests voor context summarization",
+        "Unit tests voor story generation flow",
+        "E2E test: chat → genereer story → approve → in prd.json",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "CHAT-006",
+      "title": "Chat sessie management en history",
+      "description": "Verbeterde sessie management voor chat conversations. Gebruikers kunnen meerdere chat sessies per project hebben, sessies hervatten, en oude sessies bekijken of verwijderen.",
+      "priority": 85,
+      "status": "backlog",
+      "epic": "Brainstorm",
+      "dependencies": [
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Sidebar panel met lijst van chat sessies voor huidig project",
+        "Sessie card: titel (auto-generated of custom), laatste bericht preview, timestamp",
+        "[+ Nieuwe Chat] button start verse sessie",
+        "Actieve sessie heeft highlight in sidebar",
+        "Klik op sessie laadt volledige history in chat view",
+        "Sessie titel auto-generated uit eerste user bericht (max 50 chars)",
+        "Rename sessie via inline edit of context menu",
+        "Delete sessie met confirmatie dialog",
+        "Search/filter door sessies op titel of content",
+        "Sessies gesorteerd op laatste activiteit (newest first)",
+        "Badge indicator voor sessies met ongelezen Claude responses",
+        "Keyboard shortcut: Cmd+N nieuwe sessie, Cmd+W sluit sessie",
+        "Unit tests voor sessie CRUD operaties",
+        "E2E test: create, rename, delete sessie flow",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "SLACK-001",
+      "title": "Slack App basis setup en project koppeling",
+      "description": "Maak een Slack App met Bot functionaliteit en koppel Slack channels aan Ralph projecten. Basis infrastructuur voor Slack integratie met event handling.",
+      "priority": 86,
+      "status": "backlog",
+      "epic": "Slack",
+      "dependencies": [
+        "API-003"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Database: slackChannelId (string, nullable) kolom toevoegen aan projects tabel",
+        "Database: slackEnabled (boolean, default false) kolom toevoegen aan projects tabel",
+        "Environment variables: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET",
+        "Slack service: src/lib/services/slackService.ts met Slack Web API client",
+        "Slack event handler: src/routes/api/slack/events.ts",
+        "Signature verificatie voor Slack events (HMAC-SHA256)",
+        "API: projects.linkSlackChannel(projectId, channelId) procedure",
+        "API: projects.unlinkSlackChannel(projectId) procedure",
+        "UI: Slack sectie op project settings met channel ID input",
+        "UI: Toggle voor Slack integratie aan/uit",
+        "Unit tests voor signature verificatie",
+        "Unit tests voor channel linking",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "SLACK-002",
+      "title": "Slack brainstorm integratie",
+      "description": "Gebruikers kunnen via Slack brainstormen met Claude voor een gekoppeld project. Berichten in het project-channel worden verwerkt door de Claude chat service en antwoorden worden teruggestuurd naar Slack.",
+      "priority": 87,
+      "status": "backlog",
+      "epic": "Slack",
+      "dependencies": [
+        "SLACK-001",
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Slack event subscription voor message events in gekoppelde channels",
+        "Filter: alleen reageren op berichten die @ralph mentionen of in thread zijn",
+        "Berichten routeren naar claudeChatService met project context",
+        "Claude antwoord posten als threaded reply in Slack",
+        "Conversation context behouden binnen Slack thread",
+        "Typing indicator tonen terwijl Claude denkt (chat.postEphemeral)",
+        "Rate limiting: max 1 concurrent brainstorm per channel",
+        "Error handling met vriendelijke Slack berichten",
+        "Unit tests voor message routing",
+        "E2E test: Slack bericht → Claude antwoord in thread",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "SLACK-003",
+      "title": "Slack runner commands",
+      "description": "Implementeer Slack slash commands voor het besturen van Ralph loops: /ralph start, /ralph stop, /ralph status. Geeft gebruikers controle over de runner vanuit Slack.",
+      "priority": 88,
+      "status": "backlog",
+      "epic": "Slack",
+      "dependencies": [
+        "SLACK-001",
+        "RUNNER-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Slack slash command handler: src/routes/api/slack/commands.ts",
+        "/ralph start - start runner voor gekoppeld project",
+        "/ralph start [story-id] - start runner voor specifieke story",
+        "/ralph stop - stop running runner",
+        "/ralph status - toon runner status (idle/running/stopping)",
+        "/ralph pending - toon lijst van pending stories met IDs",
+        "Channel ID → Project lookup via database",
+        "Immediate response (binnen 3 sec) met acknowledgement",
+        "Follow-up message met resultaat via response_url",
+        "Error response als channel niet gekoppeld is aan project",
+        "Unit tests voor command parsing",
+        "Unit tests voor project lookup",
+        "E2E test: /ralph start command flow",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "SLACK-004",
+      "title": "Slack runner notificaties",
+      "description": "Stuur automatische notificaties naar Slack wanneer de runner status verandert of een story voltooit. Houdt het team op de hoogte van Ralph's voortgang.",
+      "priority": 89,
+      "status": "backlog",
+      "epic": "Slack",
+      "dependencies": [
+        "SLACK-001",
+        "RUNNER-004"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Hook in claudeLoopService voor status change events",
+        "Bij runner start: post bericht met story ID en titel naar Slack",
+        "Bij story complete (done): post success bericht met groene indicator",
+        "Bij story failed: post failure bericht met rode indicator en error hint",
+        "Bij runner idle (queue leeg): post completion summary",
+        "Berichten bevatten link naar Ralph dashboard",
+        "Configurable: notificaties aan/uit per project",
+        "UI: Toggle 'Slack notificaties' in project settings",
+        "Rich formatting met Slack Block Kit",
+        "Unit tests voor notificatie formatting",
+        "E2E test: runner complete → Slack notificatie",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "RUNNER-008",
+      "title": "Run single story via Kanban card",
+      "description": "Voeg een play-knop toe aan story cards op het Kanban board waarmee gebruikers één specifieke story kunnen laten uitvoeren. De runner draait alleen die ene story en stopt daarna (geen auto-restart). De knop is alleen zichtbaar wanneer er geen runner actief is.",
+      "priority": 90,
+      "status": "done",
+      "epic": "Runner",
+      "dependencies": [
+        "UI-007",
+        "RUNNER-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Play icon (▶️) op story cards in Kanban board",
+        "Knop alleen zichtbaar voor stories met status: pending, failed, backlog",
+        "Knop NIET zichtbaar wanneer runner status === 'running'",
+        "Knop NIET zichtbaar voor stories met status: done, in_progress",
+        "Klik op play → opent confirmatie dialog",
+        "Confirmatie dialog toont: story ID, titel, beschrijving",
+        "Dialog toont dependency status (welke done/pending zijn)",
+        "Warning icon als niet alle dependencies done zijn",
+        "[Cancel] knop sluit dialog",
+        "[Start] knop start runner met auto-restart: OFF",
+        "API: runner.start({ projectId, storyId, singleStoryMode: true })",
+        "Backend: singleStoryMode=true → setAutoRestart(projectId, false)",
+        "Na story completion: runner stopt (geen volgende story oppakken)",
+        "Toast notificatie: 'Runner gestart voor [story-id]'",
+        "Story card toont loading state tijdens runner start",
+        "Unit tests voor singleStoryMode flag handling",
+        "Unit tests voor play button visibility logic",
+        "E2E test: klik play → dialog → start → story runs → runner stopt",
+        "E2E test: play button hidden wanneer runner actief",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    }
+  ],
   "implementationGuides": [
     {
       "name": "Getting Started",
@@ -129,413 +601,6 @@
     {
       "name": "Slack",
       "description": "Slack integratie voor brainstormen en runner controle per project"
-    }
-  ],
-  "userStories": [
-    {
-      "id": "TEST-001",
-      "title": "Test coverage verhogen naar 50%",
-      "description": "Verhoog de test coverage van ~19% naar minimaal 50% door systematisch unit tests toe te voegen voor kritieke services, API routes, hooks en utilities. Dit verbetert de code kwaliteit en maakt refactoring veiliger.",
-      "priority": 71,
-      "status": "backlog",
-      "epic": "Testing",
-      "dependencies": ["SETUP-004"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Services: runnerManager.ts - tests voor start/stop container, status tracking",
-        "Services: promptGenerator.ts - tests voor prompt template generatie",
-        "Services: projectDiscovery.ts - tests voor project scanning met mocked filesystem",
-        "Services: brainstormManager.ts - tests voor session management",
-        "Services: claudeLoopService.ts - tests voor Claude container lifecycle",
-        "tRPC: projects.ts - tests voor CRUD operaties met mocked database",
-        "tRPC: stories.ts - tests voor story listing, status updates",
-        "tRPC: skills.ts - tests voor skill loading, override management",
-        "tRPC: runner.ts - tests voor runner start/stop procedures",
-        "tRPC: brainstorm.ts - tests voor chat procedure",
-        "tRPC: prompts.ts - tests voor prompt CRUD operaties",
-        "Hooks: useWebSocket - tests voor connection, reconnection, message handling",
-        "Hooks: useSelectedProject - tests voor project selection state",
-        "Hooks: useBrainstormChat - tests voor chat state management",
-        "Components: ProjectSelector - tests voor rendering, selection, filtering",
-        "Components: StoryCard - tests voor status badge rendering, click handlers",
-        "Components: Sidebar - tests voor collapsed state, navigation",
-        "Vitest coverage rapport toont minimaal 50% line coverage",
-        "Coverage rapport toont minimaal 50% branch coverage",
-        "Alle nieuwe tests passing (pnpm test)",
-        "E2E tests blijven passing (pnpm test:e2e)",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "UI-030",
-      "title": "Claude Usage statistieken dashboard",
-      "description": "Toon Claude Code usage statistieken in Ralph door de lokale stats-cache.json te lezen. Geeft inzicht in dagelijks/wekelijks token verbruik, sessies en model gebruik. Let op: de echte session/week limits van Anthropic zijn niet beschikbaar via API, alleen lokale usage data.",
-      "priority": 72,
-      "status": "backlog",
-      "epic": "Dashboard",
-      "dependencies": ["SETUP-002"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Docker: volume mount ~/.claude:/claude-stats:ro toevoegen aan docker-compose.yml",
-        "Environment: CLAUDE_STATS_PATH variabele voor stats-cache.json locatie",
-        "tRPC: stats router met getUsage procedure",
-        "API: parse stats-cache.json en bereken dagelijkse/wekelijkse totals",
-        "API: retourneer today stats (messages, sessions, tool calls)",
-        "API: retourneer weekly token totals per model (Opus/Sonnet)",
-        "API: retourneer totale sessies en model usage breakdown",
-        "API: graceful fallback als stats file niet bestaat",
-        "Frontend: Usage widget component voor sidebar of dashboard",
-        "Frontend: toon vandaag messages/sessions/tool calls",
-        "Frontend: toon deze week tokens met model breakdown",
-        "Frontend: toon totaal aantal sessies all-time",
-        "Frontend: polling elke 30 seconden voor updates (of file watcher)",
-        "Frontend: loading en error states",
-        "Frontend: tooltip met uitleg dat limits niet beschikbaar zijn",
-        "Unit tests voor stats parsing en berekeningen",
-        "Unit test: fallback wanneer file niet bestaat",
-        "E2E test: usage widget toont data correct",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-        {
-      "id": "UI-031",
-      "title": "Favicon met Ralph logo",
-      "description": "Vervang de standaard TanStack favicon door het Ralph logo. Genereer meerdere icon formaten voor browser tabs, bookmarks en PWA ondersteuning.",
-      "priority": 79,
-      "status": "pending",
-      "epic": "Dashboard",
-      "dependencies": [],
-      "recommendedSkills": ["frontend-design"],
-      "acceptanceCriteria": [
-        "Genereer favicon.ico (16x16, 32x32) van src/logo.svg",
-        "Genereer apple-touch-icon.png (180x180) voor iOS bookmarks",
-        "Genereer favicon-32x32.png en favicon-16x16.png",
-        "Update public/logo192.png en public/logo512.png met Ralph logo",
-        "Voeg favicon link tags toe aan __root.tsx head configuratie",
-        "Voeg apple-touch-icon link tag toe voor iOS ondersteuning",
-        "Favicon zichtbaar in browser tab op alle pagina's",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-001",
-      "title": "Claude CLI read-only brainstorm service",
-      "description": "Nieuwe brainstorm service die Claude CLI gebruikt in read-only mode. Claude kan de codebase lezen en analyseren maar voert geen wijzigingen uit. Vervangt de huidige OpenAI-based brainstormManager.",
-      "priority": 80,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["BRAIN-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Nieuwe service: src/lib/services/claudeChatService.ts",
-        "Claude CLI spawn met --tools 'Read,Glob,Grep' (read-only)",
-        "Geen --dangerously-skip-permissions (veilige mode)",
-        "Streaming output parsing via stdout",
-        "Conversation history opbouwen uit brainstormMessages tabel",
-        "System prompt: 'Je bent in chat mode. Je mag code LEZEN en ANALYSEREN, maar voer GEEN wijzigingen uit.'",
-        "Bij elk bericht: volledige history meegeven als context",
-        "WebSocket broadcast van streaming chunks",
-        "Graceful error handling als CLI niet beschikbaar",
-        "Config toggle: BRAINSTORM_USE_CLI=true (default) vs OpenAI fallback",
-        "Unit tests voor CLI spawn en output parsing",
-        "Unit tests voor conversation context building",
-        "E2E test: chat vraag → Claude leest file → antwoord",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-002",
-      "title": "@-mention file parsing in chat input",
-      "description": "Implementeer @-mention syntax voor file referenties in de brainstorm chat. Gebruikers kunnen @path/to/file.ts of @path/to/file.ts:10-20 typen om specifieke files of line ranges als context mee te geven.",
-      "priority": 81,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Regex parser voor @-mentions: @path/to/file.ts en @path/to/file.ts:10-20",
-        "Backend: extractMentions(message) → [{path, startLine?, endLine?}]",
-        "Backend: voor elke mention, lees file content (of line range)",
-        "Backend: voeg file content toe aan Claude context als 'Referenced files:'",
-        "Frontend: autocomplete dropdown bij typen van @",
-        "Frontend: fuzzy search door project files bij autocomplete",
-        "Frontend: line range picker na file selectie (optioneel)",
-        "Frontend: @-mentions worden styled als chips/badges in input",
-        "Frontend: klikbare chips om file te previews",
-        "Validatie: warning als file niet bestaat",
-        "Max 5 @-mentions per bericht (performance)",
-        "Unit tests voor mention parsing regex",
-        "Unit tests voor file content extraction",
-        "E2E test: type @, selecteer file, verstuur, Claude ziet content",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-003",
-      "title": "Diff preview rendering voor code suggesties",
-      "description": "Wanneer Claude code wijzigingen suggereert in chat, render deze als visuele diff preview. Gebruikers zien side-by-side of unified diff view van voorgestelde changes, zonder dat deze automatisch worden toegepast.",
-      "priority": 82,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
-      "recommendedSkills": ["frontend-design"],
-      "acceptanceCriteria": [
-        "Claude output parser detecteert code blocks met wijzigingen",
-        "Heuristiek: code block met '+'/'-' lines, of '// BEFORE' / '// AFTER' markers",
-        "Instructie in system prompt: 'Toon wijzigingen als unified diff format'",
-        "DiffPreview component met syntax highlighting",
-        "Toggle: unified view vs side-by-side view",
-        "Line numbers in diff view",
-        "Collapsible: toon eerste 10 lines, expand voor meer",
-        "Copy button voor voorgestelde code",
-        "[→ Maak Story] button onder diff preview",
-        "Diff preview styling consistent met VS Code diff colors",
-        "Mobile responsive: stack side-by-side op kleine schermen",
-        "Unit tests voor diff detection heuristiek",
-        "Unit tests voor DiffPreview component rendering",
-        "E2E test: Claude suggereert wijziging → diff preview getoond",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-004",
-      "title": "VS Code-style chat UI redesign",
-      "description": "Herontwerp de brainstorm chat UI naar een VS Code-achtige interface met collapsible file context, inline code highlighting, en verbeterde message bubbles voor assistant responses.",
-      "priority": 83,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["CHAT-002", "CHAT-003"],
-      "recommendedSkills": ["frontend-design"],
-      "acceptanceCriteria": [
-        "Chat container met donkere/lichte theme support (VS Code-style)",
-        "User messages: rechts uitgelijnd, accent kleur",
-        "Assistant messages: links uitgelijnd, subtle background",
-        "Inline code highlighting in messages (backticks → styled)",
-        "Code blocks met syntax highlighting en copy button",
-        "Collapsible 'Referenced files' sectie boven assistant response",
-        "Typing indicator met animated dots tijdens Claude response",
-        "Timestamp per message (hover to reveal)",
-        "Message actions: copy, retry (user), regenerate (assistant)",
-        "Scroll-to-bottom button wanneer niet at bottom",
-        "Keyboard shortcuts: Enter send, Shift+Enter newline, Cmd+K clear",
-        "Empty state met suggesties: 'Probeer: Leg uit hoe..., Review @file...'",
-        "Unit tests voor message rendering variants",
-        "E2E test: volledige chat flow met code blocks en diffs",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-005",
-      "title": "Story generatie vanuit chat context",
-      "description": "Voeg de mogelijkheid toe om vanuit een chat gesprek direct een story te genereren. De volledige chat context (discussie, suggesties, diffs) wordt samengevat en omgezet naar een gestructureerde story.",
-      "priority": 84,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["CHAT-004", "BRAIN-001"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "[📝 Genereer Story] button in chat header (altijd zichtbaar)",
-        "[→ Maak Story] button onder specifieke diff previews",
-        "API: chat.generateStory(sessionId, context?) - genereert story",
-        "Context parameter: 'full' (hele chat) of specifiek message ID",
-        "Claude samenvatting van chat → story-generator skill",
-        "Story preview modal met edit mogelijkheid",
-        "StoryPreviewCard toont: title, description, criteria (editable)",
-        "Approve: voegt story toe aan prd.json",
-        "Edit: open edit modal voor aanpassingen",
-        "Discard: sluit preview zonder actie",
-        "Na approve: success toast met link naar Kanban",
-        "Chat message: 'Story [ID] aangemaakt' na succesvolle creatie",
-        "Unit tests voor context summarization",
-        "Unit tests voor story generation flow",
-        "E2E test: chat → genereer story → approve → in prd.json",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "CHAT-006",
-      "title": "Chat sessie management en history",
-      "description": "Verbeterde sessie management voor chat conversations. Gebruikers kunnen meerdere chat sessies per project hebben, sessies hervatten, en oude sessies bekijken of verwijderen.",
-      "priority": 85,
-      "status": "pending",
-      "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
-      "recommendedSkills": ["frontend-design"],
-      "acceptanceCriteria": [
-        "Sidebar panel met lijst van chat sessies voor huidig project",
-        "Sessie card: titel (auto-generated of custom), laatste bericht preview, timestamp",
-        "[+ Nieuwe Chat] button start verse sessie",
-        "Actieve sessie heeft highlight in sidebar",
-        "Klik op sessie laadt volledige history in chat view",
-        "Sessie titel auto-generated uit eerste user bericht (max 50 chars)",
-        "Rename sessie via inline edit of context menu",
-        "Delete sessie met confirmatie dialog",
-        "Search/filter door sessies op titel of content",
-        "Sessies gesorteerd op laatste activiteit (newest first)",
-        "Badge indicator voor sessies met ongelezen Claude responses",
-        "Keyboard shortcut: Cmd+N nieuwe sessie, Cmd+W sluit sessie",
-        "Unit tests voor sessie CRUD operaties",
-        "E2E test: create, rename, delete sessie flow",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "SLACK-001",
-      "title": "Slack App basis setup en project koppeling",
-      "description": "Maak een Slack App met Bot functionaliteit en koppel Slack channels aan Ralph projecten. Basis infrastructuur voor Slack integratie met event handling.",
-      "priority": 86,
-      "status": "pending",
-      "epic": "Slack",
-      "dependencies": ["API-003"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Database: slackChannelId (string, nullable) kolom toevoegen aan projects tabel",
-        "Database: slackEnabled (boolean, default false) kolom toevoegen aan projects tabel",
-        "Environment variables: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET",
-        "Slack service: src/lib/services/slackService.ts met Slack Web API client",
-        "Slack event handler: src/routes/api/slack/events.ts",
-        "Signature verificatie voor Slack events (HMAC-SHA256)",
-        "API: projects.linkSlackChannel(projectId, channelId) procedure",
-        "API: projects.unlinkSlackChannel(projectId) procedure",
-        "UI: Slack sectie op project settings met channel ID input",
-        "UI: Toggle voor Slack integratie aan/uit",
-        "Unit tests voor signature verificatie",
-        "Unit tests voor channel linking",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "SLACK-002",
-      "title": "Slack brainstorm integratie",
-      "description": "Gebruikers kunnen via Slack brainstormen met Claude voor een gekoppeld project. Berichten in het project-channel worden verwerkt door de Claude chat service en antwoorden worden teruggestuurd naar Slack.",
-      "priority": 87,
-      "status": "pending",
-      "epic": "Slack",
-      "dependencies": ["SLACK-001", "CHAT-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Slack event subscription voor message events in gekoppelde channels",
-        "Filter: alleen reageren op berichten die @ralph mentionen of in thread zijn",
-        "Berichten routeren naar claudeChatService met project context",
-        "Claude antwoord posten als threaded reply in Slack",
-        "Conversation context behouden binnen Slack thread",
-        "Typing indicator tonen terwijl Claude denkt (chat.postEphemeral)",
-        "Rate limiting: max 1 concurrent brainstorm per channel",
-        "Error handling met vriendelijke Slack berichten",
-        "Unit tests voor message routing",
-        "E2E test: Slack bericht → Claude antwoord in thread",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "SLACK-003",
-      "title": "Slack runner commands",
-      "description": "Implementeer Slack slash commands voor het besturen van Ralph loops: /ralph start, /ralph stop, /ralph status. Geeft gebruikers controle over de runner vanuit Slack.",
-      "priority": 88,
-      "status": "pending",
-      "epic": "Slack",
-      "dependencies": ["SLACK-001", "RUNNER-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Slack slash command handler: src/routes/api/slack/commands.ts",
-        "/ralph start - start runner voor gekoppeld project",
-        "/ralph start [story-id] - start runner voor specifieke story",
-        "/ralph stop - stop running runner",
-        "/ralph status - toon runner status (idle/running/stopping)",
-        "/ralph pending - toon lijst van pending stories met IDs",
-        "Channel ID → Project lookup via database",
-        "Immediate response (binnen 3 sec) met acknowledgement",
-        "Follow-up message met resultaat via response_url",
-        "Error response als channel niet gekoppeld is aan project",
-        "Unit tests voor command parsing",
-        "Unit tests voor project lookup",
-        "E2E test: /ralph start command flow",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "SLACK-004",
-      "title": "Slack runner notificaties",
-      "description": "Stuur automatische notificaties naar Slack wanneer de runner status verandert of een story voltooit. Houdt het team op de hoogte van Ralph's voortgang.",
-      "priority": 89,
-      "status": "pending",
-      "epic": "Slack",
-      "dependencies": ["SLACK-001", "RUNNER-004"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Hook in claudeLoopService voor status change events",
-        "Bij runner start: post bericht met story ID en titel naar Slack",
-        "Bij story complete (done): post success bericht met groene indicator",
-        "Bij story failed: post failure bericht met rode indicator en error hint",
-        "Bij runner idle (queue leeg): post completion summary",
-        "Berichten bevatten link naar Ralph dashboard",
-        "Configurable: notificaties aan/uit per project",
-        "UI: Toggle 'Slack notificaties' in project settings",
-        "Rich formatting met Slack Block Kit",
-        "Unit tests voor notificatie formatting",
-        "E2E test: runner complete → Slack notificatie",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-008",
-      "title": "Run single story via Kanban card",
-      "description": "Voeg een play-knop toe aan story cards op het Kanban board waarmee gebruikers één specifieke story kunnen laten uitvoeren. De runner draait alleen die ene story en stopt daarna (geen auto-restart). De knop is alleen zichtbaar wanneer er geen runner actief is.",
-      "priority": 90,
-      "status": "pending",
-      "epic": "Runner",
-      "dependencies": ["UI-007", "RUNNER-001"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
-      "acceptanceCriteria": [
-        "Play icon (▶️) op story cards in Kanban board",
-        "Knop alleen zichtbaar voor stories met status: pending, failed, backlog",
-        "Knop NIET zichtbaar wanneer runner status === 'running'",
-        "Knop NIET zichtbaar voor stories met status: done, in_progress",
-        "Klik op play → opent confirmatie dialog",
-        "Confirmatie dialog toont: story ID, titel, beschrijving",
-        "Dialog toont dependency status (welke done/pending zijn)",
-        "Warning icon als niet alle dependencies done zijn",
-        "[Cancel] knop sluit dialog",
-        "[Start] knop start runner met auto-restart: OFF",
-        "API: runner.start({ projectId, storyId, singleStoryMode: true })",
-        "Backend: singleStoryMode=true → setAutoRestart(projectId, false)",
-        "Na story completion: runner stopt (geen volgende story oppakken)",
-        "Toast notificatie: 'Runner gestart voor [story-id]'",
-        "Story card toont loading state tijdens runner start",
-        "Unit tests voor singleStoryMode flag handling",
-        "Unit tests voor play button visibility logic",
-        "E2E test: klik play → dialog → start → story runs → runner stopt",
-        "E2E test: play button hidden wanneer runner actief",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
     }
   ]
 }

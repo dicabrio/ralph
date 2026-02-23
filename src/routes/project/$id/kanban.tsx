@@ -25,6 +25,7 @@ import {
   GripVertical,
   Lock,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -262,13 +263,20 @@ interface DraggableStoryCardProps {
   allStories: Story[];
   isDraggable: boolean;
   onClick?: () => void;
+  runnerStatus: RunnerStatus;
+  onPlayClick?: (story: Story) => void;
 }
+
+// Stories that can show the play button
+const PLAYABLE_STATUSES: StoryStatus[] = ["pending", "failed", "backlog"];
 
 function DraggableStoryCard({
   story,
   allStories,
   isDraggable,
   onClick,
+  runnerStatus,
+  onPlayClick,
 }: DraggableStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -286,11 +294,23 @@ function DraggableStoryCard({
       }
     : undefined;
 
+  // Show play button only for playable statuses and when runner is idle
+  const canShowPlayButton =
+    PLAYABLE_STATUSES.includes(story.status) && runnerStatus === "idle";
+
+  const handlePlayClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the card's onClick
+    onPlayClick?.(story);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={cn("flex items-stretch", isDragging && "opacity-50 z-50")}
+      className={cn(
+        "flex items-stretch group",
+        isDragging && "opacity-50 z-50",
+      )}
     >
       {isDraggable && (
         <div
@@ -308,12 +328,34 @@ function DraggableStoryCard({
           <GripVertical className="w-4 h-4" />
         </div>
       )}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative">
         <StoryCard
           story={story}
           onClick={onClick}
           hasDragHandle={isDraggable}
         />
+        {/* Play button overlay */}
+        {canShowPlayButton && (
+          <button
+            type="button"
+            onClick={handlePlayClick}
+            className={cn(
+              "absolute bottom-2 right-2",
+              "w-7 h-7 rounded-full",
+              "flex items-center justify-center",
+              "bg-emerald-500 text-white",
+              "hover:bg-emerald-600 active:bg-emerald-700",
+              "shadow-md hover:shadow-lg",
+              "opacity-0 group-hover:opacity-100",
+              "transition-all duration-150",
+              "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
+            )}
+            data-testid={`play-story-${story.id}`}
+            aria-label={`Run story ${story.id}`}
+          >
+            <Play className="w-3.5 h-3.5 ml-0.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -327,6 +369,8 @@ interface DroppableColumnProps {
   isOver: boolean;
   canDrop: boolean;
   onStoryClick?: (story: Story) => void;
+  runnerStatus: RunnerStatus;
+  onPlayClick?: (story: Story) => void;
 }
 
 function DroppableColumn({
@@ -336,6 +380,8 @@ function DroppableColumn({
   isOver,
   canDrop,
   onStoryClick,
+  runnerStatus,
+  onPlayClick,
 }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({
     id: column.id,
@@ -381,6 +427,8 @@ function DroppableColumn({
                   allStories={allStories}
                   isDraggable={column.isDraggable}
                   onClick={onStoryClick ? () => onStoryClick(story) : undefined}
+                  runnerStatus={runnerStatus}
+                  onPlayClick={onPlayClick}
                 />
               ))
           )}
@@ -718,6 +766,160 @@ function DependencyConfirmDialog({
   );
 }
 
+// Run single story confirmation dialog
+interface RunSingleStoryDialogProps {
+  isOpen: boolean;
+  story: Story | null;
+  allStories: Story[];
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+function RunSingleStoryDialog({
+  isOpen,
+  story,
+  allStories,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: RunSingleStoryDialogProps) {
+  if (!isOpen || !story) return null;
+
+  const unmetDeps = getUnmetDependencies(story, allStories);
+  const hasUnmetDeps = unmetDeps.length > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="run-story-dialog-title"
+      data-testid="run-single-story-dialog"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onCancel}
+        data-testid="run-story-dialog-backdrop"
+      />
+
+      {/* Dialog content */}
+      <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <Play className="w-5 h-5 text-emerald-500" />
+          </div>
+          <div>
+            <h2
+              id="run-story-dialog-title"
+              className="text-lg font-semibold text-foreground"
+            >
+              Run Single Story
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Start the runner for this specific story. Auto-restart will be
+              disabled.
+            </p>
+          </div>
+        </div>
+
+        {/* Story info */}
+        <div className="bg-muted/50 rounded-lg p-3 mb-4">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-mono text-muted-foreground">
+              {story.id}
+            </span>
+            <Badge variant="default">P{story.priority}</Badge>
+          </div>
+          <p className="text-sm font-medium text-foreground">{story.title}</p>
+          {story.description && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+              {story.description}
+            </p>
+          )}
+        </div>
+
+        {/* Dependency status */}
+        {story.dependencies.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+              {hasUnmetDeps ? (
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              )}
+              Dependencies
+            </p>
+            <ul className="space-y-1.5">
+              {story.dependencies.map((depId) => {
+                const dep = allStories.find((s) => s.id === depId);
+                const isDone = dep?.status === "done";
+                return (
+                  <li
+                    key={depId}
+                    className="flex items-center gap-2 text-sm"
+                    data-testid={`dep-status-${depId}`}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                    )}
+                    <span className="text-foreground font-medium">{depId}</span>
+                    {dep && (
+                      <Badge
+                        variant={
+                          dep.status as "pending" | "in_progress" | "failed"
+                        }
+                        className="text-xs"
+                      >
+                        {dep.status}
+                      </Badge>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Warning for unmet dependencies */}
+        {hasUnmetDeps && (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Some dependencies are not complete. The runner will still attempt
+              to run this story.
+            </p>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+            data-testid="run-story-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            data-testid="run-story-confirm"
+          >
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Start
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Pending drop info for confirmation dialog
 interface PendingDrop {
   story: Story;
@@ -756,6 +958,13 @@ function KanbanBoard() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [logModalStory, setLogModalStory] = useState<Story | null>(null);
+
+  // Run single story dialog state
+  const [runSingleStoryTarget, setRunSingleStoryTarget] = useState<Story | null>(
+    null,
+  );
+  const [isRunSingleStoryDialogOpen, setIsRunSingleStoryDialogOpen] =
+    useState(false);
 
   // Configure sensors with activation constraint
   const sensors = useSensors(
@@ -868,6 +1077,24 @@ function KanbanBoard() {
     },
   });
 
+  // Mutation for starting a single story
+  const startSingleStory = trpc.runner.start.useMutation({
+    onSuccess: (data) => {
+      utils.runner.getStatus.invalidate();
+      const storyId = runSingleStoryTarget?.id;
+      toast.success(`Runner gestart voor ${storyId}`, {
+        description: `Provider: ${data.provider}, auto-restart: OFF`,
+      });
+      setIsRunSingleStoryDialogOpen(false);
+      setRunSingleStoryTarget(null);
+    },
+    onError: (error) => {
+      toast.error("Failed to start runner", {
+        description: getRunnerErrorMessage(error),
+      });
+    },
+  });
+
   // Status update mutation with optimistic updates
   const updateStatus = trpc.stories.updateStatus.useMutation({
     onMutate: async ({ storyId, status }) => {
@@ -975,6 +1202,29 @@ function KanbanBoard() {
     setIsLogModalOpen(false);
     // Keep logModalStory for exit animation, clear after modal is hidden
     setTimeout(() => setLogModalStory(null), 200);
+  }, []);
+
+  // Handle play button click on story card
+  const handlePlayStoryClick = useCallback((story: Story) => {
+    setRunSingleStoryTarget(story);
+    setIsRunSingleStoryDialogOpen(true);
+  }, []);
+
+  // Handle confirm run single story
+  const handleConfirmRunSingleStory = useCallback(() => {
+    if (!runSingleStoryTarget) return;
+    startSingleStory.mutate({
+      projectId,
+      storyId: runSingleStoryTarget.id,
+      provider: runnerProvider,
+      singleStoryMode: true,
+    });
+  }, [runSingleStoryTarget, projectId, runnerProvider, startSingleStory]);
+
+  // Handle cancel run single story
+  const handleCancelRunSingleStory = useCallback(() => {
+    setIsRunSingleStoryDialogOpen(false);
+    setRunSingleStoryTarget(null);
   }, []);
 
   // Drag handlers
@@ -1256,6 +1506,8 @@ function KanbanBoard() {
                   isOver={isOver}
                   canDrop={canDrop}
                   onStoryClick={handleStoryClick}
+                  runnerStatus={runnerStatus}
+                  onPlayClick={handlePlayStoryClick}
                 />
               );
             })}
@@ -1297,6 +1549,16 @@ function KanbanBoard() {
         onConfirm={handleConfirmDrop}
         onCancel={handleCancelDrop}
         isLoading={updateStatus.isPending}
+      />
+
+      {/* Run single story confirmation dialog */}
+      <RunSingleStoryDialog
+        isOpen={isRunSingleStoryDialogOpen}
+        story={runSingleStoryTarget}
+        allStories={stories}
+        onConfirm={handleConfirmRunSingleStory}
+        onCancel={handleCancelRunSingleStory}
+        isLoading={startSingleStory.isPending}
       />
     </DndContext>
   );

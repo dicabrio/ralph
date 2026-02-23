@@ -640,6 +640,87 @@ describe('Kanban Drag & Drop Logic', () => {
     })
   })
 
+  describe('Play Button Visibility Logic', () => {
+    // Stories that can show the play button
+    const PLAYABLE_STATUSES: StoryStatus[] = ['pending', 'failed', 'backlog']
+
+    // Check if a story should show the play button
+    function canShowPlayButton(
+      story: Story,
+      runnerStatus: 'idle' | 'running' | 'stopping',
+    ): boolean {
+      return PLAYABLE_STATUSES.includes(story.status) && runnerStatus === 'idle'
+    }
+
+    describe('play button visibility by status', () => {
+      it('shows play button for pending stories when runner is idle', () => {
+        const story = createStory({ id: 'STORY-1', status: 'pending' })
+        expect(canShowPlayButton(story, 'idle')).toBe(true)
+      })
+
+      it('shows play button for failed stories when runner is idle', () => {
+        const story = createStory({ id: 'STORY-1', status: 'failed' })
+        expect(canShowPlayButton(story, 'idle')).toBe(true)
+      })
+
+      it('shows play button for backlog stories when runner is idle', () => {
+        const story = createStory({ id: 'STORY-1', status: 'backlog' })
+        expect(canShowPlayButton(story, 'idle')).toBe(true)
+      })
+
+      it('hides play button for done stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'done' })
+        expect(canShowPlayButton(story, 'idle')).toBe(false)
+      })
+
+      it('hides play button for in_progress stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+        expect(canShowPlayButton(story, 'idle')).toBe(false)
+      })
+    })
+
+    describe('play button visibility by runner status', () => {
+      it('hides play button when runner is running', () => {
+        const story = createStory({ id: 'STORY-1', status: 'pending' })
+        expect(canShowPlayButton(story, 'running')).toBe(false)
+      })
+
+      it('hides play button when runner is stopping', () => {
+        const story = createStory({ id: 'STORY-1', status: 'pending' })
+        expect(canShowPlayButton(story, 'stopping')).toBe(false)
+      })
+
+      it('shows play button only when runner is idle', () => {
+        const story = createStory({ id: 'STORY-1', status: 'pending' })
+        expect(canShowPlayButton(story, 'idle')).toBe(true)
+        expect(canShowPlayButton(story, 'running')).toBe(false)
+        expect(canShowPlayButton(story, 'stopping')).toBe(false)
+      })
+    })
+
+    describe('combined status and runner checks', () => {
+      it.each([
+        ['pending', 'idle', true],
+        ['pending', 'running', false],
+        ['pending', 'stopping', false],
+        ['failed', 'idle', true],
+        ['failed', 'running', false],
+        ['backlog', 'idle', true],
+        ['backlog', 'running', false],
+        ['done', 'idle', false],
+        ['done', 'running', false],
+        ['in_progress', 'idle', false],
+        ['in_progress', 'running', false],
+      ] as const)(
+        'story status=%s, runner=%s -> play button visible=%s',
+        (status, runnerStatus, expected) => {
+          const story = createStory({ id: 'STORY-1', status })
+          expect(canShowPlayButton(story, runnerStatus)).toBe(expected)
+        },
+      )
+    })
+  })
+
   describe('Drag Handle Logic', () => {
     describe('column draggability', () => {
       // Test data for column configuration

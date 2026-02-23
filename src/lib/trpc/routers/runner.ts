@@ -22,6 +22,7 @@ const startRunnerSchema = z.object({
   projectId: z.number().int().positive(),
   storyId: z.string().optional(),
   provider: runnerProviderSchema.optional().default('claude'),
+  singleStoryMode: z.boolean().optional().default(false),
 })
 
 const stopRunnerSchema = z.object({
@@ -71,7 +72,7 @@ export const runnerRouter = router({
   start: publicProcedure
     .input(startRunnerSchema)
     .mutation(async ({ input }) => {
-      const { projectId, storyId, provider } = input
+      const { projectId, storyId, provider, singleStoryMode } = input
 
       // Verify project exists
       const [project] = await db
@@ -96,6 +97,12 @@ export const runnerRouter = router({
           throw new Error(
             `Cannot start ${provider} runner while ${otherProvider} runner is ${otherStatus.status}. Stop it first.`,
           )
+        }
+
+        // In single story mode, disable auto-restart so runner stops after completing the story
+        if (singleStoryMode) {
+          claudeLoopService.setAutoRestart(projectId, false)
+          codexLoopService.setAutoRestart(projectId, false)
         }
 
         // Ensure absolute path - CLI runs directly on filesystem

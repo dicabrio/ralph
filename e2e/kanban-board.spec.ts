@@ -1414,6 +1414,234 @@ test.describe('Kanban Board Flow', () => {
     })
   })
 
+  test.describe('Single Story Run (RUNNER-008)', () => {
+    test('should display play button on pending stories when runner is idle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-002 (pending story in Te doen)
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+
+      // Hover over the card to reveal the play button
+      await storyCard.hover()
+
+      // The play button should be visible on hover
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await expect(playButton).toBeVisible({ timeout: 5000 })
+    })
+
+    test('should display play button on failed stories when runner is idle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-005 (failed story)
+      const storyCard = getStoryCard(page, 'TEST-005')
+      await expect(storyCard).toBeVisible()
+
+      // Hover over the card to reveal the play button
+      await storyCard.hover()
+
+      // The play button should be visible on hover
+      const playButton = page.locator(`[data-testid="play-story-TEST-005"]`)
+      await expect(playButton).toBeVisible({ timeout: 5000 })
+    })
+
+    test('should display play button on backlog stories when runner is idle', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-007 (backlog story)
+      const storyCard = getStoryCard(page, 'TEST-007')
+      await expect(storyCard).toBeVisible()
+
+      // Hover over the card to reveal the play button
+      await storyCard.hover()
+
+      // The play button should be visible on hover
+      const playButton = page.locator(`[data-testid="play-story-TEST-007"]`)
+      await expect(playButton).toBeVisible({ timeout: 5000 })
+    })
+
+    test('should NOT display play button on done stories', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-001 (done story)
+      const storyCard = getStoryCard(page, 'TEST-001')
+      await expect(storyCard).toBeVisible()
+
+      // Hover over the card
+      await storyCard.hover()
+      await page.waitForTimeout(300)
+
+      // The play button should NOT be visible
+      const playButton = page.locator(`[data-testid="play-story-TEST-001"]`)
+      await expect(playButton).not.toBeVisible()
+    })
+
+    test('should NOT display play button on in_progress stories', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-006 (in_progress story)
+      const storyCard = getStoryCard(page, 'TEST-006')
+      await expect(storyCard).toBeVisible()
+
+      // Hover over the card
+      await storyCard.hover()
+      await page.waitForTimeout(300)
+
+      // The play button should NOT be visible
+      const playButton = page.locator(`[data-testid="play-story-TEST-006"]`)
+      await expect(playButton).not.toBeVisible()
+    })
+
+    test('should open confirmation dialog when clicking play button', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-002 and hover to reveal play button
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+      await storyCard.hover()
+
+      // Click the play button
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await expect(playButton).toBeVisible()
+      await playButton.click()
+
+      // The confirmation dialog should appear
+      const confirmDialog = page.locator('[data-testid="run-single-story-dialog"]')
+      await expect(confirmDialog).toBeVisible({ timeout: 5000 })
+
+      // Dialog should show story information
+      await expect(confirmDialog.locator('text=TEST-002')).toBeVisible()
+      await expect(confirmDialog.locator('text=Ready to do task')).toBeVisible()
+    })
+
+    test('should show dependency status in confirmation dialog', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-002 (depends on TEST-001 which is done)
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await expect(storyCard).toBeVisible()
+      await storyCard.hover()
+
+      // Click the play button
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await playButton.click()
+
+      // The dialog should show the dependency with done status
+      const confirmDialog = page.locator('[data-testid="run-single-story-dialog"]')
+      await expect(confirmDialog).toBeVisible()
+
+      // Check for dependency status display (TEST-002 depends on TEST-001 which is done)
+      await expect(confirmDialog.locator('[data-testid="dep-status-TEST-001"]')).toBeVisible()
+    })
+
+    test('should close confirmation dialog when Cancel is clicked', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Open the dialog
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await storyCard.hover()
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await playButton.click()
+
+      const confirmDialog = page.locator('[data-testid="run-single-story-dialog"]')
+      await expect(confirmDialog).toBeVisible()
+
+      // Click Cancel
+      await page.locator('[data-testid="run-story-cancel"]').click()
+
+      // Dialog should close
+      await expect(confirmDialog).not.toBeVisible({ timeout: 5000 })
+    })
+
+    test('should close confirmation dialog when clicking backdrop', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Open the dialog
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await storyCard.hover()
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await playButton.click()
+
+      const confirmDialog = page.locator('[data-testid="run-single-story-dialog"]')
+      await expect(confirmDialog).toBeVisible()
+
+      // Click on the backdrop
+      const backdrop = page.locator('[data-testid="run-story-dialog-backdrop"]')
+      const box = await backdrop.boundingBox()
+      if (box) {
+        await page.mouse.click(box.x + 20, box.y + 20)
+      }
+
+      // Dialog should close
+      await expect(confirmDialog).not.toBeVisible({ timeout: 5000 })
+    })
+
+    test('should show warning icon when story has unmet dependencies', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-003 (depends on TEST-002 which is pending)
+      const storyCard = getStoryCard(page, 'TEST-003')
+      await expect(storyCard).toBeVisible()
+      await storyCard.hover()
+
+      // Click the play button
+      const playButton = page.locator(`[data-testid="play-story-TEST-003"]`)
+      await playButton.click()
+
+      // The dialog should appear with warning about unmet dependencies
+      const confirmDialog = page.locator('[data-testid="run-single-story-dialog"]')
+      await expect(confirmDialog).toBeVisible()
+
+      // Check for dependency status (TEST-003 depends on TEST-002 which is pending)
+      await expect(confirmDialog.locator('[data-testid="dep-status-TEST-002"]')).toBeVisible()
+    })
+
+    test('should have accessible aria-label on play button', async ({ page }) => {
+      await gotoKanbanBoard(page, testProject)
+
+      // Wait for stories to load
+      await page.waitForTimeout(500)
+
+      // Find TEST-002 and hover
+      const storyCard = getStoryCard(page, 'TEST-002')
+      await storyCard.hover()
+
+      // Check for aria-label
+      const playButton = page.locator(`[data-testid="play-story-TEST-002"]`)
+      await expect(playButton).toHaveAttribute('aria-label', 'Run story TEST-002')
+    })
+  })
+
   test.describe('Real-time Updates (RUNNER-007)', () => {
     test('should update Kanban board when prd.json is modified externally', async ({ page }) => {
       await gotoKanbanBoard(page, testProject)

@@ -186,6 +186,113 @@ describe('runnerRouter', () => {
       expect(result.status).toBe('running')
       expect(result.storyId).toBeUndefined()
     })
+
+    it('disables auto-restart when singleStoryMode is true', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test-single-story',
+      }).returning()
+
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
+        status: 'running',
+        projectId: project.id,
+        storyId: 'RUNNER-008',
+        pid: 54321,
+        startedAt: new Date(),
+      })
+
+      const caller = createCaller({})
+      const result = await caller.start({
+        projectId: project.id,
+        storyId: 'RUNNER-008',
+        singleStoryMode: true,
+      })
+
+      expect(result.status).toBe('running')
+      expect(result.storyId).toBe('RUNNER-008')
+      // setAutoRestart should be called with false for both services
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+    })
+
+    it('does not disable auto-restart when singleStoryMode is false', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test-normal',
+      }).returning()
+
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
+        status: 'running',
+        projectId: project.id,
+        storyId: 'STORY-002',
+        pid: 11111,
+        startedAt: new Date(),
+      })
+
+      const caller = createCaller({})
+      await caller.start({
+        projectId: project.id,
+        storyId: 'STORY-002',
+        singleStoryMode: false,
+      })
+
+      // setAutoRestart should NOT be called when singleStoryMode is false
+      expect(claudeLoopService.setAutoRestart).not.toHaveBeenCalled()
+      expect(codexLoopService.setAutoRestart).not.toHaveBeenCalled()
+    })
+
+    it('does not disable auto-restart when singleStoryMode is not specified', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test-default',
+      }).returning()
+
+      vi.mocked(claudeLoopService.start).mockResolvedValue({
+        status: 'running',
+        projectId: project.id,
+        pid: 22222,
+        startedAt: new Date(),
+      })
+
+      const caller = createCaller({})
+      await caller.start({
+        projectId: project.id,
+      })
+
+      // setAutoRestart should NOT be called when singleStoryMode is not specified (defaults to false)
+      expect(claudeLoopService.setAutoRestart).not.toHaveBeenCalled()
+      expect(codexLoopService.setAutoRestart).not.toHaveBeenCalled()
+    })
+
+    it('disables auto-restart for both providers when starting codex in single story mode', async () => {
+      const [project] = await db.insert(projects).values({
+        name: 'Test Project',
+        path: '/projects/test-codex-single',
+      }).returning()
+
+      vi.mocked(codexLoopService.start).mockResolvedValue({
+        status: 'running',
+        projectId: project.id,
+        storyId: 'CODEX-001',
+        pid: 77777,
+        startedAt: new Date(),
+      })
+
+      const caller = createCaller({})
+      await caller.start({
+        projectId: project.id,
+        storyId: 'CODEX-001',
+        provider: 'codex',
+        singleStoryMode: true,
+      })
+
+      // Both services should have auto-restart disabled
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      // But only codex should be started
+      expect(codexLoopService.start).toHaveBeenCalled()
+      expect(claudeLoopService.start).not.toHaveBeenCalled()
+    })
   })
 
   describe('stop', () => {
