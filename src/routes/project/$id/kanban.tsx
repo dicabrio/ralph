@@ -347,7 +347,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col flex-1 min-w-[200px] bg-muted/30 rounded-lg border overflow-hidden transition-all",
+        "flex flex-col flex-1 min-w-50 bg-muted/30 rounded-lg border overflow-hidden transition-all",
         isOver && canDrop && "ring-2 ring-primary border-primary/50",
         isOver && !canDrop && "ring-2 ring-destructive border-destructive/50",
       )}
