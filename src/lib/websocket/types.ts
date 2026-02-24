@@ -142,6 +142,15 @@ export type ServerMessage =
       }
       timestamp: number
     }
+  // Test scenarios generated event - triggered when test scenarios are created for a review story
+  | {
+      type: 'test_scenarios_generated'
+      payload: {
+        projectId: string
+        storyId: string
+      }
+      timestamp: number
+    }
 
 /**
  * Extended WebSocket connection with tracking info

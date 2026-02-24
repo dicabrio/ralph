@@ -681,7 +681,7 @@
       "title": "Test scenario generatie bij review status",
       "description": "Wanneer een story naar review status gaat, genereert AI automatisch een test scenario op basis van de acceptance criteria. Dit wordt opgeslagen als markdown (documentatie) en JSON (UI checklist).",
       "priority": 98,
-      "status": "pending",
+      "status": "review",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-003",

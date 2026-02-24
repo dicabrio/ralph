@@ -21,6 +21,7 @@ import {
   getNoEligibleStoryReason,
   readPrdJson,
 } from "@/lib/services/storySelector";
+import { generateTestScenarios } from "@/lib/services/testScenarioGenerator";
 
 const execAsync = promisify(exec);
 
@@ -589,6 +590,12 @@ class CodexLoopService {
           (s) => s.id === storyId,
         );
         completedStoryStatus = completedStory?.status;
+
+        // Generate test scenarios when story transitions to review
+        if (completedStory && completedStoryStatus === "review") {
+          // Trigger async generation without blocking
+          this.triggerTestScenarioGeneration(completedStory, projectPath);
+        }
       }
 
       // Find next pending story for auto-restart
@@ -752,6 +759,24 @@ class CodexLoopService {
       },
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Trigger async test scenario generation for a story
+   * Runs in background without blocking the main flow
+   */
+  private triggerTestScenarioGeneration(story: PrdStory, projectPath: string): void {
+    // Use setTimeout to avoid blocking the main flow
+    setTimeout(async () => {
+      try {
+        console.log(`[CodexLoop] Generating test scenarios for ${story.id}`);
+        await generateTestScenarios(story, projectPath);
+        console.log(`[CodexLoop] Test scenarios generated for ${story.id}`);
+      } catch (error) {
+        // Log error but don't fail - test scenario generation is not critical
+        console.error(`[CodexLoop] Failed to generate test scenarios for ${story.id}:`, error);
+      }
+    }, 100);
   }
 
   /**

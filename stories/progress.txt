@@ -2799,3 +2799,34 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Dependency checking must treat both 'done' and 'review' as completed
 - E2E test for runner→review flow was deemed optional (thorough unit coverage)
 - Pre-existing lint warnings don't block builds
+
+
+## 2026-02-24 - REVIEW-008
+**Title:** Test scenario generatie bij review status
+
+**Implemented:**
+- Test scenario generator service with OpenAI integration
+- tRPC router for test scenarios (getByStoryId, exists, updateItem, regenerate)
+- Integration with all loop services (claude, codex, gemini) to trigger generation on review status
+- WebSocket type for test_scenarios_generated event
+- Fallback generation when OpenAI is not configured
+- Unit tests for generator service (17 tests) and router (9 tests)
+
+**Files changed:**
+- src/lib/schemas/testScenarioSchema.ts (new)
+- src/lib/services/testScenarioGenerator.ts (new)
+- src/lib/services/testScenarioGenerator.test.ts (new)
+- src/lib/trpc/routers/testScenarios.ts (new)
+- src/lib/trpc/routers/testScenarios.test.ts (new)
+- src/lib/trpc/routers/index.ts (added testScenarios router)
+- src/lib/websocket/types.ts (added test_scenarios_generated event)
+- src/lib/services/claudeLoopService.ts (integrated test scenario trigger)
+- src/lib/services/codexLoopService.ts (integrated test scenario trigger)
+- src/lib/services/geminiLoopService.ts (integrated test scenario trigger)
+
+**Learnings:**
+- PrdStory interface in loop services is minimal - created StoryForTestScenario with optional fields for compatibility
+- Loop services use setTimeout(..100) to avoid blocking main flow during async generation
+- Quality gates (pnpm test/lint/build) are always added regardless of AI generation
+- Test isolation requires unique project paths to avoid DB constraint violations
+- Build succeeds, lint has pre-existing issues (not related to this story)
