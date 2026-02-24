@@ -100,9 +100,13 @@ export const runnerRouter = router({
         }
 
         // In single story mode, disable auto-restart so runner stops after completing the story
+        // Otherwise, re-enable auto-restart for normal multi-story runs
         if (singleStoryMode) {
           claudeLoopService.setAutoRestart(projectId, false)
           codexLoopService.setAutoRestart(projectId, false)
+        } else {
+          claudeLoopService.setAutoRestart(projectId, true)
+          codexLoopService.setAutoRestart(projectId, true)
         }
 
         // Ensure absolute path - CLI runs directly on filesystem
