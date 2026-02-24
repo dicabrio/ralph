@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
@@ -13,7 +13,6 @@ import {
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
-  ArrowLeft,
   Play,
   Square,
   Loader2,
@@ -1762,36 +1761,15 @@ function KanbanBoard() {
   // Loading state
   if (isLoadingProject || isLoadingStories) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  // Error state - project not found
+  // Error state - project not found (handled by layout)
   if (projectError || !project) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-            <AlertCircle className="w-8 h-8 text-destructive" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            Project not found
-          </h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The project you're looking for doesn't exist or has been removed.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Helper to parse prd.json error messages
@@ -1831,39 +1809,17 @@ function KanbanBoard() {
   if (storiesError) {
     const { title, description } = getPrdErrorMessage(storiesError);
     return (
-      <div className="flex flex-col h-[calc(100vh-64px)]">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name}
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Error content */}
-        <div className="flex-1 p-6">
-          <Alert variant="destructive" className="max-w-2xl">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{title}</AlertTitle>
-            <AlertDescription>
-              <p>{description}</p>
-              <p className="mt-2 text-xs font-mono opacity-75">
-                {project.path}/stories/prd.json
-              </p>
-            </AlertDescription>
-          </Alert>
-        </div>
+      <div className="p-6">
+        <Alert variant="destructive" className="max-w-2xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>
+            <p>{description}</p>
+            <p className="mt-2 text-xs font-mono opacity-75">
+              {project.path}/stories/prd.json
+            </p>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -1876,25 +1832,13 @@ function KanbanBoard() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col h-[calc(100vh-64px)]">
-        {/* Header */}
+      <div className="flex flex-col h-full">
+        {/* Toolbar with runner controls and stats */}
         <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            {/* Top row: back link and project name */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-4">
-                <Link
-                  to="/project/$id"
-                  params={{ id }}
-                  className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm">Back</span>
-                </Link>
-                <h1 className="text-xl font-bold text-foreground">
-                  {project.name}
-                </h1>
-              </div>
+          <div className="px-6 py-3">
+            {/* Runner controls and stats in same row */}
+            <div className="flex items-center justify-between gap-4">
+              <StatsBar stats={stats} />
               <KanbanRunnerControls
                 projectId={projectId}
                 runnerStatus={runnerStatus}
@@ -1910,8 +1854,6 @@ function KanbanBoard() {
                 isStopping={stopRunner.isPending}
               />
             </div>
-            {/* Bottom row: stats */}
-            <StatsBar stats={stats} />
           </div>
         </div>
 

@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback, useMemo, useId } from "react";
 import {
-  ArrowLeft,
   Loader2,
   Archive,
   AlertCircle,
@@ -480,7 +479,7 @@ function ArchivePage() {
   if (isLoadingProject || isLoadingArchive) {
     return (
       <div
-        className="flex items-center justify-center min-h-screen"
+        className="flex items-center justify-center py-16"
         data-testid="loading-state"
       >
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -488,186 +487,113 @@ function ArchivePage() {
     );
   }
 
-  // Error state - project not found
+  // Error state - project not found (handled by layout)
   if (projectError || !project) {
+    return null;
+  }
+
+  // Error state - archive error
+  if (archiveError) {
     return (
-      <div className="p-6 max-w-7xl mx-auto" data-testid="error-state">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
+      <div className="p-6" data-testid="archive-error-state">
         <div className="flex flex-col items-center justify-center py-16">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
             <AlertCircle className="w-8 h-8 text-destructive" />
           </div>
           <h2 className="text-xl font-semibold text-foreground mb-2">
-            Project not found
+            Failed to load archive
           </h2>
           <p className="text-muted-foreground text-center max-w-md">
-            The project you're looking for doesn't exist or has been removed.
+            {archiveError instanceof Error
+              ? archiveError.message
+              : "An unexpected error occurred"}
           </p>
         </div>
       </div>
     );
   }
 
-  // Error state - archive error
-  if (archiveError) {
-    return (
-      <div
-        className="flex flex-col h-[calc(100vh-64px)]"
-        data-testid="archive-error-state"
-      >
-        {/* Header */}
-        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id/testing"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Test Board</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name} - Archive
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Error content */}
-        <div className="flex-1 p-6">
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-              <AlertCircle className="w-8 h-8 text-destructive" />
-            </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Failed to load archive
-            </h2>
-            <p className="text-muted-foreground text-center max-w-md">
-              {archiveError instanceof Error
-                ? archiveError.message
-                : "An unexpected error occurred"}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id/testing"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Test Board</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name} - Archive
-              </h1>
-              {archivedStories.length > 0 && (
-                <Badge
-                  variant="outline"
-                  className="bg-muted/50 text-muted-foreground border-muted"
-                >
-                  {archivedStories.length} archived
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Search and filter row */}
-          {archivedStories.length > 0 && (
-            <div className="flex items-center gap-3 mt-4">
-              {/* Search input */}
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id={searchInputId}
-                  type="text"
-                  placeholder="Search in ID, title, description..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-8"
-                  data-testid="search-input"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-                    onClick={handleClearSearch}
-                    aria-label="Clear search"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Epic filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <Select
-                  value={epicFilter}
-                  onValueChange={setEpicFilter}
-                >
-                  <SelectTrigger
-                    className="w-[180px]"
-                    data-testid="epic-filter"
-                  >
-                    <SelectValue placeholder="All epics" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All epics</SelectItem>
-                    {uniqueEpics.map((epic) => (
-                      <SelectItem key={epic} value={epic}>
-                        {epic}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clear filters button */}
-              {hasActiveFilters && (
+    <>
+      {/* Search and filter toolbar */}
+      {archivedStories.length > 0 && (
+        <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 px-6 py-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search input */}
+            <div className="relative flex-1 max-w-sm min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id={searchInputId}
+                type="text"
+                placeholder="Search in ID, title, description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-8"
+                data-testid="search-input"
+              />
+              {searchTerm && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={handleClearFilters}
-                  className="text-muted-foreground"
-                  data-testid="clear-filters"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                  onClick={handleClearSearch}
+                  aria-label="Clear search"
                 >
-                  <X className="w-4 h-4" />
-                  Clear filters
+                  <X className="w-3 h-3" />
                 </Button>
               )}
-
-              {/* Results count */}
-              {hasActiveFilters && (
-                <span className="text-sm text-muted-foreground">
-                  {filteredStories.length} of {archivedStories.length} stories
-                </span>
-              )}
             </div>
-          )}
+
+            {/* Epic filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <Select
+                value={epicFilter}
+                onValueChange={setEpicFilter}
+              >
+                <SelectTrigger
+                  className="w-[180px]"
+                  data-testid="epic-filter"
+                >
+                  <SelectValue placeholder="All epics" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All epics</SelectItem>
+                  {uniqueEpics.map((epic) => (
+                    <SelectItem key={epic} value={epic}>
+                      {epic}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear filters button */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                className="text-muted-foreground"
+                data-testid="clear-filters"
+              >
+                <X className="w-4 h-4" />
+                Clear filters
+              </Button>
+            )}
+
+            {/* Results count */}
+            <span className="text-sm text-muted-foreground ml-auto">
+              {hasActiveFilters
+                ? `${filteredStories.length} of ${archivedStories.length} stories`
+                : `${archivedStories.length} archived`}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6" data-testid="archive-board">
+      <div className="p-6" data-testid="archive-board">
         {archivedStories.length === 0 ? (
           <EmptyState projectId={id} hasFilters={false} />
         ) : filteredStories.length === 0 ? (
@@ -691,6 +617,6 @@ function ArchivePage() {
         onClose={handleCloseDetailModal}
         story={selectedStory}
       />
-    </div>
+    </>
   );
 }

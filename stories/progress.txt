@@ -2650,3 +2650,35 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Prompt template is the key file that instructs agents on status workflow
 - All three loop services (claude, codex, gemini) plus runnerStatusMonitor have duplicate logic - consider refactoring to shared utilities
 
+
+## 2026-02-24 - REVIEW-007
+**Title:** Project navigatie met Testing badge
+
+**Implemented:**
+- Created `ProjectNavTabs` component for unified project navigation
+- Navigation tabs: Overview | Kanban | Testing | Archive
+- Testing tab shows badge with count of stories in "review" status
+- Active tab highlighting based on current route
+- Responsive design: icons only on mobile (<md), labels on desktop (md+)
+- Keyboard navigation support (Tab to navigate, Enter to activate)
+- Moved project header/breadcrumb to layout (`$id.tsx`)
+- Removed duplicate headers from child pages
+- Added Testing and Archive quick links to project overview page
+- Quick links show review count badge
+
+**Files changed:**
+- src/components/ProjectNavTabs.tsx (new)
+- src/components/ProjectNavTabs.test.tsx (new)
+- src/routes/project/$id.tsx (updated - added layout with header/nav)
+- src/routes/project/$id/index.tsx (updated - added quick links, removed header)
+- src/routes/project/$id/testing.tsx (updated - removed header)
+- src/routes/project/$id/archive.tsx (updated - removed header)
+- src/routes/project/$id/kanban.tsx (updated - removed header)
+- e2e/project-nav-tabs.spec.ts (new)
+
+**Learnings:**
+- TanStack Router's `useRouter().state.location.pathname` is the pattern for getting current route
+- Removed `role="tablist"` from nav element as Biome lint doesn't allow interactive roles on non-interactive elements
+- Used `aria-current="page"` instead of `aria-selected` for navigation links
+- Pattern: move shared headers to parent layout component to avoid duplication
+- Badge count is fetched via `trpc.stories.listByProject` with staleTime for caching

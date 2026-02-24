@@ -1,14 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback, useMemo, useId } from "react";
 import {
-  ArrowLeft,
   Loader2,
   CheckCircle2,
   AlertCircle,
   XCircle,
-  ArrowRight,
   Eye,
   ClipboardCheck,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -621,7 +620,7 @@ function TestingBoard() {
   if (isLoadingProject || isLoadingStories) {
     return (
       <div
-        className="flex items-center justify-center min-h-screen"
+        className="flex items-center justify-center py-16"
         data-testid="loading-state"
       >
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -629,116 +628,35 @@ function TestingBoard() {
     );
   }
 
-  // Error state - project not found
+  // Error state - project not found (handled by layout)
   if (projectError || !project) {
+    return null;
+  }
+
+  // Error state - stories error
+  if (storiesError) {
     return (
-      <div className="p-6 max-w-7xl mx-auto" data-testid="error-state">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
+      <div className="p-6" data-testid="stories-error-state">
         <div className="flex flex-col items-center justify-center py-16">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
             <AlertCircle className="w-8 h-8 text-destructive" />
           </div>
           <h2 className="text-xl font-semibold text-foreground mb-2">
-            Project not found
+            Failed to load stories
           </h2>
           <p className="text-muted-foreground text-center max-w-md">
-            The project you're looking for doesn't exist or has been removed.
+            {storiesError instanceof Error
+              ? storiesError.message
+              : "An unexpected error occurred"}
           </p>
         </div>
       </div>
     );
   }
 
-  // Error state - stories error
-  if (storiesError) {
-    return (
-      <div className="flex flex-col h-[calc(100vh-64px)]" data-testid="stories-error-state">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name} - Testing
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Error content */}
-        <div className="flex-1 p-6">
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-              <AlertCircle className="w-8 h-8 text-destructive" />
-            </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Failed to load stories
-            </h2>
-            <p className="text-muted-foreground text-center max-w-md">
-              {storiesError instanceof Error
-                ? storiesError.message
-                : "An unexpected error occurred"}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name} - Testing
-              </h1>
-              {reviewStories.length > 0 && (
-                <Badge
-                  variant="outline"
-                  className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30"
-                >
-                  {reviewStories.length} to review
-                </Badge>
-              )}
-            </div>
-<Link
-              to="/project/$id/archive"
-              params={{ id }}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>Archive</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6" data-testid="testing-board">
+    <>
+      <div className="p-6" data-testid="testing-board">
         {reviewStories.length === 0 ? (
           <EmptyState projectId={id} />
         ) : (
@@ -779,6 +697,6 @@ function TestingBoard() {
         onConfirm={handleRejectConfirm}
         isLoading={updateStatus.isPending}
       />
-    </div>
+    </>
   );
 }

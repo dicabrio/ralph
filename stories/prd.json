@@ -750,7 +750,7 @@
       "title": "Project navigatie met Testing badge",
       "description": "Update de project navigatie met links naar Testing en Archive pagina's, inclusief badge indicator voor aantal review stories.",
       "priority": 97,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-003",

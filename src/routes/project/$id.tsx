@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { trpc } from '@/lib/trpc/client'
+import { ProjectNavTabs } from '@/components/ProjectNavTabs'
 
 export const Route = createFileRoute('/project/$id')({
   component: ProjectLayout,
@@ -45,6 +47,48 @@ function ProjectLayout() {
     }
   }, [project, isLoading, error, navigate, projects])
 
-  // While loading, just render the outlet (child routes handle their own loading states)
-  return <Outlet />
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Error or not found - let child routes handle this since redirect is in progress
+  if (!project) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Project header with back link and name */}
+      <header className="flex-shrink-0 border-b border-border bg-background sticky top-0 z-20">
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+            <span className="text-muted-foreground/50">/</span>
+            <h1 className="text-base font-semibold text-foreground truncate">
+              {project.name}
+            </h1>
+          </div>
+        </div>
+        {/* Navigation tabs */}
+        <ProjectNavTabs projectId={id} />
+      </header>
+
+      {/* Main content area */}
+      <main className="flex-1">
+        <Outlet />
+      </main>
+    </div>
+  )
 }
