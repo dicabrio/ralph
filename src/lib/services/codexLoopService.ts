@@ -26,7 +26,7 @@ export type RunnerStatus = "idle" | "running" | "stopping";
 /**
  * Story status from prd.json
  */
-export type StoryStatus = "pending" | "in_progress" | "done" | "failed";
+export type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "review";
 
 /**
  * Story from prd.json
@@ -627,13 +627,14 @@ class CodexLoopService {
       .filter((s) => s.status === "pending" || s.status === "failed")
       .sort((a, b) => a.priority - b.priority);
 
-    const doneStoryIds = new Set(
-      stories.filter((s) => s.status === "done").map((s) => s.id),
+    // Both 'done' and 'review' are considered completed states for dependency checking
+    const completedStoryIds = new Set(
+      stories.filter((s) => s.status === "done" || s.status === "review").map((s) => s.id),
     );
 
     for (const story of eligibleStories) {
       const dependenciesMet = story.dependencies.every((depId) =>
-        doneStoryIds.has(depId),
+        completedStoryIds.has(depId),
       );
       if (dependenciesMet) {
         return story.id;
@@ -692,6 +693,29 @@ class CodexLoopService {
         completedStoryStatus,
         nextStoryId,
         willAutoRestart,
+      },
+      timestamp: Date.now(),
+    });
+
+    // Broadcast story_review event when story status is 'review'
+    if (storyId && completedStoryStatus === "review") {
+      this.broadcastStoryReview(projectId, storyId);
+    }
+  }
+
+  /**
+   * Broadcast story review event via WebSocket
+   * Triggered when a story transitions to review status
+   */
+  private broadcastStoryReview(projectId: number, storyId: string): void {
+    const wsServer = getWebSocketServer();
+    if (!wsServer) return;
+
+    wsServer.broadcastToProject(String(projectId), {
+      type: "story_review",
+      payload: {
+        projectId: String(projectId),
+        storyId,
       },
       timestamp: Date.now(),
     });

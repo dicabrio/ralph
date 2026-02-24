@@ -2624,3 +2624,29 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Column header can include action buttons like bulk archive
 - validTransitions already supported review status from REVIEW-001
 
+## 2026-02-24 - REVIEW-006
+**Title:** Runner aanpassing naar review status
+
+**Implemented:**
+- Added 'review' status to StoryStatus type in all loop services (claude, codex, gemini, runnerStatusMonitor)
+- Updated findNextPendingStory to consider 'review' as a completed state for dependency checking
+- Updated prompt template to instruct agents to set status 'review' instead of 'done' on completion
+- Added story_review WebSocket event broadcast when a story transitions to review status
+- Added unit tests for review status handling and WebSocket event broadcasting
+
+**Files changed:**
+- src/lib/services/claudeLoopService.ts (StoryStatus type, findNextPendingStory, broadcastStoryReview)
+- src/lib/services/codexLoopService.ts (StoryStatus type, findNextPendingStory, broadcastStoryReview)
+- src/lib/services/geminiLoopService.ts (StoryStatus type, findNextPendingStory, broadcastStoryReview)
+- src/lib/services/runnerStatusMonitor.ts (StoryStatus type, findNextPendingStory, broadcastStoryReview)
+- src/lib/services/promptTemplate.ts (Updated instructions for review status workflow)
+- src/lib/websocket/types.ts (Added story_review event type, added 'review' to completedStoryStatus)
+- src/lib/services/claudeLoopService.test.ts (Added tests for review status and story_review event)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Both 'done' and 'review' are considered completed states for dependency checking
+- The story_review WebSocket event allows the Test Board UI to react to new review items
+- Prompt template is the key file that instructs agents on status workflow
+- All three loop services (claude, codex, gemini) plus runnerStatusMonitor have duplicate logic - consider refactoring to shared utilities
+

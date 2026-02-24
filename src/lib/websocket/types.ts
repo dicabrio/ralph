@@ -109,9 +109,18 @@ export type ServerMessage =
         storyId?: string
         exitCode: number
         success: boolean
-        completedStoryStatus?: 'done' | 'failed' | 'pending' | 'in_progress'
+        completedStoryStatus?: 'done' | 'failed' | 'pending' | 'in_progress' | 'review'
         nextStoryId?: string
         willAutoRestart: boolean
+      }
+      timestamp: number
+    }
+  // Story review event - triggered when a story transitions to review status
+  | {
+      type: 'story_review'
+      payload: {
+        projectId: string
+        storyId: string
       }
       timestamp: number
     }

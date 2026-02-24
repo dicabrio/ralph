@@ -35,7 +35,7 @@ export function getDefaultPromptTemplate(): string {
 10. Update relevant documentation with learnings
 11. Commit: \`feat([scope]): [ID] - [Title]\`
 12. **Set final status** in prd.json:
-    - Success -> \`status: "done"\`
+    - Success -> \`status: "review"\` (for human verification)
     - Failure -> \`status: "failed"\`
 13. Append learnings to progress.txt
 14. **STOP - Do not continue to the next story**
@@ -48,13 +48,16 @@ Stories use a \`status\` field with these values:
 |--------|---------|-------------|
 | \`pending\` | Not started | Can be picked up |
 | \`in_progress\` | Agent is working on it | Wait or check progress.txt |
-| \`done\` | Successfully completed | No action needed |
+| \`review\` | Agent completed, awaiting human verification | Human reviews on Test Board |
+| \`done\` | Human verified and approved | No action needed |
 | \`failed\` | Attempted but failed | Can be retried (check progress.txt for learnings) |
 
 ### Status Transitions
 
 \`\`\`
-pending -------> in_progress -------> done
+pending -------> in_progress -------> review -------> done (human approval)
+                    |                    |
+                    |                    '-------> failed (human rejection)
                     |
                     '-----------> failed --> (can be picked up again)
 \`\`\`
@@ -64,9 +67,11 @@ pending -------> in_progress -------> done
 Priority order for selecting next story:
 1. \`status: "pending"\` with lowest priority number
 2. \`status: "failed"\` with lowest priority number (retry with learnings)
-3. If all are \`done\` -> reply \`<promise>COMPLETE</promise>\`
+3. If all are \`done\` or \`review\` -> reply \`<promise>COMPLETE</promise>\`
 
-**IMPORTANT:** Always set \`status: "in_progress"\` BEFORE starting work. This prevents other sessions from picking up the same story.
+**IMPORTANT:**
+- Always set \`status: "in_progress"\` BEFORE starting work. This prevents other sessions from picking up the same story.
+- Dependencies are satisfied when the dependent story has status \`done\` OR \`review\`.
 
 ## Using Skills
 
@@ -94,7 +99,7 @@ Skills provide specialized knowledge and best practices for that domain.
 
 ## Acceptance Criteria Checklist
 
-Before setting \`status: "done"\`, verify:
+Before setting \`status: "review"\`, verify:
 - [ ] All acceptance criteria from the story are met
 - [ ] Tests pass (\`npm run test\` or equivalent)
 - [ ] TypeScript compiles without errors (\`npm run typecheck\` or equivalent)
@@ -174,7 +179,7 @@ Reply with one of:
 
 ### How to Handle Failure
 
-**CRITICAL: NEVER set \`status: "done"\` unless ALL acceptance criteria are genuinely met.**
+**CRITICAL: NEVER set \`status: "review"\` unless ALL acceptance criteria are genuinely met.**
 
 1. **Set \`status: "failed"\`** - Mark the story as failed in prd.json
 2. **Document in progress.txt** using the FAILED format (see below)
@@ -224,7 +229,7 @@ APPEND to \`stories/progress.txt\`:
 ### Honesty Over Completion
 
 **Do not:**
-- Mark as passed when criteria are partially met
+- Mark as \`review\` when criteria are partially met
 - Skip acceptance criteria you couldn't verify
 - Force a solution that doesn't actually work
 - Pretend tests pass when they don't

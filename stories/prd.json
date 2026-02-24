@@ -653,7 +653,7 @@
       "title": "Runner aanpassing naar review status",
       "description": "Pas de runner aan zodat voltooide stories naar 'review' status gaan in plaats van 'done'. Dit triggert de Test Board workflow.",
       "priority": 96,
-      "status": "pending",
+      "status": "review",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-001"

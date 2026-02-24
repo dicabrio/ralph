@@ -12,7 +12,7 @@ import { getWebSocketServer } from '@/lib/websocket/server'
 /**
  * Story status from prd.json
  */
-export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed'
+export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'review'
 
 /**
  * Story from prd.json
@@ -285,7 +285,7 @@ class RunnerStatusMonitor {
 
   /**
    * Find the next pending story that can be worked on
-   * (All dependencies must be done)
+   * (All dependencies must be done or review)
    */
   findNextPendingStory(stories: PrdStory[]): string | undefined {
     // Get all stories that are pending or failed, sorted by priority
@@ -293,14 +293,14 @@ class RunnerStatusMonitor {
       .filter(s => s.status === 'pending' || s.status === 'failed')
       .sort((a, b) => a.priority - b.priority)
 
-    // Create a set of done story IDs for dependency checking
-    const doneStoryIds = new Set(
-      stories.filter(s => s.status === 'done').map(s => s.id)
+    // Both 'done' and 'review' are considered completed states for dependency checking
+    const completedStoryIds = new Set(
+      stories.filter(s => s.status === 'done' || s.status === 'review').map(s => s.id)
     )
 
-    // Find first story where all dependencies are done
+    // Find first story where all dependencies are completed
     for (const story of eligibleStories) {
-      const dependenciesMet = story.dependencies.every(depId => doneStoryIds.has(depId))
+      const dependenciesMet = story.dependencies.every(depId => completedStoryIds.has(depId))
       if (dependenciesMet) {
         return story.id
       }
@@ -336,6 +336,31 @@ class RunnerStatusMonitor {
         completedStoryStatus,
         nextStoryId,
         willAutoRestart,
+      },
+      timestamp: Date.now(),
+    })
+
+    // Broadcast story_review event when story status is 'review'
+    if (storyId && completedStoryStatus === 'review') {
+      this.broadcastStoryReview(projectId, storyId)
+    }
+  }
+
+  /**
+   * Broadcast story review event via WebSocket
+   * Triggered when a story transitions to review status
+   */
+  private broadcastStoryReview(projectId: number, storyId: string): void {
+    const wsServer = getWebSocketServer()
+    if (!wsServer) {
+      return
+    }
+
+    wsServer.broadcastToProject(String(projectId), {
+      type: 'story_review',
+      payload: {
+        projectId: String(projectId),
+        storyId,
       },
       timestamp: Date.now(),
     })
