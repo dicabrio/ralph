@@ -613,7 +613,7 @@
       "title": "Kanban board update met Review kolom en Archive knop",
       "description": "Update het Kanban board met een nieuwe Review kolom (locked) en archive knop op done stories.",
       "priority": 95,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-001",

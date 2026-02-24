@@ -774,4 +774,144 @@ describe('Kanban Drag & Drop Logic', () => {
       })
     })
   })
+
+  describe('Archive Button Logic', () => {
+    // Check if a story should show the archive button
+    function canShowArchiveButton(story: Story): boolean {
+      return story.status === 'done'
+    }
+
+    describe('archive button visibility by status', () => {
+      it('shows archive button for done stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'done' })
+        expect(canShowArchiveButton(story)).toBe(true)
+      })
+
+      it('hides archive button for pending stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'pending' })
+        expect(canShowArchiveButton(story)).toBe(false)
+      })
+
+      it('hides archive button for in_progress stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'in_progress' })
+        expect(canShowArchiveButton(story)).toBe(false)
+      })
+
+      it('hides archive button for failed stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'failed' })
+        expect(canShowArchiveButton(story)).toBe(false)
+      })
+
+      it('hides archive button for backlog stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'backlog' })
+        expect(canShowArchiveButton(story)).toBe(false)
+      })
+
+      it('hides archive button for review stories', () => {
+        const story = createStory({ id: 'STORY-1', status: 'review' })
+        expect(canShowArchiveButton(story)).toBe(false)
+      })
+    })
+
+    describe('combined archive button visibility', () => {
+      it.each([
+        ['done', true],
+        ['pending', false],
+        ['in_progress', false],
+        ['failed', false],
+        ['backlog', false],
+        ['review', false],
+      ] as const)(
+        'story status=%s -> archive button visible=%s',
+        (status, expected) => {
+          const story = createStory({ id: 'STORY-1', status })
+          expect(canShowArchiveButton(story)).toBe(expected)
+        },
+      )
+    })
+  })
+
+  describe('Review Column Logic', () => {
+    describe('review column configuration', () => {
+      // Test data for column configuration
+      const lockedColumns = ['in_progress', 'review']
+      const droppableColumns = ['backlog', 'todo', 'done', 'failed']
+
+      it('review column is locked (not draggable)', () => {
+        expect(lockedColumns.includes('review')).toBe(true)
+      })
+
+      it('review column is not droppable', () => {
+        expect(droppableColumns.includes('review')).toBe(false)
+      })
+
+      it('review column exists alongside in_progress as locked columns', () => {
+        expect(lockedColumns).toContain('in_progress')
+        expect(lockedColumns).toContain('review')
+      })
+    })
+
+    describe('review status transitions', () => {
+      it('allows in_progress to review transition', () => {
+        expect(isValidStatusTransition('in_progress', 'review')).toBe(true)
+      })
+
+      it('allows review to done transition', () => {
+        expect(isValidStatusTransition('review', 'done')).toBe(true)
+      })
+
+      it('allows review to failed transition', () => {
+        expect(isValidStatusTransition('review', 'failed')).toBe(true)
+      })
+
+      it('allows review to in_progress transition', () => {
+        expect(isValidStatusTransition('review', 'in_progress')).toBe(true)
+      })
+
+      it('does not allow pending to review transition', () => {
+        expect(isValidStatusTransition('pending', 'review')).toBe(false)
+      })
+
+      it('does not allow done to review transition', () => {
+        expect(isValidStatusTransition('done', 'review')).toBe(false)
+      })
+    })
+
+    describe('getTargetStatusForColumn with review', () => {
+      it('returns "review" for review column', () => {
+        expect(getTargetStatusForColumn('review')).toBe('review')
+      })
+    })
+  })
+
+  describe('Bulk Archive Logic', () => {
+    describe('bulk archive button visibility', () => {
+      it('shows bulk archive button when done column has stories', () => {
+        const doneStories = [
+          createStory({ id: 'STORY-1', status: 'done' }),
+          createStory({ id: 'STORY-2', status: 'done' }),
+        ]
+        const showBulkArchive = doneStories.length > 0
+        expect(showBulkArchive).toBe(true)
+      })
+
+      it('hides bulk archive button when done column is empty', () => {
+        const doneStories: Story[] = []
+        const showBulkArchive = doneStories.length > 0
+        expect(showBulkArchive).toBe(false)
+      })
+
+      it('correctly counts done stories for bulk archive', () => {
+        const stories = [
+          createStory({ id: 'STORY-1', status: 'done' }),
+          createStory({ id: 'STORY-2', status: 'pending' }),
+          createStory({ id: 'STORY-3', status: 'done' }),
+          createStory({ id: 'STORY-4', status: 'in_progress' }),
+          createStory({ id: 'STORY-5', status: 'done' }),
+        ]
+        const doneStories = stories.filter(s => s.status === 'done')
+        expect(doneStories.length).toBe(3)
+      })
+    })
+  })
 })

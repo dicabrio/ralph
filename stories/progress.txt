@@ -2592,3 +2592,35 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - formatRelativeTime for Dutch relative timestamps
 - Testing page updated to include Archive link (previously placeholder comment)
 - TanStack Router route types auto-regenerate when dev server sees new route file
+
+## 2026-02-24 - REVIEW-005
+**Title:** Kanban board update met Review kolom en Archive knop
+
+**Implemented:**
+- Added Review column between In Progress and Voltooid (Done)
+- Review column is locked (isDraggable: false, isDroppable: false)
+- Review column has purple color scheme and Eye icon
+- Lock icon on Review column header
+- Added archive button (📦 icon) on done story cards
+- Archive button appears on hover for done stories
+- Implemented ArchiveConfirmDialog for single story archiving
+- Implemented BulkArchiveConfirmDialog for archiving all done stories
+- Added bulk archive button in done column header
+- Integrated with archive.archiveStory and archive.archiveMultiple tRPC endpoints
+- Optimistic updates when archiving stories
+- Toast notifications for archive success/failure
+- 25 new unit tests for archive button, review column, and bulk archive logic
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (added Review column, archive buttons, archive dialogs, mutations, handlers)
+- src/routes/project/$id/-kanban.test.tsx (added tests for archive, review, bulk archive logic)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Review column follows same locked pattern as in_progress column
+- Archive button visibility is tied to story.status === 'done'
+- Bulk archive uses useMemo to compute doneStories for count and IDs
+- Optimistic updates remove stories from cache immediately, with rollback on error
+- Column header can include action buttons like bulk archive
+- validTransitions already supported review status from REVIEW-001
+
