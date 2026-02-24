@@ -80,7 +80,7 @@ export const Route = createFileRoute("/project/$id/")({
 });
 
 // Story status type
-type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "backlog";
+type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "backlog" | "review";
 
 // Story type from the API
 interface Story {

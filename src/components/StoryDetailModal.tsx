@@ -66,6 +66,12 @@ const STATUS_CONFIG: Record<
     color: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-500/10',
   },
+  review: {
+    label: 'Review',
+    icon: <CheckCircle2 className="w-4 h-4" />,
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-500/10',
+  },
 }
 
 export function StoryDetailModal({
@@ -184,7 +190,7 @@ export function StoryDetailModal({
                 <Badge variant="default">
                   P{story.priority}
                 </Badge>
-                <Badge variant={story.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
+                <Badge variant={story.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog' | 'review'}>
                   {statusConfig.icon}
                   {statusConfig.label}
                 </Badge>
@@ -279,7 +285,7 @@ export function StoryDetailModal({
                           {dep.title}
                         </p>
                       </div>
-                      <Badge variant={dep.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'}>
+                      <Badge variant={dep.status as 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog' | 'review'}>
                         {depStatus.icon}
                         {depStatus.label}
                       </Badge>

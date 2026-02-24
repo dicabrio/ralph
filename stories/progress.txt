@@ -2454,3 +2454,39 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - `--allowed-tools` flag accepts comma-separated list of tool names
 - Router required refactoring from binary provider logic (getOtherProvider) to multi-provider (getOtherProviders array)
 - UI provider buttons work well with 3-column grid layout
+
+## 2026-02-24 - REVIEW-001
+**Title:** Review status en schema update
+
+**Implemented:**
+- Added 'review' status to storyStatusEnum in prdSchema.ts
+- Added 'review' aliases (testing, qa, in-review, verification) to statusAliases
+- Updated VALID_STATUSES in stories.ts router
+- Updated validTransitions: in_progress → review, review → done/failed/in_progress
+- Added 'review' to StoryStatus types in StoryCard.tsx, kanban.tsx, and index.tsx
+- Added 'review' to getTargetStatusForColumn in kanban.tsx
+- Added 'review' badge variant in badge.tsx (purple color)
+- Added review status config in StoryDetailModal.tsx
+- Updated storyStatusEnumSchema in prd.ts router
+- Added unit tests for all new status transitions
+- Updated existing test data to include STORY-005 with review status
+
+**Files changed:**
+- src/lib/schemas/prdSchema.ts (status enum + aliases)
+- src/lib/schemas/prdSchema.test.ts (new tests for review status)
+- src/lib/trpc/routers/stories.ts (VALID_STATUSES + validTransitions)
+- src/lib/trpc/routers/stories.test.ts (new transition tests + fixture)
+- src/lib/trpc/routers/prd.ts (storyStatusEnumSchema)
+- src/components/StoryCard.tsx (StoryStatus type)
+- src/components/StoryDetailModal.tsx (STATUS_CONFIG + Badge variants)
+- src/components/ui/badge.tsx (review variant)
+- src/routes/project/$id/kanban.tsx (validTransitions + getTargetStatusForColumn)
+- src/routes/project/$id/index.tsx (StoryStatus type)
+- src/routes/project/$id/-kanban.test.tsx (validTransitions + getTargetStatusForColumn)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- StoryStatus type is duplicated in multiple files (StoryCard.tsx, kanban.tsx, index.tsx) - consider centralizing
+- Badge component uses status variants directly (pending, in_progress, done, failed, backlog, review)
+- When adding a new status, update: schema, router, kanban, StoryCard, StoryDetailModal, Badge, and all test files
+- Test fixtures that count stories need updating when adding new test data

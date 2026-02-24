@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // Ralph's standard PRD.json schema
 
-export const storyStatusEnum = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog'])
+export const storyStatusEnum = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog', 'review'])
 
 export const storySchema = z.object({
   id: z.string().min(1, 'Story ID is required'),
@@ -163,6 +163,14 @@ export const statusAliases: Record<string, StoryStatus> = {
   later: 'backlog',
   someday: 'backlog',
   future: 'backlog',
+
+  // review aliases
+  review: 'review',
+  testing: 'review',
+  qa: 'review',
+  'in-review': 'review',
+  'in review': 'review',
+  verification: 'review',
 }
 
 /**

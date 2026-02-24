@@ -24,6 +24,7 @@ const badgeVariants = cva(
         done: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
         failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
         backlog: "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400",
+        review: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
       },
     },
     defaultVariants: {

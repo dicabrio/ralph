@@ -43,6 +43,8 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
       return 'done'
     case 'failed':
       return 'failed'
+    case 'review':
+      return 'review'
     default:
       return null
   }
@@ -51,10 +53,11 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
 // Valid status transitions (from stories router)
 const validTransitions: Record<StoryStatus, StoryStatus[]> = {
   pending: ['in_progress', 'done', 'backlog'],
-  in_progress: ['done', 'failed', 'pending'],
+  in_progress: ['done', 'failed', 'pending', 'review'],
   done: ['pending', 'backlog'],
   failed: ['in_progress', 'pending', 'backlog'],
   backlog: ['pending', 'done'],
+  review: ['done', 'failed', 'in_progress'],
 }
 
 // Check if a status transition is valid

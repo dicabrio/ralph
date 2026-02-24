@@ -478,7 +478,7 @@
       "title": "Review status en schema update",
       "description": "Voeg de nieuwe 'review' status toe aan het story schema en update alle gerelateerde validaties en transitions. Dit is de foundation voor de Test Board feature.",
       "priority": 91,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [],
       "recommendedSkills": [

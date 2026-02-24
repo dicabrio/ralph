@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/tooltip'
 
 // Story status type
-export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog'
+export type StoryStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'backlog' | 'review'
 
 // Story type from the API
 export interface Story {

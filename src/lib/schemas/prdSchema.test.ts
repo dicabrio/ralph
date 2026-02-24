@@ -463,4 +463,34 @@ describe('statusAliases', () => {
     expect(statusAliases['blocked']).toBe('failed')
     expect(statusAliases['rejected']).toBe('failed')
   })
+
+  it('maps common status values to review', () => {
+    expect(statusAliases['review']).toBe('review')
+    expect(statusAliases['testing']).toBe('review')
+    expect(statusAliases['qa']).toBe('review')
+    expect(statusAliases['in-review']).toBe('review')
+    expect(statusAliases['verification']).toBe('review')
+  })
+})
+
+describe('storyStatusEnum review status', () => {
+  it('accepts review as a valid status', () => {
+    const story = {
+      id: 'FEAT-001',
+      title: 'Test Story',
+      description: 'A test story description',
+      priority: 1,
+      status: 'review',
+      epic: 'Testing',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: [],
+    }
+
+    const result = storySchema.safeParse(story)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.status).toBe('review')
+    }
+  })
 })
