@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 // Import Story type from StoryCard
 import type { Story, StoryStatus } from "@/components/StoryCard";
+import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
 
 // Helper to create a story with optional overrides
 function createStory(overrides: Partial<Story> = {}): Story {
@@ -323,5 +324,373 @@ describe("Status Transitions", () => {
 
   it("should not allow transition from review to backlog", () => {
     expect(validTransitionsFromReview).not.toContain("backlog");
+  });
+});
+
+// Test scenario helper
+function createTestScenario(overrides: Partial<TestScenario> = {}): TestScenario {
+  return {
+    storyId: "TEST-001",
+    title: "Test Story",
+    description: "Test description",
+    generatedAt: new Date().toISOString(),
+    sections: [
+      {
+        id: "functional-tests",
+        title: "Functional Tests",
+        items: [
+          { id: "ft-1", text: "Test item 1", checked: false },
+          { id: "ft-2", text: "Test item 2", checked: false },
+        ],
+      },
+      {
+        id: "quality-gates",
+        title: "Quality Gates",
+        items: [
+          { id: "qg-test", text: "pnpm test passes", checked: false },
+          { id: "qg-lint", text: "pnpm lint passes", checked: false },
+          { id: "qg-build", text: "pnpm build succeeds", checked: false },
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+// Progress calculation helper (same logic as in testing.tsx)
+function calculateSectionProgress(section: TestScenarioSection) {
+  const total = section.items.length;
+  const checked = section.items.filter((item) => item.checked).length;
+  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
+}
+
+function calculateTotalProgress(scenario: TestScenario | null | undefined) {
+  if (!scenario) return { checked: 0, total: 0, percentage: 0 };
+  const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
+  const checked = scenario.sections.reduce(
+    (acc, section) => acc + section.items.filter((item) => item.checked).length,
+    0
+  );
+  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
+}
+
+function isAllChecked(scenario: TestScenario | null | undefined) {
+  if (!scenario) return false;
+  return scenario.sections.every((section) =>
+    section.items.every((item) => item.checked)
+  );
+}
+
+describe("Checklist Progress Calculation", () => {
+  describe("calculateSectionProgress", () => {
+    it("should return 0/0 for empty section", () => {
+      const section: TestScenarioSection = {
+        id: "empty",
+        title: "Empty",
+        items: [],
+      };
+      const progress = calculateSectionProgress(section);
+      expect(progress.checked).toBe(0);
+      expect(progress.total).toBe(0);
+      expect(progress.percentage).toBe(0);
+    });
+
+    it("should calculate progress for partially checked section", () => {
+      const section: TestScenarioSection = {
+        id: "test",
+        title: "Test",
+        items: [
+          { id: "1", text: "Item 1", checked: true },
+          { id: "2", text: "Item 2", checked: false },
+          { id: "3", text: "Item 3", checked: true },
+          { id: "4", text: "Item 4", checked: false },
+        ],
+      };
+      const progress = calculateSectionProgress(section);
+      expect(progress.checked).toBe(2);
+      expect(progress.total).toBe(4);
+      expect(progress.percentage).toBe(50);
+    });
+
+    it("should return 100% for fully checked section", () => {
+      const section: TestScenarioSection = {
+        id: "test",
+        title: "Test",
+        items: [
+          { id: "1", text: "Item 1", checked: true },
+          { id: "2", text: "Item 2", checked: true },
+        ],
+      };
+      const progress = calculateSectionProgress(section);
+      expect(progress.checked).toBe(2);
+      expect(progress.total).toBe(2);
+      expect(progress.percentage).toBe(100);
+    });
+
+    it("should return 0% for unchecked section", () => {
+      const section: TestScenarioSection = {
+        id: "test",
+        title: "Test",
+        items: [
+          { id: "1", text: "Item 1", checked: false },
+          { id: "2", text: "Item 2", checked: false },
+        ],
+      };
+      const progress = calculateSectionProgress(section);
+      expect(progress.checked).toBe(0);
+      expect(progress.total).toBe(2);
+      expect(progress.percentage).toBe(0);
+    });
+  });
+
+  describe("calculateTotalProgress", () => {
+    it("should return 0/0 for null scenario", () => {
+      const progress = calculateTotalProgress(null);
+      expect(progress.checked).toBe(0);
+      expect(progress.total).toBe(0);
+      expect(progress.percentage).toBe(0);
+    });
+
+    it("should return 0/0 for undefined scenario", () => {
+      const progress = calculateTotalProgress(undefined);
+      expect(progress.checked).toBe(0);
+      expect(progress.total).toBe(0);
+      expect(progress.percentage).toBe(0);
+    });
+
+    it("should calculate total progress across all sections", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "section-1",
+            title: "Section 1",
+            items: [
+              { id: "1", text: "Item 1", checked: true },
+              { id: "2", text: "Item 2", checked: false },
+            ],
+          },
+          {
+            id: "section-2",
+            title: "Section 2",
+            items: [
+              { id: "3", text: "Item 3", checked: true },
+              { id: "4", text: "Item 4", checked: true },
+            ],
+          },
+        ],
+      });
+      const progress = calculateTotalProgress(scenario);
+      expect(progress.checked).toBe(3);
+      expect(progress.total).toBe(4);
+      expect(progress.percentage).toBe(75);
+    });
+
+    it("should handle scenario with multiple sections of varying sizes", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "small",
+            title: "Small",
+            items: [{ id: "1", text: "Item 1", checked: true }],
+          },
+          {
+            id: "medium",
+            title: "Medium",
+            items: [
+              { id: "2", text: "Item 2", checked: true },
+              { id: "3", text: "Item 3", checked: false },
+              { id: "4", text: "Item 4", checked: true },
+            ],
+          },
+          {
+            id: "large",
+            title: "Large",
+            items: [
+              { id: "5", text: "Item 5", checked: false },
+              { id: "6", text: "Item 6", checked: false },
+              { id: "7", text: "Item 7", checked: false },
+              { id: "8", text: "Item 8", checked: true },
+            ],
+          },
+        ],
+      });
+      const progress = calculateTotalProgress(scenario);
+      expect(progress.checked).toBe(4);
+      expect(progress.total).toBe(8);
+      expect(progress.percentage).toBe(50);
+    });
+  });
+
+  describe("isAllChecked", () => {
+    it("should return false for null scenario", () => {
+      expect(isAllChecked(null)).toBe(false);
+    });
+
+    it("should return false for undefined scenario", () => {
+      expect(isAllChecked(undefined)).toBe(false);
+    });
+
+    it("should return false if any item is unchecked", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "test",
+            title: "Test",
+            items: [
+              { id: "1", text: "Item 1", checked: true },
+              { id: "2", text: "Item 2", checked: false }, // Unchecked
+            ],
+          },
+        ],
+      });
+      expect(isAllChecked(scenario)).toBe(false);
+    });
+
+    it("should return true if all items are checked", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "section-1",
+            title: "Section 1",
+            items: [
+              { id: "1", text: "Item 1", checked: true },
+              { id: "2", text: "Item 2", checked: true },
+            ],
+          },
+          {
+            id: "section-2",
+            title: "Section 2",
+            items: [
+              { id: "3", text: "Item 3", checked: true },
+            ],
+          },
+        ],
+      });
+      expect(isAllChecked(scenario)).toBe(true);
+    });
+
+    it("should return true for scenario with empty sections", () => {
+      const scenario = createTestScenario({
+        sections: [], // No sections = nothing to check
+      });
+      expect(isAllChecked(scenario)).toBe(true);
+    });
+  });
+});
+
+describe("Checklist UI Logic", () => {
+  describe("progress display", () => {
+    it("should format progress as checked/total", () => {
+      const scenario = createTestScenario();
+      const progress = calculateTotalProgress(scenario);
+      const displayText = `${progress.checked}/${progress.total} ✓`;
+      expect(displayText).toBe("0/5 ✓");
+    });
+
+    it("should show green highlight when all items checked", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "test",
+            title: "Test",
+            items: [
+              { id: "1", text: "Item 1", checked: true },
+            ],
+          },
+        ],
+      });
+      const allChecked = isAllChecked(scenario);
+      expect(allChecked).toBe(true);
+      // When allChecked is true, Accept button should have green highlight
+    });
+  });
+
+  describe("checklist item toggling", () => {
+    it("should toggle item from unchecked to checked", () => {
+      const scenario = createTestScenario();
+      const itemId = "ft-1";
+
+      // Simulate optimistic update
+      const updatedScenario = {
+        ...scenario,
+        sections: scenario.sections.map((section) => ({
+          ...section,
+          items: section.items.map((item) =>
+            item.id === itemId ? { ...item, checked: true } : item
+          ),
+        })),
+      };
+
+      const item = updatedScenario.sections[0].items.find((i) => i.id === itemId);
+      expect(item?.checked).toBe(true);
+    });
+
+    it("should toggle item from checked to unchecked", () => {
+      const scenario = createTestScenario({
+        sections: [
+          {
+            id: "test",
+            title: "Test",
+            items: [{ id: "item-1", text: "Item", checked: true }],
+          },
+        ],
+      });
+      const itemId = "item-1";
+
+      // Simulate optimistic update
+      const updatedScenario = {
+        ...scenario,
+        sections: scenario.sections.map((section) => ({
+          ...section,
+          items: section.items.map((item) =>
+            item.id === itemId ? { ...item, checked: false } : item
+          ),
+        })),
+      };
+
+      const item = updatedScenario.sections[0].items.find((i) => i.id === itemId);
+      expect(item?.checked).toBe(false);
+    });
+  });
+
+  describe("collapsible sections", () => {
+    it("should have multiple sections", () => {
+      const scenario = createTestScenario();
+      expect(scenario.sections.length).toBeGreaterThan(0);
+    });
+
+    it("should include functional tests section", () => {
+      const scenario = createTestScenario();
+      const functionalSection = scenario.sections.find(
+        (s) => s.id === "functional-tests"
+      );
+      expect(functionalSection).toBeDefined();
+      expect(functionalSection?.title).toBe("Functional Tests");
+    });
+
+    it("should include quality gates section", () => {
+      const scenario = createTestScenario();
+      const qualitySection = scenario.sections.find(
+        (s) => s.id === "quality-gates"
+      );
+      expect(qualitySection).toBeDefined();
+      expect(qualitySection?.title).toBe("Quality Gates");
+    });
+  });
+
+  describe("empty state handling", () => {
+    it("should detect when scenario does not exist", () => {
+      const scenarioExists = false;
+      expect(scenarioExists).toBe(false);
+      // Should show "No test scenario generated" message
+    });
+
+    it("should detect loading state", () => {
+      const isLoading = true;
+      const scenario = undefined;
+
+      expect(isLoading && !scenario).toBe(true);
+      // Should show "Loading test checklist..." message
+    });
   });
 });

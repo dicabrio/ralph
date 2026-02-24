@@ -716,7 +716,7 @@
       "title": "Test Board UI met interactieve checklist",
       "description": "Integreer de gegenereerde test scenarios in de Test Board UI als interactieve checklists. Gebruikers kunnen items afvinken en de voortgang wordt getoond.",
       "priority": 99,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-003",

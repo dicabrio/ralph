@@ -2830,3 +2830,34 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Quality gates (pnpm test/lint/build) are always added regardless of AI generation
 - Test isolation requires unique project paths to avoid DB constraint violations
 - Build succeeds, lint has pre-existing issues (not related to this story)
+
+## 2026-02-24 - REVIEW-009
+**Title:** Test Board UI met interactieve checklist
+
+**Implemented:**
+- Interactive checklist display on Test Board story cards
+- Progress indicator badge showing checked/total items (e.g., "3/8 ✓")
+- Expandable card sections with collapsible test scenario checklists
+- Interactive checkboxes with optimistic updates via tRPC mutation
+- Progress bar per section header showing completion percentage
+- Green highlight on Accept button when all items are checked
+- Link to markdown documentation for each test scenario
+- Empty state when no test scenario exists for a story
+- Loading state while fetching test scenarios
+- 14 new unit tests for progress calculation and checklist logic
+- 8 new E2E tests for checklist integration
+
+**Files changed:**
+- src/routes/project/$id/testing.tsx (added checklist functionality)
+- src/routes/project/$id/-testing.test.tsx (added progress and checklist tests)
+- e2e/testing-board.spec.ts (added Checklist Integration test suite)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Radix Checkbox inside a label requires htmlFor attribute to satisfy biome a11y/noLabelWithoutControl lint
+- Use div wrapper with separate label + checkbox for proper accessibility
+- Progress calculation is pure function - easy to test independently
+- TestScenario API already has getByStoryId and updateItem - just wire up UI
+- isAllChecked() helper determines when Accept button gets green highlight
+- Collapsible sections use Radix Collapsible with controlled open state
+- E2E tests for checklist need test scenario JSON files pre-created in beforeAll

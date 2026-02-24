@@ -710,4 +710,241 @@ test.describe("Testing Board (REVIEW-003)", () => {
       await expect(storyCard).not.toBeVisible({ timeout: 500 });
     });
   });
+
+  test.describe("Checklist Integration (REVIEW-009)", () => {
+    test.beforeAll(async () => {
+      // Reset project with review story and test scenario
+      const prdPath = path.join(testProject.path, "stories", "prd.json");
+      const prdContent = fs.readFileSync(prdPath, "utf-8");
+      const prdData = JSON.parse(prdContent);
+
+      // Clear and add fresh review story
+      prdData.userStories = prdData.userStories.filter(
+        (s: { status: string }) => s.status !== "review",
+      );
+      prdData.userStories.push({
+        id: "REVIEW-CHECKLIST-001",
+        title: "Story with test checklist",
+        description: "Testing checklist integration",
+        priority: 1,
+        status: "review",
+        epic: "Test Board",
+        dependencies: [],
+        recommendedSkills: [],
+        acceptanceCriteria: [
+          "Checklist displays correctly",
+          "Items can be toggled",
+          "Progress updates",
+        ],
+      });
+
+      fs.writeFileSync(prdPath, JSON.stringify(prdData, null, 2));
+
+      // Create test scenario files
+      const testScenariosDir = path.join(testProject.path, "stories", "test-scenarios");
+      fs.mkdirSync(testScenariosDir, { recursive: true });
+
+      const testScenario = {
+        storyId: "REVIEW-CHECKLIST-001",
+        title: "Story with test checklist",
+        description: "Testing checklist integration",
+        generatedAt: new Date().toISOString(),
+        sections: [
+          {
+            id: "functional-tests",
+            title: "Functional Tests",
+            items: [
+              { id: "ft-1", text: "Checklist displays correctly", checked: false },
+              { id: "ft-2", text: "Items can be toggled", checked: false },
+              { id: "ft-3", text: "Progress updates", checked: false },
+            ],
+          },
+          {
+            id: "quality-gates",
+            title: "Quality Gates",
+            items: [
+              { id: "qg-test", text: "pnpm test passes", checked: false },
+              { id: "qg-lint", text: "pnpm lint passes", checked: false },
+              { id: "qg-build", text: "pnpm build succeeds", checked: false },
+            ],
+          },
+        ],
+      };
+
+      fs.writeFileSync(
+        path.join(testScenariosDir, "REVIEW-CHECKLIST-001.json"),
+        JSON.stringify(testScenario, null, 2),
+      );
+
+      // Also write MD file
+      const mdContent = `# Test Scenario: REVIEW-CHECKLIST-001
+
+## Functional Tests
+- [ ] Checklist displays correctly
+- [ ] Items can be toggled
+- [ ] Progress updates
+
+## Quality Gates
+- [ ] pnpm test passes
+- [ ] pnpm lint passes
+- [ ] pnpm build succeeds
+`;
+      fs.writeFileSync(
+        path.join(testScenariosDir, "REVIEW-CHECKLIST-001.md"),
+        mdContent,
+      );
+    });
+
+    test("should display checklist progress on story card", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+      await expect(storyCard).toBeVisible();
+
+      // Should show progress badge (0/6 initially)
+      const progressBadge = storyCard.locator('[data-testid="checklist-progress"]');
+      await expect(progressBadge).toBeVisible({ timeout: 5000 });
+      await expect(progressBadge).toContainText("/6");
+    });
+
+    test("should expand checklist when clicking expand button", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Click expand button
+      const expandButton = storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]');
+      await expect(expandButton).toBeVisible();
+      await expandButton.click();
+
+      // Should show checklist sections
+      await expect(storyCard.locator("text=Functional Tests")).toBeVisible();
+      await expect(storyCard.locator("text=Quality Gates")).toBeVisible();
+    });
+
+    test("should display checklist items when expanded", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Expand checklist
+      await storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]').click();
+
+      // Should show individual checklist items
+      await expect(storyCard.locator('[data-testid="checklist-item-ft-1"]')).toBeVisible();
+      await expect(storyCard.locator("text=Checklist displays correctly")).toBeVisible();
+    });
+
+    test("should toggle checkbox and save when clicked", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Expand checklist
+      await storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]').click();
+      await page.waitForTimeout(500);
+
+      // Click the first checkbox
+      const checkbox = storyCard.locator('[data-testid="checkbox-ft-1"]');
+      await expect(checkbox).toBeVisible();
+      await checkbox.click();
+
+      // Wait for optimistic update and API call
+      await page.waitForTimeout(500);
+
+      // Checkbox should now be checked (data-state="checked")
+      await expect(checkbox).toHaveAttribute("data-state", "checked", { timeout: 3000 });
+    });
+
+    test("should update progress after toggling checkbox", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Progress should show at least 1 checked (from previous test)
+      const progressBadge = storyCard.locator('[data-testid="checklist-progress"]');
+      await expect(progressBadge).toBeVisible({ timeout: 5000 });
+      // Should contain "1/6" or more
+      const progressText = await progressBadge.textContent();
+      expect(progressText).toMatch(/[1-6]\/6/);
+    });
+
+    test("should show green highlight on Accept when all items checked", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Expand checklist
+      await storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]').click();
+      await page.waitForTimeout(500);
+
+      // Check all items
+      const checkboxIds = ["ft-1", "ft-2", "ft-3", "qg-test", "qg-lint", "qg-build"];
+      for (const id of checkboxIds) {
+        const checkbox = storyCard.locator(`[data-testid="checkbox-${id}"]`);
+        const state = await checkbox.getAttribute("data-state");
+        if (state !== "checked") {
+          await checkbox.click();
+          await page.waitForTimeout(300);
+        }
+      }
+
+      // Wait for all updates to complete
+      await page.waitForTimeout(1000);
+
+      // Accept button should have green highlight (bg-emerald class)
+      const acceptButton = storyCard.locator('[data-testid="accept-story-REVIEW-CHECKLIST-001"]');
+      await expect(acceptButton).toHaveClass(/bg-emerald/);
+    });
+
+    test("should show progress bar in section header", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Expand checklist
+      await storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]').click();
+      await page.waitForTimeout(500);
+
+      // Should show progress bar in section
+      const sectionProgress = storyCard.locator('[data-testid="section-progress-functional-tests"]');
+      await expect(sectionProgress).toBeVisible();
+    });
+
+    test("should collapse and expand sections", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-CHECKLIST-001");
+
+      // Expand main checklist
+      await storyCard.locator('[data-testid="expand-checklist-REVIEW-CHECKLIST-001"]').click();
+      await page.waitForTimeout(500);
+
+      // Items should be visible
+      await expect(storyCard.locator('[data-testid="checklist-item-ft-1"]')).toBeVisible();
+
+      // Click section trigger to collapse
+      const sectionTrigger = storyCard.locator('[data-testid="section-trigger-functional-tests"]');
+      await sectionTrigger.click();
+      await page.waitForTimeout(300);
+
+      // Items should now be hidden
+      await expect(storyCard.locator('[data-testid="checklist-item-ft-1"]')).not.toBeVisible();
+
+      // Click again to expand
+      await sectionTrigger.click();
+      await page.waitForTimeout(300);
+
+      // Items should be visible again
+      await expect(storyCard.locator('[data-testid="checklist-item-ft-1"]')).toBeVisible();
+    });
+  });
 });

@@ -8,6 +8,10 @@ import {
   Eye,
   ClipboardCheck,
   ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -24,15 +28,132 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import type { Story, StoryStatus } from "@/components/StoryCard";
+import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
 
 export const Route = createFileRoute("/project/$id/testing")({
   component: TestingBoard,
 });
 
+// Progress calculation helpers
+function calculateSectionProgress(section: TestScenarioSection) {
+  const total = section.items.length;
+  const checked = section.items.filter((item) => item.checked).length;
+  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
+}
+
+function calculateTotalProgress(scenario: TestScenario | null | undefined) {
+  if (!scenario) return { checked: 0, total: 0, percentage: 0 };
+  const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
+  const checked = scenario.sections.reduce(
+    (acc, section) => acc + section.items.filter((item) => item.checked).length,
+    0
+  );
+  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
+}
+
+function isAllChecked(scenario: TestScenario | null | undefined) {
+  if (!scenario) return false;
+  return scenario.sections.every((section) =>
+    section.items.every((item) => item.checked)
+  );
+}
+
+// ChecklistSection component for collapsible sections
+interface ChecklistSectionProps {
+  section: TestScenarioSection;
+  projectId: number;
+  storyId: string;
+  onItemToggle: (itemId: string, checked: boolean) => void;
+  isUpdating: string | null;
+}
+
+function ChecklistSection({
+  section,
+  onItemToggle,
+  isUpdating,
+}: ChecklistSectionProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const progress = calculateSectionProgress(section);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-muted/50 transition-colors"
+          data-testid={`section-trigger-${section.id}`}
+        >
+          <div className="flex items-center gap-2">
+            {isOpen ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            )}
+            <span>{section.title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {progress.checked}/{progress.total}
+            </span>
+            <Progress
+              value={progress.percentage}
+              className="w-16 h-1.5"
+              data-testid={`section-progress-${section.id}`}
+            />
+          </div>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pl-6 space-y-1">
+        {section.items.map((item) => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex items-start gap-3 px-3 py-2 rounded-md cursor-pointer hover:bg-muted/30 transition-colors",
+              item.checked && "text-muted-foreground",
+              isUpdating === item.id && "opacity-60"
+            )}
+            data-testid={`checklist-item-${item.id}`}
+          >
+            <Checkbox
+              id={`checkbox-input-${item.id}`}
+              checked={item.checked}
+              onCheckedChange={(checked) => {
+                if (typeof checked === "boolean") {
+                  onItemToggle(item.id, checked);
+                }
+              }}
+              disabled={isUpdating === item.id}
+              className="mt-0.5"
+              data-testid={`checkbox-${item.id}`}
+            />
+            <label
+              htmlFor={`checkbox-input-${item.id}`}
+              className={cn(
+                "text-sm leading-relaxed cursor-pointer flex-1",
+                item.checked && "line-through"
+              )}
+            >
+              {item.text}
+            </label>
+          </div>
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 // TestStoryCard component for stories in review
 interface TestStoryCardProps {
   story: Story;
+  projectId: number;
   onAccept: (story: Story) => void;
   onReject: (story: Story) => void;
   onClick: (story: Story) => void;
@@ -42,13 +163,85 @@ interface TestStoryCardProps {
 
 function TestStoryCard({
   story,
+  projectId,
   onAccept,
   onReject,
   onClick,
   isAccepting,
   isRejecting,
 }: TestStoryCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const isProcessing = isAccepting || isRejecting;
+  const utils = trpc.useUtils();
+
+  // Fetch test scenario for this story
+  const { data: scenario, isLoading: isLoadingScenario } =
+    trpc.testScenarios.getByStoryId.useQuery(
+      { projectId, storyId: story.id },
+      { staleTime: 30000 }
+    );
+
+  // Check if scenario exists (for loading vs empty state)
+  const { data: scenarioExists } = trpc.testScenarios.exists.useQuery(
+    { projectId, storyId: story.id },
+    { staleTime: 60000 }
+  );
+
+  // Update item mutation with optimistic updates
+  const updateItem = trpc.testScenarios.updateItem.useMutation({
+    onMutate: async ({ itemId, checked }) => {
+      setUpdatingItemId(itemId);
+      // Cancel any outgoing refetches
+      await utils.testScenarios.getByStoryId.cancel({ projectId, storyId: story.id });
+
+      // Snapshot the previous value
+      const previousScenario = utils.testScenarios.getByStoryId.getData({
+        projectId,
+        storyId: story.id,
+      });
+
+      // Optimistically update the cache
+      if (previousScenario) {
+        utils.testScenarios.getByStoryId.setData({ projectId, storyId: story.id }, {
+          ...previousScenario,
+          sections: previousScenario.sections.map((section) => ({
+            ...section,
+            items: section.items.map((item) =>
+              item.id === itemId ? { ...item, checked } : item
+            ),
+          })),
+        });
+      }
+
+      return { previousScenario };
+    },
+    onError: (_error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousScenario) {
+        utils.testScenarios.getByStoryId.setData(
+          { projectId, storyId: story.id },
+          context.previousScenario
+        );
+      }
+      toast.error("Failed to update test item");
+    },
+    onSettled: () => {
+      setUpdatingItemId(null);
+      // Invalidate to refetch and ensure consistency
+      utils.testScenarios.getByStoryId.invalidate({ projectId, storyId: story.id });
+    },
+  });
+
+  const handleItemToggle = useCallback(
+    (itemId: string, checked: boolean) => {
+      updateItem.mutate({ projectId, storyId: story.id, itemId, checked });
+    },
+    [projectId, story.id, updateItem]
+  );
+
+  const progress = calculateTotalProgress(scenario);
+  const allChecked = isAllChecked(scenario);
 
   return (
     <Card
@@ -60,7 +253,7 @@ function TestStoryCard({
       data-testid={`test-story-card-${story.id}`}
     >
       <CardHeader className="py-0">
-        {/* Header row: story ID, priority badge, and action buttons */}
+        {/* Header row: story ID, priority badge, progress, and action buttons */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
@@ -72,6 +265,22 @@ function TestStoryCard({
             <Badge variant="default" data-testid="priority-badge">
               P{story.priority}
             </Badge>
+            {/* Progress indicator */}
+            {scenario && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs",
+                  allChecked && "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                )}
+                data-testid="checklist-progress"
+              >
+                {progress.checked}/{progress.total} ✓
+              </Badge>
+            )}
+            {isLoadingScenario && !scenario && (
+              <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             {/* View button */}
@@ -108,7 +317,7 @@ function TestStoryCard({
                 <XCircle className="w-4 h-4" />
               )}
             </Button>
-            {/* Accept button */}
+            {/* Accept button - green highlight when all checked */}
             <Button
               variant="ghost"
               size="icon"
@@ -117,7 +326,12 @@ function TestStoryCard({
                 onAccept(story);
               }}
               disabled={isProcessing}
-              className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+              className={cn(
+                "h-7 w-7",
+                allChecked
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                  : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+              )}
               aria-label="Accept story"
               data-testid={`accept-story-${story.id}`}
             >
@@ -131,7 +345,7 @@ function TestStoryCard({
         </div>
       </CardHeader>
 
-      <CardContent className="py-0">
+      <CardContent className="py-0 space-y-3">
         {/* Title */}
         <h4
           className="text-sm font-medium text-foreground line-clamp-2"
@@ -142,17 +356,73 @@ function TestStoryCard({
 
         {/* Epic label */}
         <p
-          className="text-xs text-muted-foreground mt-1 line-clamp-1"
+          className="text-xs text-muted-foreground line-clamp-1"
           data-testid="story-epic"
         >
           {story.epic}
         </p>
 
-        {/* Acceptance criteria count */}
-        {story.acceptanceCriteria.length > 0 && (
-          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-            <ClipboardCheck className="w-3.5 h-3.5" />
-            <span>{story.acceptanceCriteria.length} criteria</span>
+        {/* Test scenario checklist */}
+        {scenario ? (
+          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs font-medium text-muted-foreground rounded hover:bg-muted/50 transition-colors"
+                data-testid={`expand-checklist-${story.id}`}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                )}
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>{isExpanded ? "Hide" : "Show"} Test Checklist</span>
+                <Progress
+                  value={progress.percentage}
+                  className="w-20 h-1.5 ml-auto"
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <div className="border rounded-md bg-muted/20 divide-y">
+                {scenario.sections.map((section) => (
+                  <div key={section.id} className="p-2">
+                    <ChecklistSection
+                      section={section}
+                      projectId={projectId}
+                      storyId={story.id}
+                      onItemToggle={handleItemToggle}
+                      isUpdating={updatingItemId}
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* Link to markdown documentation */}
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <FileText className="w-3 h-3" />
+                <a
+                  href={`/project/${projectId}/test-scenarios/${story.id}.md`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  View full documentation
+                  <ExternalLink className="w-3 h-3 inline ml-1" />
+                </a>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : scenarioExists === false ? (
+          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground bg-muted/30 rounded">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>No test scenario generated</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Loading test checklist...</span>
           </div>
         )}
       </CardContent>
@@ -665,6 +935,7 @@ function TestingBoard() {
               <TestStoryCard
                 key={story.id}
                 story={story}
+                projectId={projectId}
                 onAccept={handleAccept}
                 onReject={handleRejectClick}
                 onClick={handleStoryClick}
