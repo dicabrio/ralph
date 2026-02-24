@@ -2725,3 +2725,48 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Inline prompt saves tokens: agent doesn't need to read/parse entire prd.json
 - Test mocking: need to mock storySelector in loop service tests to prevent file system access
 - The prompt is prepended to basePrompt with separator (---) for clean structure
+
+
+## 2026-02-24 - UI-032
+**Title:** Runner status en review count in ProjectSelector
+
+**Implemented:**
+- Created RunnerStatusIndicator component (`src/components/RunnerStatusIndicator.tsx`):
+  - Colored dot: green (running + pulse animation), yellow (stopping), gray (idle)
+  - Optional tooltip showing provider name and status
+  - Accessible aria-labels for screen readers
+- Created ReviewBadge component (`src/components/ReviewBadge.tsx`):
+  - Amber pill badge with count
+  - Automatically hidden when count is 0
+  - Singular/plural aria-label ("1 story" vs "N stories")
+- Extended projects.ts router:
+  - Added runnerStatus and runnerProvider to ProjectWithStats interface
+  - Added stats.review count to project stats
+  - Created getProjectRunnerStatus() helper to check all provider services
+- Updated ProjectSelector component:
+  - Added refetchInterval: 5000 for polling (live updates every 5 seconds)
+  - Show indicators in dropdown trigger (expanded mode)
+  - Show indicators in dropdown items (both collapsed and expanded)
+  - Show indicators in collapsed tooltip
+- Fixed test mocks:
+  - Added useLocation to @tanstack/react-router mocks in 3 test files
+  - Added runnerStatus, runnerProvider, stats fields to mock projects
+
+**Files changed:**
+- src/components/RunnerStatusIndicator.tsx (new)
+- src/components/RunnerStatusIndicator.test.tsx (new)
+- src/components/ReviewBadge.tsx (new)
+- src/components/ReviewBadge.test.tsx (new)
+- src/components/ProjectSelector.tsx (indicators, polling)
+- src/components/ProjectSelector.test.tsx (mocks)
+- src/components/Layout.test.tsx (useLocation mock)
+- src/components/Sidebar.test.tsx (useLocation mock)
+- src/lib/trpc/routers/projects.ts (runnerStatus, stats.review)
+- src/lib/trpc/routers/projects.test.ts (stats.review)
+
+**Learnings:**
+- TanStack Router mock needs useLocation when component uses it
+- Loop services share getStatus(projectId) interface - create LoopServiceWithStatus type
+- ReviewBadge hidden when count=0 via early return (no DOM element)
+- Polling via TanStack Query refetchInterval is simple live-update solution
+- Pre-existing lint errors in codebase (formatting) don't block builds
