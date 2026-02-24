@@ -1,9 +1,9 @@
 /**
  * @vitest-environment node
  *
- * CodexLoopService Tests
+ * GeminiLoopService Tests
  *
- * Unit tests for the Codex CLI process management service.
+ * Unit tests for the Gemini CLI process management service.
  * Uses mocked child_process for CLI operations.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -68,10 +68,6 @@ vi.mock('node:fs', async (importOriginal) => {
       if (path.includes('data/') || path.includes('ralph.db')) {
         return original.existsSync(path)
       }
-      // Mock codex auth file for login check
-      if (path.includes('.codex/auth.json')) {
-        return true
-      }
       return false
     }),
   }
@@ -131,10 +127,10 @@ vi.mock('@/db/schema', () => ({
   runnerLogs: {},
 }))
 
-import type { CodexLoopService } from './codexLoopService'
+import type { GeminiLoopService } from './geminiLoopService'
 
-// Helper to create a fresh CodexLoopService instance
-async function createTestService(): Promise<CodexLoopService> {
+// Helper to create a fresh GeminiLoopService instance
+async function createTestService(): Promise<GeminiLoopService> {
   vi.resetModules()
   mockExecAsync = vi.fn()
   spawnedProcesses.length = 0
@@ -155,15 +151,15 @@ async function createTestService(): Promise<CodexLoopService> {
     projectName: 'Test',
     userStories: [{ id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 }],
   })
-  const module = await import('./codexLoopService')
-  return new module.CodexLoopService()
+  const module = await import('./geminiLoopService')
+  return new module.GeminiLoopService()
 }
 
-describe('CodexLoopService', () => {
+describe('GeminiLoopService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     spawnedProcesses.length = 0
-    process.env.HOME = '/home/testuser'
+    process.env.GEMINI_API_KEY = 'test-api-key'
     // Setup storySelector mocks
     mockSelectNextStory.mockResolvedValue({
       story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
@@ -180,60 +176,58 @@ describe('CodexLoopService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    delete process.env.HOME
+    delete process.env.GEMINI_API_KEY
+    delete process.env.GOOGLE_AI_STUDIO_KEY
   })
 
-  describe('isCodexAvailable', () => {
-    it('returns true when codex CLI is available', async () => {
+  describe('isGeminiAvailable', () => {
+    it('returns true when gemini CLI is available', async () => {
       const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: 'codex 1.0.0', stderr: '' })
+      mockExecAsync.mockResolvedValue({ stdout: '0.26.0', stderr: '' })
 
-      const result = await service.isCodexAvailable()
+      const result = await service.isGeminiAvailable()
 
       expect(result).toBe(true)
     })
 
-    it('returns false when codex CLI is not installed', async () => {
+    it('returns false when gemini CLI is not installed', async () => {
       const service = await createTestService()
-      mockExecAsync.mockRejectedValue(new Error('command not found: codex'))
+      mockExecAsync.mockRejectedValue(new Error('command not found: gemini'))
 
-      const result = await service.isCodexAvailable()
+      const result = await service.isGeminiAvailable()
 
       expect(result).toBe(false)
     })
   })
 
-  describe('isCodexLoggedIn', () => {
-    it('returns true when OPENAI_API_KEY is set', async () => {
-      process.env.OPENAI_API_KEY = 'test-key'
+  describe('isGeminiConfigured', () => {
+    it('returns true when GEMINI_API_KEY is set', async () => {
       const service = await createTestService()
+      process.env.GEMINI_API_KEY = 'test-key'
 
-      const result = await service.isCodexLoggedIn()
-
-      expect(result).toBe(true)
-      delete process.env.OPENAI_API_KEY
-    })
-
-    it('returns true when .codex/auth.json exists', async () => {
-      const service = await createTestService()
-
-      const result = await service.isCodexLoggedIn()
+      const result = await service.isGeminiConfigured()
 
       expect(result).toBe(true)
     })
 
-    it('returns false when .codex/auth.json does not exist', async () => {
-      // Re-mock existsSync to return false for .codex/auth.json
-      const fs = await import('node:fs')
-      vi.mocked(fs.existsSync).mockImplementation((path: unknown) => {
-        if (typeof path === 'string' && path.includes('.codex/auth.json')) {
-          return false
-        }
-        return false
-      })
+    it('returns true when GOOGLE_AI_STUDIO_KEY is set', async () => {
+      delete process.env.GEMINI_API_KEY
+      process.env.GOOGLE_AI_STUDIO_KEY = 'test-key'
 
       const service = await createTestService()
-      const result = await service.isCodexLoggedIn()
+
+      const result = await service.isGeminiConfigured()
+
+      expect(result).toBe(true)
+    })
+
+    it('returns false when no API key is set', async () => {
+      delete process.env.GEMINI_API_KEY
+      delete process.env.GOOGLE_AI_STUDIO_KEY
+
+      const service = await createTestService()
+
+      const result = await service.isGeminiConfigured()
 
       expect(result).toBe(false)
     })
@@ -249,25 +243,6 @@ describe('CodexLoopService', () => {
         status: 'idle',
         projectId: 1,
       })
-    })
-
-    // Skipping timing-dependent test - stopping state is briefly visible
-    it.skip('returns stopping when process is being stopped', async () => {
-      const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
-
-      // Start a process
-      await service.start(1, '/test/project')
-
-      // Start stopping (but don't await)
-      const stopPromise = service.stop(1)
-
-      // Check status during stop
-      const status = service.getStatus(1)
-      expect(status.status).toBe('stopping')
-
-      // Wait for stop to complete
-      await stopPromise
     })
   })
 
@@ -331,33 +306,24 @@ describe('CodexLoopService', () => {
   })
 
   describe('start', () => {
-    it('throws error when Codex CLI is not available', async () => {
+    it('throws error when Gemini CLI is not available', async () => {
       const service = await createTestService()
       mockExecAsync.mockRejectedValue(new Error('command not found'))
 
       await expect(service.start(1, '/test/project')).rejects.toThrow(
-        'Codex CLI is not installed'
+        'Gemini CLI is not installed'
       )
     })
 
-    it('throws error when not logged in', async () => {
-      const fs = await import('node:fs')
-      vi.mocked(fs.existsSync).mockImplementation((path: unknown) => {
-        if (typeof path === 'string' && path.includes('.codex/auth.json')) {
-          return false
-        }
-        // Allow database paths
-        if (typeof path === 'string' && (path.includes('data/') || path.includes('ralph.db'))) {
-          return false // Can't call real existsSync in test
-        }
-        return false
-      })
+    it('throws error when API key is not configured', async () => {
+      delete process.env.GEMINI_API_KEY
+      delete process.env.GOOGLE_AI_STUDIO_KEY
 
       const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: 'codex 1.0.0', stderr: '' })
+      mockExecAsync.mockResolvedValue({ stdout: '0.26.0', stderr: '' })
 
       await expect(service.start(1, '/test/project')).rejects.toThrow(
-        'Run: codex login or set OPENAI_API_KEY'
+        'Gemini API key not configured'
       )
     })
 
@@ -373,21 +339,6 @@ describe('CodexLoopService', () => {
       expect(result.storyId).toBe('TEST-001')
     })
 
-    // Skipping timing-dependent test - race condition between stop and start
-    it.skip('throws error when trying to start while stopping', async () => {
-      const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
-
-      await service.start(1, '/test/project')
-
-      // Start stopping but don't await
-      service.stop(1)
-
-      await expect(service.start(1, '/test/project')).rejects.toThrow(
-        'currently stopping'
-      )
-    })
-
     it('successfully starts a runner', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
@@ -401,17 +352,7 @@ describe('CodexLoopService', () => {
       expect(result.startedAt).toBeDefined()
     })
 
-    it('writes prompt to stdin', async () => {
-      const service = await createTestService()
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
-
-      await service.start(1, '/test/project')
-
-      expect(spawnedProcesses[0].stdin.write).toHaveBeenCalled()
-      expect(spawnedProcesses[0].stdin.end).toHaveBeenCalled()
-    })
-
-    it('spawns codex exec in stdin mode', async () => {
+    it('spawns gemini with correct arguments', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
 
@@ -419,8 +360,13 @@ describe('CodexLoopService', () => {
 
       const childProcess = await import('node:child_process')
       expect(childProcess.spawn).toHaveBeenCalledWith(
-        'codex',
-        ['exec', '--full-auto', '--skip-git-repo-check', '-'],
+        'gemini',
+        expect.arrayContaining([
+          '-p',
+          '--output-format',
+          'stream-json',
+          '--yolo',
+        ]),
         expect.objectContaining({
           cwd: '/test/project',
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -522,19 +468,69 @@ describe('CodexLoopService', () => {
   })
 
   describe('log handling', () => {
-    it('adds logs to buffer when stdout data received', async () => {
+    it('parses stream-json message events', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
 
       await service.start(1, '/test/project', 'TEST-001')
 
-      // Emit stdout data
-      spawnedProcesses[0].stdout.emit('data', Buffer.from('Test log line\n'))
+      // Emit stream-json message event
+      const event = JSON.stringify({
+        type: 'message',
+        role: 'assistant',
+        content: 'Test response from Gemini',
+      })
+      spawnedProcesses[0].stdout.emit('data', Buffer.from(event + '\n'))
 
       const logs = service.getBufferedLogs(1)
       expect(logs).toHaveLength(1)
-      expect(logs[0].content).toBe('Test log line')
+      expect(logs[0].content).toBe('Test response from Gemini')
       expect(logs[0].logType).toBe('stdout')
+    })
+
+    it('parses stream-json tool_use events', async () => {
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Emit stream-json tool_use event
+      const event = JSON.stringify({
+        type: 'tool_use',
+        tool_name: 'read_file',
+        tool_id: 'tool-123',
+      })
+      spawnedProcesses[0].stdout.emit('data', Buffer.from(event + '\n'))
+
+      const logs = service.getBufferedLogs(1)
+      expect(logs).toHaveLength(1)
+      expect(logs[0].content).toBe('[Tool: read_file]')
+    })
+
+    it('parses stream-json result events with stats', async () => {
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Emit stream-json result event
+      const event = JSON.stringify({
+        type: 'result',
+        status: 'success',
+        stats: {
+          total_tokens: 21438,
+          input_tokens: 21089,
+          output_tokens: 99,
+          duration_ms: 6790,
+          tool_calls: 1,
+        },
+      })
+      spawnedProcesses[0].stdout.emit('data', Buffer.from(event + '\n'))
+
+      const logs = service.getBufferedLogs(1)
+      expect(logs).toHaveLength(1)
+      expect(logs[0].content).toContain('21438 tokens')
+      expect(logs[0].content).toContain('6790ms')
     })
 
     it('adds logs to buffer when stderr data received', async () => {
@@ -552,6 +548,20 @@ describe('CodexLoopService', () => {
       expect(logs[0].logType).toBe('stderr')
     })
 
+    it('handles non-JSON output gracefully', async () => {
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Emit non-JSON output (deprecation warning, etc.)
+      spawnedProcesses[0].stdout.emit('data', Buffer.from('Warning: something deprecated\n'))
+
+      const logs = service.getBufferedLogs(1)
+      expect(logs).toHaveLength(1)
+      expect(logs[0].content).toBe('Warning: something deprecated')
+    })
+
     it('limits buffer size', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
@@ -560,7 +570,12 @@ describe('CodexLoopService', () => {
 
       // Emit more than buffer size logs
       for (let i = 0; i < 150; i++) {
-        spawnedProcesses[0].stdout.emit('data', Buffer.from(`Log line ${i}\n`))
+        const event = JSON.stringify({
+          type: 'message',
+          role: 'assistant',
+          content: `Log line ${i}`,
+        })
+        spawnedProcesses[0].stdout.emit('data', Buffer.from(event + '\n'))
       }
 
       const logs = service.getBufferedLogs(1)

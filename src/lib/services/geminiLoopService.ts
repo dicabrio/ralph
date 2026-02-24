@@ -1,36 +1,30 @@
 /**
- * Claude Loop Service
+ * Gemini Loop Service
  *
- * Manages Claude Code CLI processes for running stories.
+ * Manages Gemini CLI processes for running stories.
  * Uses direct CLI invocation instead of Docker containers.
  *
- * Authentication via `claude login` (Claude Pro/Max subscription).
- * No API key required.
+ * Authentication via GEMINI_API_KEY environment variable.
+ * See docs/gemini-cli-research.md for details.
  */
 import { spawn, exec, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { db } from "@/db";
 import { runnerLogs } from "@/db/schema";
 import { getWebSocketServer } from "@/lib/websocket/server";
 import { getEffectivePrompt } from "@/lib/services/promptTemplate";
+import { DEFAULT_GEMINI_PERMISSIONS } from "@/lib/services/geminiPermissions";
 import {
   selectNextStory,
   generateStoryPrompt,
   getNoEligibleStoryReason,
   readPrdJson,
 } from "@/lib/services/storySelector";
-import { DEFAULT_CLAUDE_PERMISSIONS } from "@/lib/services/claudePermissions";
 import { generateTestScenarios } from "@/lib/services/testScenarioGenerator";
 
 const execAsync = promisify(exec);
-const CLAUDE_PERMISSION_MODE = "dontAsk";
-const CLAUDE_ALLOWED_TOOLS =
-  DEFAULT_CLAUDE_PERMISSIONS.permissions.allow.join(",");
-const CLAUDE_DISALLOWED_TOOLS =
-  DEFAULT_CLAUDE_PERMISSIONS.permissions.deny.join(",");
 
 /**
  * Runner status enum
@@ -90,7 +84,7 @@ interface LogEntry {
 /**
  * Active process handle
  */
-interface ClaudeProcess {
+interface GeminiProcess {
   projectId: number;
   process: ChildProcess;
   storyId?: string;
@@ -99,13 +93,42 @@ interface ClaudeProcess {
 }
 
 /**
- * ClaudeLoopService class
- *
- * Singleton that tracks running Claude CLI processes.
- * Spawns Claude Code CLI directly without Docker.
+ * Gemini stream-json event types
  */
-class ClaudeLoopService {
-  private processes: Map<number, ClaudeProcess> = new Map();
+interface GeminiStreamEvent {
+  type: "init" | "message" | "tool_use" | "tool_result" | "result";
+  timestamp: string;
+  role?: "user" | "assistant";
+  content?: string;
+  delta?: boolean;
+  tool_name?: string;
+  tool_id?: string;
+  parameters?: Record<string, unknown>;
+  status?: "success" | "error";
+  output?: string;
+  error?: {
+    type: string;
+    message: string;
+    code?: string;
+  };
+  stats?: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    cached?: number;
+    duration_ms: number;
+    tool_calls: number;
+  };
+}
+
+/**
+ * GeminiLoopService class
+ *
+ * Singleton that tracks running Gemini CLI processes.
+ * Spawns Gemini CLI directly without Docker.
+ */
+class GeminiLoopService {
+  private processes: Map<number, GeminiProcess> = new Map();
   private stoppingProcesses: Set<number> = new Set();
   private stopRequestedProcesses: Set<number> = new Set();
   private projectPaths: Map<number, string> = new Map();
@@ -113,11 +136,11 @@ class ClaudeLoopService {
   private logBuffers: Map<number, LogEntry[]> = new Map();
 
   /**
-   * Check if Claude CLI is available
+   * Check if Gemini CLI is available
    */
-  async isClaudeAvailable(): Promise<boolean> {
+  async isGeminiAvailable(): Promise<boolean> {
     try {
-      await execAsync("claude --version");
+      await execAsync("gemini --version");
       return true;
     } catch {
       return false;
@@ -125,17 +148,19 @@ class ClaudeLoopService {
   }
 
   /**
-   * Check if user is logged in to Claude
+   * Check if user has API key configured
    */
-  async isClaudeLoggedIn(): Promise<boolean> {
-    try {
-      // Check if ~/.claude.json exists
-      const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-      const configPath = path.join(homeDir, ".claude.json");
-      return existsSync(configPath);
-    } catch {
-      return false;
+  async isGeminiConfigured(): Promise<boolean> {
+    // Check for API key in environment
+    if (
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_AI_STUDIO_KEY?.trim()
+    ) {
+      return true;
     }
+
+    // Gemini CLI also supports OAuth login, but for headless mode we need API key
+    return false;
   }
 
   /**
@@ -168,16 +193,18 @@ class ClaudeLoopService {
       throw new Error(`Runner for project ${projectId} is currently stopping`);
     }
 
-    // Check if Claude CLI is available
-    if (!(await this.isClaudeAvailable())) {
+    // Check if Gemini CLI is available
+    if (!(await this.isGeminiAvailable())) {
       throw new Error(
-        "Claude Code CLI is not installed. Install with: npm install -g @anthropic-ai/claude-code",
+        "Gemini CLI is not installed. Install with: npm install -g @google/gemini-cli",
       );
     }
 
-    // Check if logged in
-    if (!(await this.isClaudeLoggedIn())) {
-      throw new Error("Not logged in to Claude. Run: claude login");
+    // Check if configured
+    if (!(await this.isGeminiConfigured())) {
+      throw new Error(
+        "Gemini API key not configured. Set GEMINI_API_KEY or GOOGLE_AI_STUDIO_KEY environment variable",
+      );
     }
 
     // Store project path for auto-restart
@@ -218,28 +245,24 @@ class ClaudeLoopService {
       this.broadcastStorySelected(projectId, selection.story.id, selection.story.title);
     }
 
-    // Spawn Claude CLI process with autonomous execution in safe permission mode.
-    const claudeProcess = spawn(
-      "claude",
-      [
-        "-p", // Read prompt from stdin
-        "--permission-mode",
-        CLAUDE_PERMISSION_MODE,
-        "--allowedTools",
-        CLAUDE_ALLOWED_TOOLS,
-        "--disallowedTools",
-        CLAUDE_DISALLOWED_TOOLS,
-      ],
-      {
-        cwd: projectPath,
-        env: { ...process.env },
-        stdio: ["pipe", "pipe", "pipe"],
-      },
-    );
+    // Build CLI arguments
+    const args = this.buildCliArgs(prompt);
 
-    const processHandle: ClaudeProcess = {
+    // Spawn Gemini CLI process
+    const geminiProcess = spawn("gemini", args, {
+      cwd: projectPath,
+      env: {
+        ...process.env,
+        // Ensure API key is available
+        GEMINI_API_KEY:
+          process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_STUDIO_KEY,
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    const processHandle: GeminiProcess = {
       projectId,
-      process: claudeProcess,
+      process: geminiProcess,
       storyId: selectedStoryId,
       startedAt: new Date(),
       projectPath,
@@ -247,36 +270,63 @@ class ClaudeLoopService {
 
     this.processes.set(projectId, processHandle);
 
-    console.log(`[ClaudeLoop] ========================================`);
-    console.log(`[ClaudeLoop] Starting Claude CLI`);
-    console.log(`[ClaudeLoop] Project ID: ${projectId}`);
-    console.log(`[ClaudeLoop] Story: ${selectedStoryId || "none"}`);
-    console.log(`[ClaudeLoop] Path: ${projectPath}`);
-    console.log(`[ClaudeLoop] PID: ${claudeProcess.pid}`);
-    console.log(`[ClaudeLoop] Prompt length: ${prompt.length} chars`);
-    console.log(`[ClaudeLoop] ========================================`);
+    console.log(`[GeminiLoop] ========================================`);
+    console.log(`[GeminiLoop] Starting Gemini CLI`);
+    console.log(`[GeminiLoop] Project ID: ${projectId}`);
+    console.log(`[GeminiLoop] Story: ${selectedStoryId || "none"}`);
+    console.log(`[GeminiLoop] Path: ${projectPath}`);
+    console.log(`[GeminiLoop] PID: ${geminiProcess.pid}`);
+    console.log(`[GeminiLoop] Prompt length: ${prompt.length} chars`);
+    console.log(`[GeminiLoop] ========================================`);
 
-    // Pipe prompt to stdin (like: cat prompt.md | claude -p)
-    claudeProcess.stdin?.write(prompt);
-    claudeProcess.stdin?.end();
+    // Buffer for accumulating partial JSON lines
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
 
-    // Handle stdout
-    claudeProcess.stdout?.on("data", (data: Buffer) => {
-      this.handleLogData(projectId, selectedStoryId, data.toString(), "stdout");
+    // Handle stdout - parse stream-json output
+    geminiProcess.stdout?.on("data", (data: Buffer) => {
+      stdoutBuffer += data.toString();
+      const lines = stdoutBuffer.split("\n");
+
+      // Process complete lines, keep incomplete line in buffer
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          this.handleStreamJsonLine(projectId, selectedStoryId, line);
+        }
+      }
+      stdoutBuffer = lines[lines.length - 1];
     });
 
     // Handle stderr
-    claudeProcess.stderr?.on("data", (data: Buffer) => {
-      this.handleLogData(projectId, selectedStoryId, data.toString(), "stderr");
+    geminiProcess.stderr?.on("data", (data: Buffer) => {
+      stderrBuffer += data.toString();
+      const lines = stderrBuffer.split("\n");
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          this.handleLogData(projectId, selectedStoryId, line, "stderr");
+        }
+      }
+      stderrBuffer = lines[lines.length - 1];
     });
 
     // Handle process exit
-    claudeProcess.on("close", async (exitCode) => {
-      console.log(`[ClaudeLoop] ========================================`);
-      console.log(`[ClaudeLoop] Claude CLI exited`);
-      console.log(`[ClaudeLoop] Project ID: ${projectId}`);
-      console.log(`[ClaudeLoop] Exit code: ${exitCode}`);
-      console.log(`[ClaudeLoop] ========================================`);
+    geminiProcess.on("close", async (exitCode) => {
+      // Process remaining buffer
+      if (stdoutBuffer.trim()) {
+        this.handleStreamJsonLine(projectId, selectedStoryId, stdoutBuffer.trim());
+      }
+      if (stderrBuffer.trim()) {
+        this.handleLogData(projectId, selectedStoryId, stderrBuffer.trim(), "stderr");
+      }
+
+      console.log(`[GeminiLoop] ========================================`);
+      console.log(`[GeminiLoop] Gemini CLI exited`);
+      console.log(`[GeminiLoop] Project ID: ${projectId}`);
+      console.log(`[GeminiLoop] Exit code: ${exitCode}`);
+      console.log(`[GeminiLoop] ========================================`);
       this.processes.delete(projectId);
 
       // Manual stop should never trigger completion handling or auto-restart.
@@ -297,8 +347,8 @@ class ClaudeLoopService {
     });
 
     // Handle errors
-    claudeProcess.on("error", (error) => {
-      console.error(`[ClaudeLoop] Error for project ${projectId}:`, error);
+    geminiProcess.on("error", (error) => {
+      console.error(`[GeminiLoop] Error for project ${projectId}:`, error);
       this.processes.delete(projectId);
       this.stopRequestedProcesses.delete(projectId);
       this.stoppingProcesses.delete(projectId);
@@ -306,15 +356,100 @@ class ClaudeLoopService {
     });
 
     // Broadcast running status
-    this.broadcastStatus(projectId, "running", selectedStoryId, claudeProcess.pid);
+    this.broadcastStatus(projectId, "running", selectedStoryId, geminiProcess.pid);
 
     return {
       status: "running",
       projectId,
       storyId: selectedStoryId,
-      pid: claudeProcess.pid,
+      pid: geminiProcess.pid,
       startedAt: new Date(),
     };
+  }
+
+  /**
+   * Build CLI arguments for Gemini
+   */
+  private buildCliArgs(prompt: string): string[] {
+    const args = [
+      "-p",
+      prompt, // Non-interactive prompt mode
+      "--output-format",
+      "stream-json", // JSONL output for parsing
+      "--yolo", // Auto-approve all tool executions
+    ];
+
+    // Add allowed tools if configured
+    const allowedTools = DEFAULT_GEMINI_PERMISSIONS.tools.allow;
+    if (allowedTools.length > 0) {
+      args.push("--allowed-tools", allowedTools.join(","));
+    }
+
+    return args;
+  }
+
+  /**
+   * Handle a line of stream-json output from Gemini
+   */
+  private handleStreamJsonLine(
+    projectId: number,
+    storyId: string | undefined,
+    line: string,
+  ): void {
+    try {
+      const event = JSON.parse(line) as GeminiStreamEvent;
+
+      switch (event.type) {
+        case "message":
+          if (event.role === "assistant" && event.content) {
+            this.handleLogData(projectId, storyId, event.content, "stdout");
+          }
+          break;
+
+        case "tool_use":
+          if (event.tool_name) {
+            const toolInfo = `[Tool: ${event.tool_name}]`;
+            this.handleLogData(projectId, storyId, toolInfo, "stdout");
+          }
+          break;
+
+        case "tool_result":
+          if (event.status === "error" && event.error) {
+            this.handleLogData(
+              projectId,
+              storyId,
+              `[Tool Error: ${event.error.message}]`,
+              "stderr",
+            );
+          }
+          break;
+
+        case "result":
+          if (event.stats) {
+            const statsInfo = `[Stats: ${event.stats.total_tokens} tokens, ${event.stats.duration_ms}ms, ${event.stats.tool_calls} tool calls]`;
+            this.handleLogData(projectId, storyId, statsInfo, "stdout");
+          }
+          if (event.status === "error" && event.error) {
+            this.handleLogData(
+              projectId,
+              storyId,
+              `[Error: ${event.error.message}]`,
+              "stderr",
+            );
+          }
+          break;
+
+        case "init":
+          // Session started - log for debugging
+          console.log(`[GeminiLoop] Session initialized for project ${projectId}`);
+          break;
+      }
+    } catch {
+      // Non-JSON output - treat as regular log
+      if (line) {
+        this.handleLogData(projectId, storyId, line, "stdout");
+      }
+    }
   }
 
   /**
@@ -444,7 +579,7 @@ class ClaudeLoopService {
   setAutoRestart(projectId: number, enabled: boolean): void {
     this.autoRestartEnabled.set(projectId, enabled);
     console.log(
-      `[ClaudeLoop] Auto-restart ${enabled ? "enabled" : "disabled"} for project ${projectId}`,
+      `[GeminiLoop] Auto-restart ${enabled ? "enabled" : "disabled"} for project ${projectId}`,
     );
   }
 
@@ -464,7 +599,7 @@ class ClaudeLoopService {
   }
 
   /**
-   * Generate a prompt for Claude based on the project and story
+   * Generate a prompt for Gemini based on the project and story
    *
    * Reads the prompt from stories/prompt.md if it exists,
    * otherwise uses the default template from promptTemplate.ts
@@ -497,18 +632,8 @@ class ClaudeLoopService {
 
     for (const line of lines) {
       // Log to server console for visibility
-      const prefix = logType === "stderr" ? "[Claude ERR]" : "[Claude]";
+      const prefix = logType === "stderr" ? "[Gemini ERR]" : "[Gemini]";
       console.log(`${prefix} [P${projectId}]`, line);
-
-      if (
-        logType === "stderr" &&
-        /permission/i.test(line) &&
-        /(denied|reject|not allowed|blocked)/i.test(line)
-      ) {
-        console.warn(
-          `[ClaudeLoop] Permission denied for project ${projectId}: ${line}`,
-        );
-      }
 
       const entry: LogEntry = {
         projectId,
@@ -526,7 +651,7 @@ class ClaudeLoopService {
 
       // Persist to database (async)
       this.persistLog(entry).catch((error) => {
-        console.error(`[ClaudeLoop] Failed to persist log:`, error);
+        console.error(`[GeminiLoop] Failed to persist log:`, error);
       });
     }
   }
@@ -612,7 +737,7 @@ class ClaudeLoopService {
         nextStoryId = this.findNextPendingStory(prdData.userStories);
       }
     } catch (error) {
-      console.error(`[ClaudeLoop] Failed to read prd.json:`, error);
+      console.error(`[GeminiLoop] Failed to read prd.json:`, error);
     }
 
     const willAutoRestart =
@@ -621,7 +746,7 @@ class ClaudeLoopService {
 
     if (willAutoRestart && isSameStoryRestart) {
       console.warn(
-        `[ClaudeLoop] Prevented restart loop for project ${projectId} on story ${storyId}`,
+        `[GeminiLoop] Prevented restart loop for project ${projectId} on story ${storyId}`,
       );
       nextStoryId = undefined;
     }
@@ -643,14 +768,14 @@ class ClaudeLoopService {
     // Trigger auto-restart if enabled
     if (finalWillAutoRestart && nextStoryId) {
       console.log(
-        `[ClaudeLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
+        `[GeminiLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
       );
 
       setTimeout(async () => {
         try {
           await this.start(projectId, projectPath, nextStoryId);
         } catch (error) {
-          console.error(`[ClaudeLoop] Failed to auto-restart:`, error);
+          console.error(`[GeminiLoop] Failed to auto-restart:`, error);
           this.broadcastStatus(projectId, "idle");
         }
       }, 1000);
@@ -778,12 +903,12 @@ class ClaudeLoopService {
     // Use setTimeout to avoid blocking the main flow
     setTimeout(async () => {
       try {
-        console.log(`[ClaudeLoop] Generating test scenarios for ${story.id}`);
+        console.log(`[GeminiLoop] Generating test scenarios for ${story.id}`);
         await generateTestScenarios(story, projectPath);
-        console.log(`[ClaudeLoop] Test scenarios generated for ${story.id}`);
+        console.log(`[GeminiLoop] Test scenarios generated for ${story.id}`);
       } catch (error) {
         // Log error but don't fail - test scenario generation is not critical
-        console.error(`[ClaudeLoop] Failed to generate test scenarios for ${story.id}:`, error);
+        console.error(`[GeminiLoop] Failed to generate test scenarios for ${story.id}:`, error);
       }
     }, 100);
   }
@@ -806,7 +931,7 @@ class ClaudeLoopService {
       timestamp: Date.now(),
     });
 
-    console.log(`[ClaudeLoop] Pre-selected story: ${storyId} - ${storyTitle}`);
+    console.log(`[GeminiLoop] Pre-selected story: ${storyId} - ${storyTitle}`);
   }
 
   /**
@@ -823,7 +948,7 @@ class ClaudeLoopService {
 }
 
 // Export singleton instance
-export const claudeLoopService = new ClaudeLoopService();
+export const geminiLoopService = new GeminiLoopService();
 
 // Export class for testing
-export { ClaudeLoopService };
+export { GeminiLoopService };

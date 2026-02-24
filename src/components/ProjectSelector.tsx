@@ -10,6 +10,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { RunnerStatusIndicator } from '@/components/RunnerStatusIndicator'
+import { ReviewBadge } from '@/components/ReviewBadge'
 
 /**
  * Extract the sub-page from a project URL path
@@ -54,8 +56,10 @@ export function ProjectSelector({
   const params = useParams({ strict: false })
   const projectIdFromUrl = params.id ? Number(params.id) : null
 
-  // Fetch projects
-  const { data: projects = [], isLoading } = trpc.projects.list.useQuery()
+  // Fetch projects with polling every 5 seconds for live status updates
+  const { data: projects = [], isLoading } = trpc.projects.list.useQuery(undefined, {
+    refetchInterval: 5000,
+  })
 
   // Get selected project ID from URL or localStorage
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => {
@@ -203,7 +207,26 @@ export function ProjectSelector({
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
-              {selectedProject?.name || 'Selecteer project'}
+              <div className="flex items-center gap-2">
+                <span>{selectedProject?.name || 'Selecteer project'}</span>
+                {selectedProject && (
+                  <>
+                    {selectedProject.runnerStatus !== 'idle' && (
+                      <RunnerStatusIndicator
+                        status={selectedProject.runnerStatus}
+                        provider={selectedProject.runnerProvider}
+                        showTooltip={false}
+                      />
+                    )}
+                    {selectedProject.stats.review > 0 && (
+                      <ReviewBadge
+                        count={selectedProject.stats.review}
+                        showTooltip={false}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -247,6 +270,17 @@ export function ProjectSelector({
                   >
                     <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="flex-1 truncate">{project.name}</span>
+                    {project.runnerStatus !== 'idle' && (
+                      <RunnerStatusIndicator
+                        status={project.runnerStatus}
+                        provider={project.runnerProvider}
+                        showTooltip={false}
+                      />
+                    )}
+                    <ReviewBadge
+                      count={project.stats.review}
+                      showTooltip={false}
+                    />
                     {project.id === selectedProjectId && (
                       <Check className="w-4 h-4 text-primary shrink-0" />
                     )}
@@ -289,6 +323,17 @@ export function ProjectSelector({
         <span className="flex-1 text-sm font-medium truncate text-left">
           {selectedProject?.name || 'Selecteer project'}
         </span>
+        {selectedProject && selectedProject.runnerStatus !== 'idle' && (
+          <RunnerStatusIndicator
+            status={selectedProject.runnerStatus}
+            provider={selectedProject.runnerProvider}
+            showTooltip={false}
+          />
+        )}
+        <ReviewBadge
+          count={selectedProject?.stats.review ?? 0}
+          showTooltip={false}
+        />
         <ChevronDown
           className={cn(
             'w-4 h-4 shrink-0 transition-transform',
@@ -336,6 +381,17 @@ export function ProjectSelector({
                 >
                   <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="flex-1 truncate">{project.name}</span>
+                  {project.runnerStatus !== 'idle' && (
+                    <RunnerStatusIndicator
+                      status={project.runnerStatus}
+                      provider={project.runnerProvider}
+                      showTooltip={false}
+                    />
+                  )}
+                  <ReviewBadge
+                    count={project.stats.review}
+                    showTooltip={false}
+                  />
                   {project.id === selectedProjectId && (
                     <Check className="w-4 h-4 text-primary shrink-0" />
                   )}

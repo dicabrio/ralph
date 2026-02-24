@@ -199,6 +199,7 @@ describe('projectsRouter', () => {
         failed: 0,
         inProgress: 0,
         backlog: 0,
+        review: 0,
         progress: 0,
       })
     })

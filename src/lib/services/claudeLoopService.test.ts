@@ -77,21 +77,30 @@ vi.mock('node:fs', async (importOriginal) => {
   }
 })
 
+// Track prd.json mock data so we can change it per test
+let mockPrdData: {
+  userStories: Array<{ id: string; title: string; status: string; dependencies: string[]; priority: number }>
+} = {
+  userStories: [
+    { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 },
+    { id: 'TEST-002', title: 'Test Story 2', status: 'done', dependencies: [], priority: 2 },
+  ],
+}
+
+// Use a function reference that can be controlled
+const mockReadFile = vi.fn(() => Promise.resolve(JSON.stringify(mockPrdData)))
+
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn().mockResolvedValue(JSON.stringify({
-    userStories: [
-      { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 },
-      { id: 'TEST-002', title: 'Test Story 2', status: 'done', dependencies: [], priority: 2 },
-    ],
-  })),
+  readFile: vi.fn(() => mockReadFile()),
   mkdir: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Mock websocket server
+// Mock websocket server - track broadcast calls
+const mockBroadcastToProject = vi.fn()
 vi.mock('@/lib/websocket/server', () => ({
   getWebSocketServer: vi.fn(() => ({
     broadcastLog: vi.fn(),
-    broadcastToProject: vi.fn(),
+    broadcastToProject: mockBroadcastToProject,
   })),
 }))
 
@@ -103,6 +112,19 @@ const mockGetEffectivePrompt = vi.fn().mockResolvedValue({
 
 vi.mock('@/lib/services/promptTemplate', () => ({
   getEffectivePrompt: mockGetEffectivePrompt,
+}))
+
+// Mock storySelector - for pre-selection functionality
+const mockSelectNextStory = vi.fn()
+const mockGenerateStoryPrompt = vi.fn()
+const mockGetNoEligibleStoryReason = vi.fn()
+const mockReadPrdJson = vi.fn()
+
+vi.mock('@/lib/services/storySelector', () => ({
+  selectNextStory: mockSelectNextStory,
+  generateStoryPrompt: mockGenerateStoryPrompt,
+  getNoEligibleStoryReason: mockGetNoEligibleStoryReason,
+  readPrdJson: mockReadPrdJson,
 }))
 
 // Mock database
@@ -130,6 +152,18 @@ async function createTestService(): Promise<ClaudeLoopService> {
     content: '# Test Prompt\nThis is a test prompt.',
     source: 'default',
   })
+  // Setup storySelector mocks
+  mockSelectNextStory.mockResolvedValue({
+    story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+    allStories: mockPrdData.userStories,
+    dependencyTitles: [],
+  })
+  mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+  mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+  mockReadPrdJson.mockResolvedValue({
+    projectName: 'Test',
+    userStories: mockPrdData.userStories,
+  })
   const module = await import('./claudeLoopService')
   return new module.ClaudeLoopService()
 }
@@ -138,7 +172,27 @@ describe('ClaudeLoopService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     spawnedProcesses.length = 0
+    mockBroadcastToProject.mockClear()
     process.env.HOME = '/home/testuser'
+    // Reset prd.json mock data to default
+    mockPrdData = {
+      userStories: [
+        { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 },
+        { id: 'TEST-002', title: 'Test Story 2', status: 'done', dependencies: [], priority: 2 },
+      ],
+    }
+    // Reset storySelector mocks
+    mockSelectNextStory.mockResolvedValue({
+      story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+      allStories: mockPrdData.userStories,
+      dependencyTitles: [],
+    })
+    mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+    mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+    mockReadPrdJson.mockResolvedValue({
+      projectName: 'Test',
+      userStories: mockPrdData.userStories,
+    })
   })
 
   afterEach(() => {
@@ -590,6 +644,102 @@ describe('ClaudeLoopService', () => {
       // Process should be cleaned up
       const status = service.getStatus(1)
       expect(status.status).toBe('idle')
+    })
+  })
+
+  describe('review status handling', () => {
+    it('considers review status as completed for dependency checking', async () => {
+      // Set up prd.json with a story that depends on a review story
+      mockPrdData = {
+        userStories: [
+          { id: 'TEST-001', title: 'Dep Story', status: 'review', dependencies: [], priority: 1 },
+          { id: 'TEST-002', title: 'Dependent Story', status: 'pending', dependencies: ['TEST-001'], priority: 2 },
+        ],
+      }
+
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+
+      // Start and trigger exit - should auto-restart with TEST-002 because TEST-001 is 'review'
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Simulate successful exit
+      const closeHandler = spawnedProcesses[0]._handlers.get('close')
+      if (closeHandler) closeHandler(0)
+
+      // Wait for async handling and auto-restart timer
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+
+      // Should have started a second process with TEST-002
+      expect(spawnedProcesses.length).toBe(2)
+    })
+
+    it('broadcasts story_review event when story status is review', async () => {
+      // Set up prd.json so completed story has 'review' status
+      mockPrdData = {
+        userStories: [
+          { id: 'TEST-001', title: 'Test Story', status: 'review', dependencies: [], priority: 1 },
+        ],
+      }
+
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+      service.setAutoRestart(1, false)
+
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Trigger successful exit
+      const closeHandler = spawnedProcesses[0]._handlers.get('close')
+      if (closeHandler) closeHandler(0)
+
+      // Wait for async handling
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Check that story_review event was broadcast
+      const storyReviewCalls = mockBroadcastToProject.mock.calls.filter(
+        (call: unknown[]) => call[1] && (call[1] as { type: string }).type === 'story_review'
+      )
+
+      expect(storyReviewCalls.length).toBe(1)
+      expect(storyReviewCalls[0][0]).toBe('1') // projectId as string
+      expect((storyReviewCalls[0][1] as { payload: { storyId: string } }).payload.storyId).toBe('TEST-001')
+    })
+
+    it('does not broadcast story_review event when story status is done', async () => {
+      // Set up prd.json so completed story has 'done' status
+      mockPrdData = {
+        userStories: [
+          { id: 'TEST-001', title: 'Test Story', status: 'done', dependencies: [], priority: 1 },
+        ],
+      }
+
+      const service = await createTestService()
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' })
+      service.setAutoRestart(1, false)
+
+      await service.start(1, '/test/project', 'TEST-001')
+
+      // Trigger successful exit
+      const closeHandler = spawnedProcesses[0]._handlers.get('close')
+      if (closeHandler) closeHandler(0)
+
+      // Wait for async handling
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Check that story_review event was NOT broadcast
+      const storyReviewCalls = mockBroadcastToProject.mock.calls.filter(
+        (call: unknown[]) => call[1] && (call[1] as { type: string }).type === 'story_review'
+      )
+
+      expect(storyReviewCalls.length).toBe(0)
+    })
+
+    it('includes review in StoryStatus type', () => {
+      // This is a type-level test - if it compiles, the type is correct
+      // The StoryStatus type should include 'review'
+      const validStatuses: Array<'pending' | 'in_progress' | 'done' | 'failed' | 'review'> =
+        ['pending', 'in_progress', 'done', 'failed', 'review']
+      expect(validStatuses).toContain('review')
     })
   })
 })

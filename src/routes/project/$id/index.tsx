@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Play,
   Square,
   Loader2,
@@ -19,6 +18,8 @@ import {
   ExternalLink,
   Trash2,
   AlertTriangle,
+  ClipboardCheck,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -80,7 +81,7 @@ export const Route = createFileRoute("/project/$id/")({
 });
 
 // Story status type
-type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "backlog";
+type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "backlog" | "review";
 
 // Story type from the API
 interface Story {
@@ -97,7 +98,7 @@ interface Story {
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
-type RunnerProvider = "claude" | "codex";
+type RunnerProvider = "claude" | "codex" | "gemini";
 
 // Compute project stats from stories
 function computeProjectStats(stories: Story[]) {
@@ -330,7 +331,7 @@ function RunnerControls({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         <Button
           type="button"
           size="sm"
@@ -348,6 +349,15 @@ function RunnerControls({
           disabled={isBusy || isRunning}
         >
           Codex
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={selectedProvider === "gemini" ? "default" : "outline"}
+          onClick={() => onProviderChange("gemini")}
+          disabled={isBusy || isRunning}
+        >
+          Gemini
         </Button>
       </div>
 
@@ -406,9 +416,10 @@ function RunnerControls({
 // Quick links component
 interface QuickLinksProps {
   projectId: string;
+  reviewCount?: number;
 }
 
-function QuickLinks({ projectId }: QuickLinksProps) {
+function QuickLinks({ projectId, reviewCount = 0 }: QuickLinksProps) {
   return (
     <div className="p-4 bg-card rounded-lg border">
       <h3 className="text-sm font-semibold text-foreground mb-4">
@@ -429,6 +440,54 @@ function QuickLinks({ projectId }: QuickLinksProps) {
             <p className="text-sm font-medium">Kanban Board</p>
             <p className="text-xs text-muted-foreground">
               Manage stories and track progress
+            </p>
+          </div>
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+        </Link>
+        <Link
+          to="/project/$id/testing"
+          params={{ id: projectId }}
+          data-testid="quick-link-testing"
+          className={cn(
+            "flex items-center gap-3 p-3 rounded-lg",
+            "bg-background hover:bg-accent transition-colors",
+            "text-foreground",
+          )}
+        >
+          <ClipboardCheck className="w-5 h-5 text-purple-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium flex items-center gap-2">
+              Testing Board
+              {reviewCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-semibold rounded-full bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+                  data-testid="quick-link-review-badge"
+                >
+                  {reviewCount}
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Review and approve completed stories
+            </p>
+          </div>
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+        </Link>
+        <Link
+          to="/project/$id/archive"
+          params={{ id: projectId }}
+          data-testid="quick-link-archive"
+          className={cn(
+            "flex items-center gap-3 p-3 rounded-lg",
+            "bg-background hover:bg-accent transition-colors",
+            "text-foreground",
+          )}
+        >
+          <Archive className="w-5 h-5 text-slate-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Archive</p>
+            <p className="text-xs text-muted-foreground">
+              Browse archived stories
             </p>
           </div>
           <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -551,7 +610,7 @@ function ProjectDetail() {
   useEffect(() => {
     if (typeof window === "undefined" || Number.isNaN(projectId)) return;
     const stored = window.localStorage.getItem(`ralph.runner-provider.${projectId}`);
-    if (stored === "claude" || stored === "codex") {
+    if (stored === "claude" || stored === "codex" || stored === "gemini") {
       setRunnerProvider(stored);
     }
   }, [projectId]);
@@ -631,6 +690,7 @@ function ProjectDetail() {
 
   // Compute stats
   const stats = computeProjectStats(stories);
+  const reviewCount = stories.filter((s) => s.status === "review").length;
   const runnerStatus: RunnerStatus = runnerState?.status ?? "idle";
 
   // Handle branch name update
@@ -670,61 +730,28 @@ function ProjectDetail() {
     setIsDeleteDialogOpen(false);
   };
 
-  // Loading state
+  // Loading state - layout handles main loading
   if (isLoadingProject) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  // Error state
+  // Error state - layout handles redirect
   if (projectError || !project) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-            <AlertCircle className="w-8 h-8 text-destructive" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            Project not found
-          </h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The project you're looking for doesn't exist or has been removed.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Back link */}
-      <Link
-        to="/"
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Dashboard
-      </Link>
-
-      {/* Project header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          {project.name}
-        </h1>
-        {project.description && (
+      {/* Project description */}
+      {project.description && (
+        <div className="mb-6">
           <p className="text-lg text-muted-foreground">{project.description}</p>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content - stats and settings */}
@@ -838,7 +865,7 @@ function ProjectDetail() {
             isStopping={stopRunner.isPending}
           />
 
-          <QuickLinks projectId={id} />
+          <QuickLinks projectId={id} reviewCount={reviewCount} />
         </div>
       </div>
 

@@ -37,7 +37,7 @@ const fieldMappingSchema = z.object({
   nestedMappings: z.array(z.lazy((): z.ZodType => fieldMappingSchema)).optional(),
 }) as z.ZodType<FieldMapping>
 
-const storyStatusEnumSchema = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog'])
+const storyStatusEnumSchema = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog', 'review'])
 
 const conversionMappingSchema = z.object({
   rootMappings: z.array(fieldMappingSchema),

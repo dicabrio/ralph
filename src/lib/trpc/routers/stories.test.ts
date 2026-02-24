@@ -93,6 +93,17 @@ const samplePrdJson = {
       recommendedSkills: ['skill-c'],
       acceptanceCriteria: ['Criteria Z'],
     },
+    {
+      id: 'STORY-005',
+      title: 'Review Story',
+      description: 'A story in review status',
+      priority: 5,
+      status: 'review' as StoryStatus,
+      epic: 'Testing',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: ['Criteria R'],
+    },
   ],
 }
 
@@ -124,8 +135,8 @@ describe('storiesRouter', () => {
       const caller = createCaller({})
       const result = await caller.listByProject({ projectId: testProjectId })
 
-      expect(result).toHaveLength(4)
-      expect(result.map(s => s.id)).toEqual(['STORY-001', 'STORY-002', 'STORY-003', 'STORY-004'])
+      expect(result).toHaveLength(5)
+      expect(result.map(s => s.id)).toEqual(['STORY-001', 'STORY-002', 'STORY-003', 'STORY-004', 'STORY-005'])
     })
 
     it('throws NOT_FOUND when project does not exist', async () => {
@@ -179,7 +190,7 @@ describe('storiesRouter', () => {
       const caller = createCaller({})
       const result = await caller.listByProject({ projectId: testProjectId })
 
-      expect(result).toHaveLength(4)
+      expect(result).toHaveLength(5)
       expect(result.filter(s => s.id === 'STORY-001')).toHaveLength(1)
       expect(result.find(s => s.id === 'STORY-001')?.title).toBe('First Story')
     })
@@ -476,6 +487,134 @@ describe('storiesRouter', () => {
           code: 'BAD_REQUEST',
         })
       })
+
+      // Valid transitions from in_progress to review
+      it('allows in_progress -> review', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+        vi.mocked(writeFile).mockResolvedValue(undefined)
+
+        const caller = createCaller({})
+        const result = await caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-002', // status: in_progress
+          status: 'review',
+        })
+
+        expect(result.status).toBe('review')
+      })
+
+      // Valid transitions from review
+      it('allows review -> done (accept)', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+        vi.mocked(writeFile).mockResolvedValue(undefined)
+
+        const caller = createCaller({})
+        const result = await caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-005', // status: review
+          status: 'done',
+        })
+
+        expect(result.status).toBe('done')
+      })
+
+      it('allows review -> failed (reject)', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+        vi.mocked(writeFile).mockResolvedValue(undefined)
+
+        const caller = createCaller({})
+        const result = await caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-005', // status: review
+          status: 'failed',
+        })
+
+        expect(result.status).toBe('failed')
+      })
+
+      it('allows review -> in_progress (needs more work)', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+        vi.mocked(writeFile).mockResolvedValue(undefined)
+
+        const caller = createCaller({})
+        const result = await caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-005', // status: review
+          status: 'in_progress',
+        })
+
+        expect(result.status).toBe('in_progress')
+      })
+
+      // Invalid transitions from review
+      it('rejects review -> pending', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+        const caller = createCaller({})
+
+        await expect(caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-005', // status: review
+          status: 'pending',
+        })).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining('Invalid status transition'),
+        })
+      })
+
+      it('rejects review -> backlog', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+        const caller = createCaller({})
+
+        await expect(caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-005', // status: review
+          status: 'backlog',
+        })).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining('Invalid status transition'),
+        })
+      })
+
+      // Invalid transitions to review (only in_progress can go to review)
+      it('rejects pending -> review', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+        const caller = createCaller({})
+
+        await expect(caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-001', // status: pending
+          status: 'review',
+        })).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining('Invalid status transition'),
+        })
+      })
+
+      it('rejects done -> review', async () => {
+        vi.mocked(existsSync).mockReturnValue(true)
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+        const caller = createCaller({})
+
+        await expect(caller.updateStatus({
+          projectId: testProjectId,
+          storyId: 'STORY-003', // status: done
+          status: 'review',
+        })).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining('Invalid status transition'),
+        })
+      })
     })
   })
 
@@ -596,9 +735,9 @@ describe('addStories', () => {
       // Verify the written content includes new story
       const writeCall = vi.mocked(writeFile).mock.calls[0]
       const writtenData = JSON.parse(writeCall[1] as string)
-      expect(writtenData.userStories).toHaveLength(5) // 4 original + 1 new
-      expect(writtenData.userStories[4].id).toBe('NEW-001')
-      expect(writtenData.userStories[4].status).toBe('pending')
+      expect(writtenData.userStories).toHaveLength(6) // 5 original + 1 new
+      expect(writtenData.userStories[5].id).toBe('NEW-001')
+      expect(writtenData.userStories[5].status).toBe('pending')
     })
 
     it('adds multiple stories at once', async () => {
@@ -640,7 +779,7 @@ describe('addStories', () => {
 
       const writeCall = vi.mocked(writeFile).mock.calls[0]
       const writtenData = JSON.parse(writeCall[1] as string)
-      expect(writtenData.userStories).toHaveLength(6) // 4 original + 2 new
+      expect(writtenData.userStories).toHaveLength(7) // 5 original + 2 new
     })
 
     it('throws CONFLICT when story ID already exists', async () => {

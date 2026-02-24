@@ -109,9 +109,28 @@ export type ServerMessage =
         storyId?: string
         exitCode: number
         success: boolean
-        completedStoryStatus?: 'done' | 'failed' | 'pending' | 'in_progress'
+        completedStoryStatus?: 'done' | 'failed' | 'pending' | 'in_progress' | 'review'
         nextStoryId?: string
         willAutoRestart: boolean
+      }
+      timestamp: number
+    }
+  // Story review event - triggered when a story transitions to review status
+  | {
+      type: 'story_review'
+      payload: {
+        projectId: string
+        storyId: string
+      }
+      timestamp: number
+    }
+  // Story selected event - triggered when a story is pre-selected before spawning the LLM
+  | {
+      type: 'story_selected'
+      payload: {
+        projectId: string
+        storyId: string
+        storyTitle: string
       }
       timestamp: number
     }
@@ -120,6 +139,15 @@ export type ServerMessage =
       type: 'stories_updated'
       payload: {
         projectId: string
+      }
+      timestamp: number
+    }
+  // Test scenarios generated event - triggered when test scenarios are created for a review story
+  | {
+      type: 'test_scenarios_generated'
+      payload: {
+        projectId: string
+        storyId: string
       }
       timestamp: number
     }

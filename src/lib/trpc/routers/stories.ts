@@ -15,7 +15,7 @@ import { db } from '@/db'
 import { projects } from '@/db/schema'
 
 // Valid story statuses
-export const VALID_STATUSES = ['pending', 'in_progress', 'done', 'failed', 'backlog'] as const
+export const VALID_STATUSES = ['pending', 'in_progress', 'done', 'failed', 'backlog', 'review'] as const
 export const storyStatusEnum = z.enum(VALID_STATUSES)
 export type StoryStatus = z.infer<typeof storyStatusEnum>
 
@@ -56,16 +56,18 @@ type PrdJson = z.infer<typeof prdJsonSchema>
 
 // Valid status transitions
 // pending -> in_progress, done (manual skip), backlog (move to backlog)
-// in_progress -> done, failed, pending
+// in_progress -> done, failed, pending, review (runner completion triggers review)
 // done -> pending, backlog (reopening/move to backlog)
 // failed -> in_progress, pending, backlog
 // backlog -> pending (move to todo), done (manual skip)
+// review -> done (accepted), failed (rejected, needs fix), in_progress (needs more work)
 const validTransitions: Record<StoryStatus, StoryStatus[]> = {
   pending: ['in_progress', 'done', 'backlog'],
-  in_progress: ['done', 'failed', 'pending'],
+  in_progress: ['done', 'failed', 'pending', 'review'],
   done: ['pending', 'backlog'],
   failed: ['in_progress', 'pending', 'backlog'],
   backlog: ['pending', 'done'],
+  review: ['done', 'failed', 'in_progress'],
 }
 
 /**

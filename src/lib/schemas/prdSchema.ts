@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // Ralph's standard PRD.json schema
 
-export const storyStatusEnum = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog'])
+export const storyStatusEnum = z.enum(['pending', 'in_progress', 'done', 'failed', 'backlog', 'review'])
 
 export const storySchema = z.object({
   id: z.string().min(1, 'Story ID is required'),
@@ -43,6 +43,20 @@ export type Epic = z.infer<typeof epicSchema>
 export type ImplementationGuide = z.infer<typeof implementationGuideSchema>
 export type Prd = z.infer<typeof prdSchema>
 export type StoryStatus = z.infer<typeof storyStatusEnum>
+
+// Archived story schema - extends story with archivedAt timestamp
+export const archivedStorySchema = storySchema.extend({
+  archivedAt: z.string().datetime({ message: 'archivedAt must be a valid ISO datetime string' }),
+})
+
+// Archived PRD schema for archived.json structure
+export const archivedPrdSchema = z.object({
+  projectName: z.string().min(1, 'Project name is required'),
+  archivedStories: z.array(archivedStorySchema).default([]),
+})
+
+export type ArchivedStory = z.infer<typeof archivedStorySchema>
+export type ArchivedPrd = z.infer<typeof archivedPrdSchema>
 
 // Validation result type
 export interface PrdValidationResult {
@@ -163,6 +177,14 @@ export const statusAliases: Record<string, StoryStatus> = {
   later: 'backlog',
   someday: 'backlog',
   future: 'backlog',
+
+  // review aliases
+  review: 'review',
+  testing: 'review',
+  qa: 'review',
+  'in-review': 'review',
+  'in review': 'review',
+  verification: 'review',
 }
 
 /**

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
@@ -13,7 +13,6 @@ import {
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
-  ArrowLeft,
   Play,
   Square,
   Loader2,
@@ -26,6 +25,8 @@ import {
   Lock,
   AlertTriangle,
   Info,
+  Archive,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -87,7 +88,7 @@ export const Route = createFileRoute("/project/$id/kanban")({
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
-type RunnerProvider = "claude" | "codex";
+type RunnerProvider = "claude" | "codex" | "gemini";
 
 // Kanban column definition
 interface KanbanColumn {
@@ -149,6 +150,17 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
     isLocked: true,
   },
   {
+    id: "review",
+    title: "Review",
+    status: "review",
+    icon: <Eye className="w-4 h-4" />,
+    headerColor: "text-purple-600 dark:text-purple-400",
+    bgColor: "bg-purple-50 dark:bg-purple-900/20",
+    isDraggable: false,
+    isDroppable: false, // Only runner can move stories here
+    isLocked: true,
+  },
+  {
     id: "done",
     title: "Voltooid",
     status: "done",
@@ -180,6 +192,7 @@ function getColumnForStory(story: Story, _allStories: Story[]): string {
   // Simple status to column mapping
   if (story.status === "pending") return "todo";
   if (story.status === "backlog") return "backlog";
+  if (story.status === "review") return "review";
   return story.status;
 }
 
@@ -196,6 +209,8 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
       return "done";
     case "failed":
       return "failed";
+    case "review":
+      return "review";
     default:
       return null;
   }
@@ -204,10 +219,11 @@ function getTargetStatusForColumn(columnId: string): StoryStatus | null {
 // Valid status transitions (from stories router)
 const validTransitions: Record<StoryStatus, StoryStatus[]> = {
   pending: ["in_progress", "done", "backlog"],
-  in_progress: ["done", "failed", "pending"],
+  in_progress: ["done", "failed", "pending", "review"],
   done: ["pending", "backlog"],
   failed: ["in_progress", "pending", "backlog"],
   backlog: ["pending", "done"],
+  review: ["done", "failed", "in_progress"],
 };
 
 // Check if a status transition is valid
@@ -265,6 +281,7 @@ interface DraggableStoryCardProps {
   onClick?: () => void;
   runnerStatus: RunnerStatus;
   onPlayClick?: (story: Story) => void;
+  onArchiveClick?: (story: Story) => void;
 }
 
 // Stories that can show the play button
@@ -277,6 +294,7 @@ function DraggableStoryCard({
   onClick,
   runnerStatus,
   onPlayClick,
+  onArchiveClick,
 }: DraggableStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -298,9 +316,17 @@ function DraggableStoryCard({
   const canShowPlayButton =
     PLAYABLE_STATUSES.includes(story.status) && runnerStatus === "idle";
 
+  // Show archive button only for done stories
+  const canShowArchiveButton = story.status === "done";
+
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the card's onClick
     onPlayClick?.(story);
+  };
+
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the card's onClick
+    onArchiveClick?.(story);
   };
 
   return (
@@ -356,6 +382,28 @@ function DraggableStoryCard({
             <Play className="w-3.5 h-3.5 ml-0.5" />
           </button>
         )}
+        {/* Archive button overlay (for done stories) */}
+        {canShowArchiveButton && (
+          <button
+            type="button"
+            onClick={handleArchiveClick}
+            className={cn(
+              "absolute bottom-2 right-2",
+              "w-7 h-7 rounded-full",
+              "flex items-center justify-center",
+              "bg-slate-500 text-white",
+              "hover:bg-slate-600 active:bg-slate-700",
+              "shadow-md hover:shadow-lg",
+              "opacity-0 group-hover:opacity-100",
+              "transition-all duration-150",
+              "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2",
+            )}
+            data-testid={`archive-story-${story.id}`}
+            aria-label={`Archive story ${story.id}`}
+          >
+            <Archive className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -371,6 +419,8 @@ interface DroppableColumnProps {
   onStoryClick?: (story: Story) => void;
   runnerStatus: RunnerStatus;
   onPlayClick?: (story: Story) => void;
+  onArchiveClick?: (story: Story) => void;
+  onBulkArchiveClick?: () => void;
 }
 
 function DroppableColumn({
@@ -382,12 +432,17 @@ function DroppableColumn({
   onStoryClick,
   runnerStatus,
   onPlayClick,
+  onArchiveClick,
+  onBulkArchiveClick,
 }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({
     id: column.id,
     disabled: !column.isDroppable,
     data: { column },
   });
+
+  // Show bulk archive button only for done column with stories
+  const showBulkArchive = column.id === "done" && stories.length > 0;
 
   return (
     <div
@@ -399,7 +454,12 @@ function DroppableColumn({
       )}
       data-testid={`kanban-column-${column.id}`}
     >
-      <ColumnHeader column={column} count={stories.length} />
+      <ColumnHeader
+        column={column}
+        count={stories.length}
+        showBulkArchive={showBulkArchive}
+        onBulkArchiveClick={onBulkArchiveClick}
+      />
       <ScrollArea
         className={cn(
           "flex-1 max-h-[calc(100vh-300px)] transition-colors",
@@ -429,6 +489,7 @@ function DroppableColumn({
                   onClick={onStoryClick ? () => onStoryClick(story) : undefined}
                   runnerStatus={runnerStatus}
                   onPlayClick={onPlayClick}
+                  onArchiveClick={onArchiveClick}
                 />
               ))
           )}
@@ -442,9 +503,16 @@ function DroppableColumn({
 interface ColumnHeaderProps {
   column: KanbanColumn;
   count: number;
+  showBulkArchive?: boolean;
+  onBulkArchiveClick?: () => void;
 }
 
-function ColumnHeader({ column, count }: ColumnHeaderProps) {
+function ColumnHeader({
+  column,
+  count,
+  showBulkArchive,
+  onBulkArchiveClick,
+}: ColumnHeaderProps) {
   return (
     <div className={cn("flex items-center gap-2 px-3 py-2", column.bgColor)}>
       <span className={column.headerColor}>{column.icon}</span>
@@ -457,6 +525,21 @@ function ColumnHeader({ column, count }: ColumnHeaderProps) {
           data-testid="column-lock-icon"
           aria-label="Column locked - only runner can modify"
         />
+      )}
+      {showBulkArchive && (
+        <button
+          type="button"
+          onClick={onBulkArchiveClick}
+          className={cn(
+            "ml-1 p-1 rounded",
+            "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+            "transition-colors",
+          )}
+          data-testid="bulk-archive-button"
+          aria-label="Archive all completed stories"
+        >
+          <Archive className="w-3.5 h-3.5" />
+        </button>
       )}
       <span
         className={cn(
@@ -567,6 +650,19 @@ function KanbanRunnerControls({
           )}
         >
           Codex
+        </button>
+        <button
+          type="button"
+          onClick={() => onProviderChange("gemini")}
+          disabled={isBusy || isRunning}
+          className={cn(
+            "rounded px-2 py-1 text-xs font-medium transition-colors",
+            selectedProvider === "gemini"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Gemini
         </button>
       </div>
       <RunnerStatusBadge status={runnerStatus} storyId={currentStoryId} />
@@ -920,6 +1016,182 @@ function RunSingleStoryDialog({
   );
 }
 
+// Archive confirmation dialog
+interface ArchiveConfirmDialogProps {
+  isOpen: boolean;
+  story: Story | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+function ArchiveConfirmDialog({
+  isOpen,
+  story,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: ArchiveConfirmDialogProps) {
+  if (!isOpen || !story) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="archive-dialog-title"
+      data-testid="archive-confirm-dialog"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onCancel}
+        data-testid="archive-dialog-backdrop"
+      />
+
+      {/* Dialog content */}
+      <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
+            <Archive className="w-5 h-5 text-slate-500" />
+          </div>
+          <div>
+            <h2
+              id="archive-dialog-title"
+              className="text-lg font-semibold text-foreground"
+            >
+              Story archiveren
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Weet je zeker dat je deze story wilt archiveren?
+            </p>
+          </div>
+        </div>
+
+        {/* Story info */}
+        <div className="bg-muted/50 rounded-lg p-3 mb-4">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-mono text-muted-foreground">
+              {story.id}
+            </span>
+            <Badge variant="default">P{story.priority}</Badge>
+          </div>
+          <p className="text-sm font-medium text-foreground">{story.title}</p>
+        </div>
+
+        <p className="text-xs text-muted-foreground mb-4">
+          Gearchiveerde stories worden verplaatst naar het archief en zijn
+          beschikbaar op de Archive pagina.
+        </p>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+            data-testid="archive-cancel"
+          >
+            Annuleren
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-slate-600 hover:bg-slate-700"
+            data-testid="archive-confirm"
+          >
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Archiveren
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bulk archive confirmation dialog
+interface BulkArchiveConfirmDialogProps {
+  isOpen: boolean;
+  storyCount: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+function BulkArchiveConfirmDialog({
+  isOpen,
+  storyCount,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: BulkArchiveConfirmDialogProps) {
+  if (!isOpen || storyCount === 0) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-archive-dialog-title"
+      data-testid="bulk-archive-confirm-dialog"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onCancel}
+        data-testid="bulk-archive-dialog-backdrop"
+      />
+
+      {/* Dialog content */}
+      <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
+            <Archive className="w-5 h-5 text-slate-500" />
+          </div>
+          <div>
+            <h2
+              id="bulk-archive-dialog-title"
+              className="text-lg font-semibold text-foreground"
+            >
+              Alle stories archiveren
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Weet je zeker dat je alle {storyCount} voltooide{" "}
+              {storyCount === 1 ? "story" : "stories"} wilt archiveren?
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground mb-4">
+          Gearchiveerde stories worden verplaatst naar het archief en zijn
+          beschikbaar op de Archive pagina.
+        </p>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+            data-testid="bulk-archive-cancel"
+          >
+            Annuleren
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-slate-600 hover:bg-slate-700"
+            data-testid="bulk-archive-confirm"
+          >
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Archiveer alle
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Pending drop info for confirmation dialog
 interface PendingDrop {
   story: Story;
@@ -940,7 +1212,7 @@ function KanbanBoard() {
     const stored = window.localStorage.getItem(
       `ralph.runner-provider.${projectId}`,
     );
-    if (stored === "claude" || stored === "codex") {
+    if (stored === "claude" || stored === "codex" || stored === "gemini") {
       setRunnerProvider(stored);
     }
   }, [projectId]);
@@ -965,6 +1237,11 @@ function KanbanBoard() {
   );
   const [isRunSingleStoryDialogOpen, setIsRunSingleStoryDialogOpen] =
     useState(false);
+
+  // Archive dialog state
+  const [archiveTarget, setArchiveTarget] = useState<Story | null>(null);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isBulkArchiveDialogOpen, setIsBulkArchiveDialogOpen] = useState(false);
 
   // Configure sensors with activation constraint
   const sensors = useSensors(
@@ -1146,6 +1423,107 @@ function KanbanBoard() {
     },
   });
 
+  // Archive single story mutation with optimistic updates
+  const archiveStory = trpc.archive.archiveStory.useMutation({
+    onMutate: async ({ storyId }) => {
+      // Mark the timestamp of our own update to avoid duplicate refetch from file watcher
+      lastOwnUpdateRef.current = Date.now();
+
+      // Cancel any outgoing refetches
+      await utils.stories.listByProject.cancel({ projectId });
+
+      // Snapshot the previous value
+      const previousStories = utils.stories.listByProject.getData({
+        projectId,
+      });
+
+      // Optimistically remove the story from the list
+      utils.stories.listByProject.setData({ projectId }, (old) => {
+        if (!old) return old;
+        return old.filter((story) => story.id !== storyId);
+      });
+
+      // Return the context with the previous value
+      return { previousStories };
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousStories) {
+        utils.stories.listByProject.setData(
+          { projectId },
+          context.previousStories,
+        );
+      }
+      toast.error("Failed to archive story", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+    onSuccess: (archivedStory) => {
+      toast.success("Story gearchiveerd", {
+        description: `${archivedStory.id} is verplaatst naar het archief`,
+      });
+      setIsArchiveDialogOpen(false);
+      setArchiveTarget(null);
+    },
+    onSettled: () => {
+      // Invalidate to refetch and ensure consistency
+      utils.stories.listByProject.invalidate({ projectId });
+    },
+  });
+
+  // Bulk archive mutation with optimistic updates
+  const bulkArchive = trpc.archive.archiveMultiple.useMutation({
+    onMutate: async ({ storyIds }) => {
+      // Mark the timestamp of our own update to avoid duplicate refetch from file watcher
+      lastOwnUpdateRef.current = Date.now();
+
+      // Cancel any outgoing refetches
+      await utils.stories.listByProject.cancel({ projectId });
+
+      // Snapshot the previous value
+      const previousStories = utils.stories.listByProject.getData({
+        projectId,
+      });
+
+      // Optimistically remove the stories from the list
+      utils.stories.listByProject.setData({ projectId }, (old) => {
+        if (!old) return old;
+        return old.filter((story) => !storyIds.includes(story.id));
+      });
+
+      // Return the context with the previous value
+      return { previousStories };
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousStories) {
+        utils.stories.listByProject.setData(
+          { projectId },
+          context.previousStories,
+        );
+      }
+      toast.error("Failed to archive stories", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+    onSuccess: (result) => {
+      const count = result.archived.length;
+      toast.success("Stories gearchiveerd", {
+        description: `${count} ${count === 1 ? "story" : "stories"} verplaatst naar het archief`,
+      });
+      if (result.errors && result.errors.length > 0) {
+        toast.warning("Some stories could not be archived", {
+          description: result.errors.join("; "),
+        });
+      }
+      setIsBulkArchiveDialogOpen(false);
+    },
+    onSettled: () => {
+      // Invalidate to refetch and ensure consistency
+      utils.stories.listByProject.invalidate({ projectId });
+    },
+  });
+
   // Compute stats
   const stats = computeProjectStats(stories);
   const runnerStatus: RunnerStatus = runnerState?.status ?? "idle";
@@ -1225,6 +1603,52 @@ function KanbanBoard() {
   const handleCancelRunSingleStory = useCallback(() => {
     setIsRunSingleStoryDialogOpen(false);
     setRunSingleStoryTarget(null);
+  }, []);
+
+  // Handle archive button click on story card
+  const handleArchiveStoryClick = useCallback((story: Story) => {
+    setArchiveTarget(story);
+    setIsArchiveDialogOpen(true);
+  }, []);
+
+  // Handle confirm archive single story
+  const handleConfirmArchive = useCallback(() => {
+    if (!archiveTarget) return;
+    archiveStory.mutate({
+      projectId,
+      storyId: archiveTarget.id,
+    });
+  }, [archiveTarget, projectId, archiveStory]);
+
+  // Handle cancel archive
+  const handleCancelArchive = useCallback(() => {
+    setIsArchiveDialogOpen(false);
+    setArchiveTarget(null);
+  }, []);
+
+  // Handle bulk archive button click
+  const handleBulkArchiveClick = useCallback(() => {
+    setIsBulkArchiveDialogOpen(true);
+  }, []);
+
+  // Get done stories for bulk archive
+  const doneStories = useMemo(
+    () => stories.filter((s) => s.status === "done"),
+    [stories],
+  );
+
+  // Handle confirm bulk archive
+  const handleConfirmBulkArchive = useCallback(() => {
+    if (doneStories.length === 0) return;
+    bulkArchive.mutate({
+      projectId,
+      storyIds: doneStories.map((s) => s.id),
+    });
+  }, [doneStories, projectId, bulkArchive]);
+
+  // Handle cancel bulk archive
+  const handleCancelBulkArchive = useCallback(() => {
+    setIsBulkArchiveDialogOpen(false);
   }, []);
 
   // Drag handlers
@@ -1337,36 +1761,15 @@ function KanbanBoard() {
   // Loading state
   if (isLoadingProject || isLoadingStories) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  // Error state - project not found
+  // Error state - project not found (handled by layout)
   if (projectError || !project) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-            <AlertCircle className="w-8 h-8 text-destructive" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            Project not found
-          </h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The project you're looking for doesn't exist or has been removed.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Helper to parse prd.json error messages
@@ -1406,39 +1809,17 @@ function KanbanBoard() {
   if (storiesError) {
     const { title, description } = getPrdErrorMessage(storiesError);
     return (
-      <div className="flex flex-col h-[calc(100vh-64px)]">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/project/$id"
-                params={{ id }}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <h1 className="text-xl font-bold text-foreground">
-                {project.name}
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Error content */}
-        <div className="flex-1 p-6">
-          <Alert variant="destructive" className="max-w-2xl">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{title}</AlertTitle>
-            <AlertDescription>
-              <p>{description}</p>
-              <p className="mt-2 text-xs font-mono opacity-75">
-                {project.path}/stories/prd.json
-              </p>
-            </AlertDescription>
-          </Alert>
-        </div>
+      <div className="p-6">
+        <Alert variant="destructive" className="max-w-2xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>
+            <p>{description}</p>
+            <p className="mt-2 text-xs font-mono opacity-75">
+              {project.path}/stories/prd.json
+            </p>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -1451,25 +1832,13 @@ function KanbanBoard() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col h-[calc(100vh-64px)]">
-        {/* Header */}
+      <div className="flex flex-col h-full">
+        {/* Toolbar with runner controls and stats */}
         <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-4">
-            {/* Top row: back link and project name */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-4">
-                <Link
-                  to="/project/$id"
-                  params={{ id }}
-                  className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm">Back</span>
-                </Link>
-                <h1 className="text-xl font-bold text-foreground">
-                  {project.name}
-                </h1>
-              </div>
+          <div className="px-6 py-3">
+            {/* Runner controls and stats in same row */}
+            <div className="flex items-center justify-between gap-4">
+              <StatsBar stats={stats} />
               <KanbanRunnerControls
                 projectId={projectId}
                 runnerStatus={runnerStatus}
@@ -1485,8 +1854,6 @@ function KanbanBoard() {
                 isStopping={stopRunner.isPending}
               />
             </div>
-            {/* Bottom row: stats */}
-            <StatsBar stats={stats} />
           </div>
         </div>
 
@@ -1508,6 +1875,8 @@ function KanbanBoard() {
                   onStoryClick={handleStoryClick}
                   runnerStatus={runnerStatus}
                   onPlayClick={handlePlayStoryClick}
+                  onArchiveClick={handleArchiveStoryClick}
+                  onBulkArchiveClick={handleBulkArchiveClick}
                 />
               );
             })}
@@ -1559,6 +1928,24 @@ function KanbanBoard() {
         onConfirm={handleConfirmRunSingleStory}
         onCancel={handleCancelRunSingleStory}
         isLoading={startSingleStory.isPending}
+      />
+
+      {/* Archive single story confirmation dialog */}
+      <ArchiveConfirmDialog
+        isOpen={isArchiveDialogOpen}
+        story={archiveTarget}
+        onConfirm={handleConfirmArchive}
+        onCancel={handleCancelArchive}
+        isLoading={archiveStory.isPending}
+      />
+
+      {/* Bulk archive confirmation dialog */}
+      <BulkArchiveConfirmDialog
+        isOpen={isBulkArchiveDialogOpen}
+        storyCount={doneStories.length}
+        onConfirm={handleConfirmBulkArchive}
+        onCancel={handleCancelBulkArchive}
+        isLoading={bulkArchive.isPending}
       />
     </DndContext>
   );

@@ -1,0 +1,645 @@
+/**
+ * @vitest-environment node
+ *
+ * Archive Router Tests
+ *
+ * Unit tests for the archive tRPC endpoints.
+ * Uses mocked filesystem and in-memory SQLite for isolation.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { TRPCError } from '@trpc/server'
+
+// Mock the filesystem modules BEFORE importing anything that uses them
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    existsSync: vi.fn((path: string) => {
+      // Default to real existsSync for database paths
+      if (path.includes('ralph.db') || path.includes('/data')) {
+        return actual.existsSync(path)
+      }
+      // Return mocked value for project paths
+      return false
+    }),
+  }
+})
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+  }
+})
+
+import { existsSync, type PathLike } from 'node:fs'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { createCallerFactory } from '../trpc'
+import { archiveRouter } from './archive'
+import { db } from '@/db'
+import { projects } from '@/db/schema'
+import type { StoryStatus } from './stories'
+
+const createCaller = createCallerFactory(archiveRouter)
+
+// Sample prd.json data for tests
+const samplePrdJson = {
+  projectName: 'Test Project',
+  projectDescription: 'A test project',
+  branchName: 'main',
+  userStories: [
+    {
+      id: 'STORY-001',
+      title: 'First Story',
+      description: 'Description of first story',
+      priority: 1,
+      status: 'pending' as StoryStatus,
+      epic: 'Core',
+      dependencies: [],
+      recommendedSkills: ['skill-a'],
+      acceptanceCriteria: ['Criteria 1', 'Criteria 2'],
+    },
+    {
+      id: 'STORY-002',
+      title: 'Second Story',
+      description: 'Description of second story',
+      priority: 2,
+      status: 'done' as StoryStatus,
+      epic: 'Core',
+      dependencies: ['STORY-001'],
+      recommendedSkills: ['skill-b'],
+      acceptanceCriteria: ['Criteria A'],
+    },
+    {
+      id: 'STORY-003',
+      title: 'Third Story',
+      description: 'Description of third story',
+      priority: 3,
+      status: 'done' as StoryStatus,
+      epic: 'Testing',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: ['Criteria X', 'Criteria Y'],
+    },
+    {
+      id: 'STORY-004',
+      title: 'In Progress Story',
+      description: 'A story in progress',
+      priority: 4,
+      status: 'in_progress' as StoryStatus,
+      epic: 'Testing',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: ['Criteria Z'],
+    },
+  ],
+}
+
+// Sample archived.json data
+const sampleArchivedJson = {
+  projectName: 'Test Project',
+  archivedStories: [
+    {
+      id: 'ARCHIVED-001',
+      title: 'Archived Story',
+      description: 'An archived story',
+      priority: 100,
+      status: 'done' as StoryStatus,
+      epic: 'Legacy',
+      dependencies: [],
+      recommendedSkills: [],
+      acceptanceCriteria: ['Old criteria'],
+      archivedAt: '2024-01-15T10:30:00.000Z',
+    },
+  ],
+}
+
+describe('archiveRouter', () => {
+  let testProjectId: number
+
+  beforeEach(async () => {
+    // Clean up database
+    await db.delete(projects)
+    vi.clearAllMocks()
+
+    // Create a test project
+    const [project] = await db.insert(projects).values({
+      name: 'Test Project',
+      path: '/test/project/path',
+    }).returning()
+    testProjectId = project.id
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  describe('listByProject', () => {
+    it('returns empty array when archived.json does not exist', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+      const result = await caller.listByProject({ projectId: testProjectId })
+
+      expect(result).toEqual([])
+    })
+
+    it('returns archived stories when archived.json exists', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return true
+        return false
+      })
+      vi.mocked(readFile).mockImplementation(async (path) => {
+        if (String(path).includes('prd.json')) {
+          return JSON.stringify(samplePrdJson)
+        }
+        if (String(path).includes('archived.json')) {
+          return JSON.stringify(sampleArchivedJson)
+        }
+        throw new Error('Unexpected path')
+      })
+
+      const caller = createCaller({})
+      const result = await caller.listByProject({ projectId: testProjectId })
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('ARCHIVED-001')
+      expect(result[0].archivedAt).toBe('2024-01-15T10:30:00.000Z')
+    })
+
+    it('throws NOT_FOUND when project does not exist', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.listByProject({ projectId: 99999 })).rejects.toThrow(TRPCError)
+      await expect(caller.listByProject({ projectId: 99999 })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Project with id 99999 not found',
+      })
+    })
+
+    it('throws NOT_FOUND when prd.json does not exist', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const caller = createCaller({})
+
+      await expect(caller.listByProject({ projectId: testProjectId })).rejects.toThrow(TRPCError)
+      await expect(caller.listByProject({ projectId: testProjectId })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+
+    it('handles invalid archived.json format', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return true
+        return false
+      })
+      vi.mocked(readFile).mockImplementation(async (path) => {
+        if (String(path).includes('prd.json')) {
+          return JSON.stringify(samplePrdJson)
+        }
+        if (String(path).includes('archived.json')) {
+          return JSON.stringify({ invalid: 'structure' })
+        }
+        throw new Error('Unexpected path')
+      })
+
+      const caller = createCaller({})
+
+      await expect(caller.listByProject({ projectId: testProjectId })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      })
+    })
+  })
+
+  describe('archiveStory', () => {
+    it('archives a done story successfully', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true // Directory exists
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002', // status: done
+      })
+
+      expect(result.id).toBe('STORY-002')
+      expect(result.archivedAt).toBeDefined()
+      expect(new Date(result.archivedAt).toISOString()).toBe(result.archivedAt)
+
+      // Verify writeFile was called twice (archived.json first, then prd.json)
+      expect(writeFile).toHaveBeenCalledTimes(2)
+
+      // Verify archived.json content
+      const archivedWriteCall = vi.mocked(writeFile).mock.calls[0]
+      expect(String(archivedWriteCall[0])).toContain('archived.json')
+      const archivedData = JSON.parse(archivedWriteCall[1] as string)
+      expect(archivedData.archivedStories).toHaveLength(1)
+      expect(archivedData.archivedStories[0].id).toBe('STORY-002')
+
+      // Verify prd.json content
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      expect(String(prdWriteCall[0])).toContain('prd.json')
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')).toBeUndefined()
+    })
+
+    it('throws BAD_REQUEST when story is not done', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-001', // status: pending
+      })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining("Only stories with status 'done'"),
+      })
+    })
+
+    it('throws BAD_REQUEST when story is in_progress', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-004', // status: in_progress
+      })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('in_progress'),
+      })
+    })
+
+    it('throws NOT_FOUND when story does not exist', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'NONEXISTENT',
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Story with id "NONEXISTENT" not found in project',
+      })
+    })
+
+    it('throws CONFLICT when story is already archived', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return true
+        return false
+      })
+      vi.mocked(readFile).mockImplementation(async (path) => {
+        if (String(path).includes('prd.json')) {
+          // Add ARCHIVED-001 to prd.json for this test
+          return JSON.stringify({
+            ...samplePrdJson,
+            userStories: [
+              ...samplePrdJson.userStories,
+              {
+                id: 'ARCHIVED-001',
+                title: 'Story',
+                description: 'Desc',
+                priority: 50,
+                status: 'done' as StoryStatus,
+                epic: 'Test',
+                dependencies: [],
+                recommendedSkills: [],
+                acceptanceCriteria: [],
+              },
+            ],
+          })
+        }
+        if (String(path).includes('archived.json')) {
+          return JSON.stringify(sampleArchivedJson)
+        }
+        throw new Error('Unexpected path')
+      })
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'ARCHIVED-001',
+      })).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: expect.stringContaining('already archived'),
+      })
+    })
+
+    it('creates archived.json if it does not exist', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })
+
+      // Check that archived.json was written with correct structure
+      const archivedWriteCall = vi.mocked(writeFile).mock.calls[0]
+      expect(String(archivedWriteCall[0])).toContain('archived.json')
+      const archivedData = JSON.parse(archivedWriteCall[1] as string)
+      expect(archivedData.projectName).toBe('Test Project')
+      expect(archivedData.archivedStories).toHaveLength(1)
+    })
+
+    it('adds archivedAt timestamp to archived story', async () => {
+      const before = new Date()
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })
+
+      const after = new Date()
+      const archivedAt = new Date(result.archivedAt)
+
+      expect(archivedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+      expect(archivedAt.getTime()).toBeLessThanOrEqual(after.getTime())
+    })
+
+    it('throws NOT_FOUND when project does not exist', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: 99999,
+        storyId: 'STORY-001',
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+  })
+
+  describe('archiveMultiple', () => {
+    it('archives multiple done stories successfully', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: ['STORY-002', 'STORY-003'], // Both are done
+      })
+
+      expect(result.archived).toHaveLength(2)
+      expect(result.archived.map(s => s.id)).toEqual(['STORY-002', 'STORY-003'])
+      expect(result.errors).toBeUndefined()
+
+      // Verify prd.json has both stories removed
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')).toBeUndefined()
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'STORY-003')).toBeUndefined()
+      expect(prdData.userStories).toHaveLength(2) // Only STORY-001 and STORY-004 remain
+    })
+
+    it('returns errors for stories that cannot be archived', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: ['STORY-001', 'STORY-002', 'NONEXISTENT'],
+      })
+
+      expect(result.archived).toHaveLength(1)
+      expect(result.archived[0].id).toBe('STORY-002')
+      expect(result.errors).toBeDefined()
+      expect(result.errors).toHaveLength(2)
+      expect(result.errors).toContain('Story "STORY-001" has status \'pending\', only \'done\' stories can be archived')
+      expect(result.errors).toContain('Story "NONEXISTENT" not found')
+    })
+
+    it('throws BAD_REQUEST when no stories can be archived', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: ['STORY-001', 'STORY-004'], // pending and in_progress
+      })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('No stories could be archived'),
+      })
+    })
+
+    it('skips already archived stories', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return true
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockImplementation(async (path) => {
+        if (String(path).includes('prd.json')) {
+          return JSON.stringify({
+            ...samplePrdJson,
+            userStories: [
+              ...samplePrdJson.userStories,
+              {
+                id: 'ARCHIVED-001',
+                title: 'Story to archive',
+                description: 'Desc',
+                priority: 50,
+                status: 'done' as StoryStatus,
+                epic: 'Test',
+                dependencies: [],
+                recommendedSkills: [],
+                acceptanceCriteria: [],
+              },
+            ],
+          })
+        }
+        if (String(path).includes('archived.json')) {
+          return JSON.stringify(sampleArchivedJson)
+        }
+        throw new Error('Unexpected path')
+      })
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: ['STORY-002', 'ARCHIVED-001'],
+      })
+
+      expect(result.archived).toHaveLength(1)
+      expect(result.archived[0].id).toBe('STORY-002')
+      expect(result.errors).toContain('Story "ARCHIVED-001" is already archived')
+    })
+
+    it('throws NOT_FOUND when project does not exist', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.archiveMultiple({
+        projectId: 99999,
+        storyIds: ['STORY-001'],
+      })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+    })
+
+    it('validates input - requires at least one storyId', async () => {
+      const caller = createCaller({})
+
+      await expect(caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: [],
+      })).rejects.toThrow()
+    })
+  })
+
+  describe('atomicity and error handling', () => {
+    it('handles writeFile error for archived.json', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockRejectedValue(new Error('Permission denied'))
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })).rejects.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: expect.stringContaining('Permission denied'),
+      })
+    })
+
+    it('handles writeFile error for prd.json after successful archived.json write', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+
+      let writeCount = 0
+      vi.mocked(writeFile).mockImplementation(async () => {
+        writeCount++
+        if (writeCount === 2) {
+          throw new Error('Disk full')
+        }
+        return undefined
+      })
+
+      const caller = createCaller({})
+
+      await expect(caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })).rejects.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: expect.stringContaining('Disk full'),
+      })
+
+      // First write (archived.json) should have succeeded
+      expect(writeFile).toHaveBeenCalledTimes(2)
+    })
+
+    it('handles readFile error gracefully', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockRejectedValue(new Error('Read error'))
+
+      const caller = createCaller({})
+
+      await expect(caller.listByProject({ projectId: testProjectId })).rejects.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+      })
+    })
+
+    it('handles invalid JSON in prd.json', async () => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFile).mockResolvedValue('{ invalid json }')
+
+      const caller = createCaller({})
+
+      await expect(caller.listByProject({ projectId: testProjectId })).rejects.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+      })
+    })
+
+    it('creates stories directory if it does not exist', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return false // Directory doesn't exist
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+      vi.mocked(mkdir).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })
+
+      expect(mkdir).toHaveBeenCalledWith(
+        expect.stringContaining('stories'),
+        { recursive: true }
+      )
+    })
+  })
+})

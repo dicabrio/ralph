@@ -11,9 +11,9 @@ let mockParamsId: string | undefined = undefined
 
 // Mock tRPC
 const mockProjects = [
-  { id: 1, name: 'Project Alpha', path: '/path/alpha', description: 'First project', branchName: 'main', createdAt: new Date(), updatedAt: new Date() },
-  { id: 2, name: 'Project Beta', path: '/path/beta', description: 'Second project', branchName: 'develop', createdAt: new Date(), updatedAt: new Date() },
-  { id: 3, name: 'Project Gamma', path: '/path/gamma', description: 'Third project', branchName: 'feature', createdAt: new Date(), updatedAt: new Date() },
+  { id: 1, name: 'Project Alpha', path: '/path/alpha', description: 'First project', branchName: 'main', createdAt: new Date(), updatedAt: new Date(), runnerStatus: 'idle' as const, runnerProvider: null, stats: { total: 10, done: 5, failed: 1, inProgress: 1, backlog: 2, review: 1, progress: 50 } },
+  { id: 2, name: 'Project Beta', path: '/path/beta', description: 'Second project', branchName: 'develop', createdAt: new Date(), updatedAt: new Date(), runnerStatus: 'running' as const, runnerProvider: 'claude' as const, stats: { total: 5, done: 2, failed: 0, inProgress: 1, backlog: 2, review: 0, progress: 40 } },
+  { id: 3, name: 'Project Gamma', path: '/path/gamma', description: 'Third project', branchName: 'feature', createdAt: new Date(), updatedAt: new Date(), runnerStatus: 'idle' as const, runnerProvider: null, stats: { total: 8, done: 8, failed: 0, inProgress: 0, backlog: 0, review: 0, progress: 100 } },
 ]
 
 let mockQueryData = mockProjects
@@ -23,6 +23,7 @@ let mockIsLoading = false
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mockNavigate,
   useParams: () => ({ id: mockParamsId }),
+  useLocation: () => ({ pathname: '/project/1' }),
 }))
 
 // Mock tRPC client
