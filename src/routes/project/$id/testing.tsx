@@ -725,7 +725,14 @@ function TestingBoard() {
                 </Badge>
               )}
             </div>
-{/* Archive link will be added when REVIEW-004 (Archive page) is implemented */}
+<Link
+              to="/project/$id/archive"
+              params={{ id }}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>Archive</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </div>

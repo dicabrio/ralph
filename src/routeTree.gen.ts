@@ -25,6 +25,7 @@ import { Route as ProjectIdSettingsRouteImport } from './routes/project/$id/sett
 import { Route as ProjectIdPromptsRouteImport } from './routes/project/$id/prompts'
 import { Route as ProjectIdKanbanRouteImport } from './routes/project/$id/kanban'
 import { Route as ProjectIdBrainstormRouteImport } from './routes/project/$id/brainstorm'
+import { Route as ProjectIdArchiveRouteImport } from './routes/project/$id/archive'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
@@ -116,6 +117,11 @@ const ProjectIdBrainstormRoute = ProjectIdBrainstormRouteImport.update({
   path: '/brainstorm',
   getParentRoute: () => ProjectIdRoute,
 } as any)
+const ProjectIdArchiveRoute = ProjectIdArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => ProjectIdRoute,
+} as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
   id: '/demo/start/server-funcs',
   path: '/demo/start/server-funcs',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/archive': typeof ProjectIdArchiveRoute
   '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/archive': typeof ProjectIdArchiveRoute
   '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/project/$id/archive': typeof ProjectIdArchiveRoute
   '/project/$id/brainstorm': typeof ProjectIdBrainstormRoute
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/archive'
     | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/archive'
     | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/demo/api/tq-todos'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/project/$id/archive'
     | '/project/$id/brainstorm'
     | '/project/$id/kanban'
     | '/project/$id/prompts'
@@ -474,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdBrainstormRouteImport
       parentRoute: typeof ProjectIdRoute
     }
+    '/project/$id/archive': {
+      id: '/project/$id/archive'
+      path: '/archive'
+      fullPath: '/project/$id/archive'
+      preLoaderRoute: typeof ProjectIdArchiveRouteImport
+      parentRoute: typeof ProjectIdRoute
+    }
     '/demo/start/server-funcs': {
       id: '/demo/start/server-funcs'
       path: '/demo/start/server-funcs'
@@ -548,6 +567,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProjectIdRouteChildren {
+  ProjectIdArchiveRoute: typeof ProjectIdArchiveRoute
   ProjectIdBrainstormRoute: typeof ProjectIdBrainstormRoute
   ProjectIdKanbanRoute: typeof ProjectIdKanbanRoute
   ProjectIdPromptsRoute: typeof ProjectIdPromptsRoute
@@ -557,6 +577,7 @@ interface ProjectIdRouteChildren {
 }
 
 const ProjectIdRouteChildren: ProjectIdRouteChildren = {
+  ProjectIdArchiveRoute: ProjectIdArchiveRoute,
   ProjectIdBrainstormRoute: ProjectIdBrainstormRoute,
   ProjectIdKanbanRoute: ProjectIdKanbanRoute,
   ProjectIdPromptsRoute: ProjectIdPromptsRoute,

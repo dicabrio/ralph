@@ -2555,3 +2555,40 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Empty state should provide navigation to related pages (Kanban board)
 - Archive link removed from header since REVIEW-004 (archive page) not yet implemented
 - Test file naming: use dash prefix (e.g., -testing.test.tsx) for route-associated tests
+
+## 2026-02-24 - REVIEW-004
+**Title:** Archive pagina met zoeken en filteren
+
+**Implemented:**
+- New route /project/$id/archive displaying archived stories
+- ArchivedStoryCard component showing story info with relative archivedAt timestamp
+- Search input with 300ms debounce filtering by ID, title, and description
+- Epic filter dropdown populated with unique epics from archived stories
+- Combined filter support (search + epic together)
+- Sort by archivedAt descending (newest first)
+- Relative timestamp formatting (e.g., "2 dagen geleden")
+- StoryDetailModal (read-only) with Archived badge
+- Empty states for no archive and no filter matches
+- Results count display when filters active
+- Clear filters button
+- Link from Testing page header to Archive page
+- 37 unit tests for filter/sort logic and component data
+- E2E tests covering search, epic filter, modal, navigation
+
+**Files changed:**
+- src/routes/project/$id/archive.tsx (new route with components)
+- src/routes/project/$id/-archive.test.tsx (unit tests)
+- src/routes/project/$id/testing.tsx (added Archive link in header)
+- e2e/archive-page.spec.ts (E2E tests)
+- src/routeTree.gen.ts (auto-updated)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Reuse existing archiveRouter.listByProject tRPC endpoint for fetching archived stories
+- useDebounce custom hook with useMemo for debounced search
+- ArchivedStory type extends Story with archivedAt field
+- Export filter/sort functions for direct unit testing
+- getUniqueEpics helper extracts and sorts distinct epic values
+- formatRelativeTime for Dutch relative timestamps
+- Testing page updated to include Archive link (previously placeholder comment)
+- TanStack Router route types auto-regenerate when dev server sees new route file

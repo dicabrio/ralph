@@ -576,7 +576,7 @@
       "title": "Archive pagina met zoeken en filteren",
       "description": "Nieuwe pagina /project/$id/archive die gearchiveerde stories toont met zoek- en filterfunctionaliteit.",
       "priority": 94,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-002"
