@@ -681,7 +681,7 @@
       "title": "Test scenario generatie bij review status",
       "description": "Wanneer een story naar review status gaat, genereert AI automatisch een test scenario op basis van de acceptance criteria. Dit wordt opgeslagen als markdown (documentatie) en JSON (UI checklist).",
       "priority": 98,
-      "status": "review",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-003",
@@ -844,7 +844,7 @@
       "title": "Pre-selectie story met inline context in prompt",
       "description": "Optimaliseer de runner flow door de volgende story vooraf te selecteren en inline mee te geven in de prompt. Dit voorkomt dat de LLM zelf prd.json moet parsen voor story selectie, bespaart tokens, en garandeert correcte dependency checking.",
       "priority": 102,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
       "dependencies": [],
       "recommendedSkills": [
@@ -883,7 +883,7 @@
       "title": "Runner status en review count in ProjectSelector",
       "description": "Toon de runner status (idle/running/stopping) en het aantal stories in review in de sidebar ProjectSelector dropdown. Gebruikers kunnen in één oogopslag zien welke projecten een actieve runner hebben en hoeveel stories er wachten op testing.",
       "priority": 103,
-      "status": "review",
+      "status": "done",
       "epic": "Dashboard",
       "dependencies": [
         "REVIEW-001"
