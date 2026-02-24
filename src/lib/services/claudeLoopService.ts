@@ -16,6 +16,12 @@ import { db } from "@/db";
 import { runnerLogs } from "@/db/schema";
 import { getWebSocketServer } from "@/lib/websocket/server";
 import { getEffectivePrompt } from "@/lib/services/promptTemplate";
+import {
+  selectNextStory,
+  generateStoryPrompt,
+  getNoEligibleStoryReason,
+  readPrdJson,
+} from "@/lib/services/storySelector";
 import { DEFAULT_CLAUDE_PERMISSIONS } from "@/lib/services/claudePermissions";
 
 const execAsync = promisify(exec);
@@ -136,7 +142,7 @@ class ClaudeLoopService {
    *
    * @param projectId - Database ID of the project
    * @param projectPath - Filesystem path to the project
-   * @param storyId - Optional story ID being worked on
+   * @param storyId - Optional story ID being worked on (if not provided, auto-selects)
    * @returns The runner state after starting
    */
   async start(
@@ -181,8 +187,35 @@ class ClaudeLoopService {
       this.logBuffers.set(projectId, []);
     }
 
-    // Generate the prompt for Claude
-    const prompt = await this.generatePrompt(projectPath, storyId);
+    // Pre-select the story before spawning the LLM
+    let selectedStoryId = storyId;
+    let prompt: string;
+
+    if (storyId) {
+      // Specific story requested - generate prompt with that story
+      prompt = await this.generatePrompt(projectPath, storyId);
+    } else {
+      // Auto-select the next eligible story
+      const selection = await selectNextStory(projectPath);
+
+      if (!selection) {
+        // No eligible stories - get detailed reason
+        const prd = await readPrdJson(projectPath);
+        const reason = prd
+          ? getNoEligibleStoryReason(prd.userStories)
+          : "No prd.json found";
+        throw new Error(`No eligible stories: ${reason}`);
+      }
+
+      selectedStoryId = selection.story.id;
+
+      // Generate prompt with inline story context
+      const { content: basePrompt } = await getEffectivePrompt(projectPath);
+      prompt = generateStoryPrompt(selection, basePrompt);
+
+      // Broadcast the selected story via WebSocket
+      this.broadcastStorySelected(projectId, selection.story.id, selection.story.title);
+    }
 
     // Spawn Claude CLI process with autonomous execution in safe permission mode.
     const claudeProcess = spawn(
@@ -206,7 +239,7 @@ class ClaudeLoopService {
     const processHandle: ClaudeProcess = {
       projectId,
       process: claudeProcess,
-      storyId,
+      storyId: selectedStoryId,
       startedAt: new Date(),
       projectPath,
     };
@@ -216,7 +249,7 @@ class ClaudeLoopService {
     console.log(`[ClaudeLoop] ========================================`);
     console.log(`[ClaudeLoop] Starting Claude CLI`);
     console.log(`[ClaudeLoop] Project ID: ${projectId}`);
-    console.log(`[ClaudeLoop] Story: ${storyId || "auto-pick"}`);
+    console.log(`[ClaudeLoop] Story: ${selectedStoryId || "none"}`);
     console.log(`[ClaudeLoop] Path: ${projectPath}`);
     console.log(`[ClaudeLoop] PID: ${claudeProcess.pid}`);
     console.log(`[ClaudeLoop] Prompt length: ${prompt.length} chars`);
@@ -228,12 +261,12 @@ class ClaudeLoopService {
 
     // Handle stdout
     claudeProcess.stdout?.on("data", (data: Buffer) => {
-      this.handleLogData(projectId, storyId, data.toString(), "stdout");
+      this.handleLogData(projectId, selectedStoryId, data.toString(), "stdout");
     });
 
     // Handle stderr
     claudeProcess.stderr?.on("data", (data: Buffer) => {
-      this.handleLogData(projectId, storyId, data.toString(), "stderr");
+      this.handleLogData(projectId, selectedStoryId, data.toString(), "stderr");
     });
 
     // Handle process exit
@@ -256,7 +289,7 @@ class ClaudeLoopService {
       // Handle completion
       await this.handleProcessExit(
         projectId,
-        storyId,
+        selectedStoryId,
         exitCode ?? 0,
         projectPath,
       );
@@ -272,12 +305,12 @@ class ClaudeLoopService {
     });
 
     // Broadcast running status
-    this.broadcastStatus(projectId, "running", storyId, claudeProcess.pid);
+    this.broadcastStatus(projectId, "running", selectedStoryId, claudeProcess.pid);
 
     return {
       status: "running",
       projectId,
-      storyId,
+      storyId: selectedStoryId,
       pid: claudeProcess.pid,
       startedAt: new Date(),
     };
@@ -728,6 +761,27 @@ class ClaudeLoopService {
       },
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Broadcast story selected event via WebSocket
+   * Triggered when a story is pre-selected before spawning the LLM
+   */
+  private broadcastStorySelected(projectId: number, storyId: string, storyTitle: string): void {
+    const wsServer = getWebSocketServer();
+    if (!wsServer) return;
+
+    wsServer.broadcastToProject(String(projectId), {
+      type: "story_selected",
+      payload: {
+        projectId: String(projectId),
+        storyId,
+        storyTitle,
+      },
+      timestamp: Date.now(),
+    });
+
+    console.log(`[ClaudeLoop] Pre-selected story: ${storyId} - ${storyTitle}`);
   }
 
   /**

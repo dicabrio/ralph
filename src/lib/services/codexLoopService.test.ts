@@ -105,6 +105,19 @@ vi.mock('@/lib/services/promptTemplate', () => ({
   getEffectivePrompt: mockGetEffectivePrompt,
 }))
 
+// Mock storySelector - for pre-selection functionality
+const mockSelectNextStory = vi.fn()
+const mockGenerateStoryPrompt = vi.fn()
+const mockGetNoEligibleStoryReason = vi.fn()
+const mockReadPrdJson = vi.fn()
+
+vi.mock('@/lib/services/storySelector', () => ({
+  selectNextStory: mockSelectNextStory,
+  generateStoryPrompt: mockGenerateStoryPrompt,
+  getNoEligibleStoryReason: mockGetNoEligibleStoryReason,
+  readPrdJson: mockReadPrdJson,
+}))
+
 // Mock database
 vi.mock('@/db', () => ({
   db: {
@@ -130,6 +143,18 @@ async function createTestService(): Promise<CodexLoopService> {
     content: '# Test Prompt\nThis is a test prompt.',
     source: 'default',
   })
+  // Setup storySelector mocks
+  mockSelectNextStory.mockResolvedValue({
+    story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+    allStories: [{ id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 }],
+    dependencyTitles: [],
+  })
+  mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+  mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+  mockReadPrdJson.mockResolvedValue({
+    projectName: 'Test',
+    userStories: [{ id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 }],
+  })
   const module = await import('./codexLoopService')
   return new module.CodexLoopService()
 }
@@ -139,6 +164,18 @@ describe('CodexLoopService', () => {
     vi.clearAllMocks()
     spawnedProcesses.length = 0
     process.env.HOME = '/home/testuser'
+    // Setup storySelector mocks
+    mockSelectNextStory.mockResolvedValue({
+      story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+      allStories: [{ id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 }],
+      dependencyTitles: [],
+    })
+    mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+    mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+    mockReadPrdJson.mockResolvedValue({
+      projectName: 'Test',
+      userStories: [{ id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1 }],
+    })
   })
 
   afterEach(() => {

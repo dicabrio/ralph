@@ -124,6 +124,16 @@ export type ServerMessage =
       }
       timestamp: number
     }
+  // Story selected event - triggered when a story is pre-selected before spawning the LLM
+  | {
+      type: 'story_selected'
+      payload: {
+        projectId: string
+        storyId: string
+        storyTitle: string
+      }
+      timestamp: number
+    }
   // Stories updated message (file watcher)
   | {
       type: 'stories_updated'

@@ -114,6 +114,19 @@ vi.mock('@/lib/services/promptTemplate', () => ({
   getEffectivePrompt: mockGetEffectivePrompt,
 }))
 
+// Mock storySelector - for pre-selection functionality
+const mockSelectNextStory = vi.fn()
+const mockGenerateStoryPrompt = vi.fn()
+const mockGetNoEligibleStoryReason = vi.fn()
+const mockReadPrdJson = vi.fn()
+
+vi.mock('@/lib/services/storySelector', () => ({
+  selectNextStory: mockSelectNextStory,
+  generateStoryPrompt: mockGenerateStoryPrompt,
+  getNoEligibleStoryReason: mockGetNoEligibleStoryReason,
+  readPrdJson: mockReadPrdJson,
+}))
+
 // Mock database
 vi.mock('@/db', () => ({
   db: {
@@ -139,6 +152,18 @@ async function createTestService(): Promise<ClaudeLoopService> {
     content: '# Test Prompt\nThis is a test prompt.',
     source: 'default',
   })
+  // Setup storySelector mocks
+  mockSelectNextStory.mockResolvedValue({
+    story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+    allStories: mockPrdData.userStories,
+    dependencyTitles: [],
+  })
+  mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+  mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+  mockReadPrdJson.mockResolvedValue({
+    projectName: 'Test',
+    userStories: mockPrdData.userStories,
+  })
   const module = await import('./claudeLoopService')
   return new module.ClaudeLoopService()
 }
@@ -156,6 +181,18 @@ describe('ClaudeLoopService', () => {
         { id: 'TEST-002', title: 'Test Story 2', status: 'done', dependencies: [], priority: 2 },
       ],
     }
+    // Reset storySelector mocks
+    mockSelectNextStory.mockResolvedValue({
+      story: { id: 'TEST-001', title: 'Test Story', status: 'pending', dependencies: [], priority: 1, epic: 'Test', description: 'Test', acceptanceCriteria: [], recommendedSkills: [] },
+      allStories: mockPrdData.userStories,
+      dependencyTitles: [],
+    })
+    mockGenerateStoryPrompt.mockReturnValue('# Generated Prompt\nWith story inline.')
+    mockGetNoEligibleStoryReason.mockReturnValue('No eligible stories')
+    mockReadPrdJson.mockResolvedValue({
+      projectName: 'Test',
+      userStories: mockPrdData.userStories,
+    })
   })
 
   afterEach(() => {

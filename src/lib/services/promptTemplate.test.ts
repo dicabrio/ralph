@@ -67,8 +67,9 @@ describe('promptTemplate', () => {
 
       expect(template).toContain('# Agent Instructions')
       expect(template).toContain('## Your Task')
-      expect(template).toContain('stories/prd.json')
-      expect(template).toContain('status: "pending"')
+      // prd.json is still referenced for status updates
+      expect(template).toContain('prd.json')
+      expect(template).toContain('status: "in_progress"')
       expect(template).toContain('Failure Protocol')
     })
 
@@ -85,6 +86,13 @@ describe('promptTemplate', () => {
 
       expect(template).toContain('stories/progress.txt')
       expect(template).toContain('Codebase Patterns')
+    })
+
+    it('indicates story is provided inline (pre-selected)', () => {
+      const template = getDefaultPromptTemplate()
+
+      // Story is now pre-selected and provided above this template
+      expect(template).toContain('story to implement is provided above')
     })
   })
 

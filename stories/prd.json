@@ -844,7 +844,7 @@
       "title": "Pre-selectie story met inline context in prompt",
       "description": "Optimaliseer de runner flow door de volgende story vooraf te selecteren en inline mee te geven in de prompt. Dit voorkomt dat de LLM zelf prd.json moet parsen voor story selectie, bespaart tokens, en garandeert correcte dependency checking.",
       "priority": 102,
-      "status": "pending",
+      "status": "in_progress",
       "epic": "Runner",
       "dependencies": [],
       "recommendedSkills": [

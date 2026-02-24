@@ -21,24 +21,23 @@ export function getDefaultPromptTemplate(): string {
 
 **CRITICAL: You must implement exactly ONE story per session. After completing one story, STOP immediately.**
 
-1. Read \`stories/prd.json\`
-2. Read \`stories/progress.txt\` (check Codebase Patterns section first)
-3. Read any implementation guides listed in prd.json \`implementationGuides\` array
-4. Check you're on the correct branch (\`branchName\` from prd.json)
-5. **Select ONE story** where \`status: "pending"\` or \`status: "failed"\` (lowest priority number first)
-   - Respect \`dependencies\` - skip if dependent stories don't have \`status: "done"\`
-   - Pick the story with the lowest priority number
-6. **Mark as in_progress**: Immediately set \`status: "in_progress"\` in prd.json
-7. Note the \`recommendedSkills\` for that story
-8. **Implement that ONE story only**
-9. Run typecheck and tests
-10. Update relevant documentation with learnings
-11. Commit: \`feat([scope]): [ID] - [Title]\`
-12. **Set final status** in prd.json:
+The story to implement is provided above this section with all details (ID, title, description, acceptance criteria, recommended skills, and dependencies).
+
+### Workflow
+
+1. Read \`stories/progress.txt\` (check Codebase Patterns section first)
+2. Read any implementation guides listed in prd.json \`implementationGuides\` array
+3. Check you're on the correct branch (\`branchName\` from prd.json)
+4. **Mark as in_progress**: Immediately set the story's \`status: "in_progress"\` in prd.json
+5. **Implement the assigned story** following the acceptance criteria
+6. Run typecheck and tests
+7. Update relevant documentation with learnings
+8. Commit: \`feat([scope]): [ID] - [Title]\`
+9. **Set final status** in prd.json:
     - Success -> \`status: "review"\` (for human verification)
     - Failure -> \`status: "failed"\`
-13. Append learnings to progress.txt
-14. **STOP - Do not continue to the next story**
+10. Append learnings to progress.txt
+11. **STOP - Do not continue to the next story**
 
 ## Story Status Lifecycle
 
@@ -62,20 +61,13 @@ pending -------> in_progress -------> review -------> done (human approval)
                     '-----------> failed --> (can be picked up again)
 \`\`\`
 
-### Picking Stories
-
-Priority order for selecting next story:
-1. \`status: "pending"\` with lowest priority number
-2. \`status: "failed"\` with lowest priority number (retry with learnings)
-3. If all are \`done\` or \`review\` -> reply \`<promise>COMPLETE</promise>\`
-
 **IMPORTANT:**
 - Always set \`status: "in_progress"\` BEFORE starting work. This prevents other sessions from picking up the same story.
 - Dependencies are satisfied when the dependent story has status \`done\` OR \`review\`.
 
 ## Using Skills
 
-Before implementing, check \`recommendedSkills\` on the story.
+Check \`recommendedSkills\` in the assigned story above.
 Invoke relevant skills for domain expertise. Common skills:
 
 | Domain | Skill |

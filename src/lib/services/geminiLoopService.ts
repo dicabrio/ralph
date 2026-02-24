@@ -16,6 +16,12 @@ import { runnerLogs } from "@/db/schema";
 import { getWebSocketServer } from "@/lib/websocket/server";
 import { getEffectivePrompt } from "@/lib/services/promptTemplate";
 import { DEFAULT_GEMINI_PERMISSIONS } from "@/lib/services/geminiPermissions";
+import {
+  selectNextStory,
+  generateStoryPrompt,
+  getNoEligibleStoryReason,
+  readPrdJson,
+} from "@/lib/services/storySelector";
 
 const execAsync = promisify(exec);
 
@@ -161,7 +167,7 @@ class GeminiLoopService {
    *
    * @param projectId - Database ID of the project
    * @param projectPath - Filesystem path to the project
-   * @param storyId - Optional story ID being worked on
+   * @param storyId - Optional story ID being worked on (if not provided, auto-selects)
    * @returns The runner state after starting
    */
   async start(
@@ -208,8 +214,35 @@ class GeminiLoopService {
       this.logBuffers.set(projectId, []);
     }
 
-    // Generate the prompt for Gemini
-    const prompt = await this.generatePrompt(projectPath, storyId);
+    // Pre-select the story before spawning the LLM
+    let selectedStoryId = storyId;
+    let prompt: string;
+
+    if (storyId) {
+      // Specific story requested - generate prompt with that story
+      prompt = await this.generatePrompt(projectPath, storyId);
+    } else {
+      // Auto-select the next eligible story
+      const selection = await selectNextStory(projectPath);
+
+      if (!selection) {
+        // No eligible stories - get detailed reason
+        const prd = await readPrdJson(projectPath);
+        const reason = prd
+          ? getNoEligibleStoryReason(prd.userStories)
+          : "No prd.json found";
+        throw new Error(`No eligible stories: ${reason}`);
+      }
+
+      selectedStoryId = selection.story.id;
+
+      // Generate prompt with inline story context
+      const { content: basePrompt } = await getEffectivePrompt(projectPath);
+      prompt = generateStoryPrompt(selection, basePrompt);
+
+      // Broadcast the selected story via WebSocket
+      this.broadcastStorySelected(projectId, selection.story.id, selection.story.title);
+    }
 
     // Build CLI arguments
     const args = this.buildCliArgs(prompt);
@@ -229,7 +262,7 @@ class GeminiLoopService {
     const processHandle: GeminiProcess = {
       projectId,
       process: geminiProcess,
-      storyId,
+      storyId: selectedStoryId,
       startedAt: new Date(),
       projectPath,
     };
@@ -239,7 +272,7 @@ class GeminiLoopService {
     console.log(`[GeminiLoop] ========================================`);
     console.log(`[GeminiLoop] Starting Gemini CLI`);
     console.log(`[GeminiLoop] Project ID: ${projectId}`);
-    console.log(`[GeminiLoop] Story: ${storyId || "auto-pick"}`);
+    console.log(`[GeminiLoop] Story: ${selectedStoryId || "none"}`);
     console.log(`[GeminiLoop] Path: ${projectPath}`);
     console.log(`[GeminiLoop] PID: ${geminiProcess.pid}`);
     console.log(`[GeminiLoop] Prompt length: ${prompt.length} chars`);
@@ -258,7 +291,7 @@ class GeminiLoopService {
       for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i].trim();
         if (line) {
-          this.handleStreamJsonLine(projectId, storyId, line);
+          this.handleStreamJsonLine(projectId, selectedStoryId, line);
         }
       }
       stdoutBuffer = lines[lines.length - 1];
@@ -272,7 +305,7 @@ class GeminiLoopService {
       for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i].trim();
         if (line) {
-          this.handleLogData(projectId, storyId, line, "stderr");
+          this.handleLogData(projectId, selectedStoryId, line, "stderr");
         }
       }
       stderrBuffer = lines[lines.length - 1];
@@ -282,10 +315,10 @@ class GeminiLoopService {
     geminiProcess.on("close", async (exitCode) => {
       // Process remaining buffer
       if (stdoutBuffer.trim()) {
-        this.handleStreamJsonLine(projectId, storyId, stdoutBuffer.trim());
+        this.handleStreamJsonLine(projectId, selectedStoryId, stdoutBuffer.trim());
       }
       if (stderrBuffer.trim()) {
-        this.handleLogData(projectId, storyId, stderrBuffer.trim(), "stderr");
+        this.handleLogData(projectId, selectedStoryId, stderrBuffer.trim(), "stderr");
       }
 
       console.log(`[GeminiLoop] ========================================`);
@@ -306,7 +339,7 @@ class GeminiLoopService {
       // Handle completion
       await this.handleProcessExit(
         projectId,
-        storyId,
+        selectedStoryId,
         exitCode ?? 0,
         projectPath,
       );
@@ -322,12 +355,12 @@ class GeminiLoopService {
     });
 
     // Broadcast running status
-    this.broadcastStatus(projectId, "running", storyId, geminiProcess.pid);
+    this.broadcastStatus(projectId, "running", selectedStoryId, geminiProcess.pid);
 
     return {
       status: "running",
       projectId,
-      storyId,
+      storyId: selectedStoryId,
       pid: geminiProcess.pid,
       startedAt: new Date(),
     };
@@ -853,6 +886,27 @@ class GeminiLoopService {
       },
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Broadcast story selected event via WebSocket
+   * Triggered when a story is pre-selected before spawning the LLM
+   */
+  private broadcastStorySelected(projectId: number, storyId: string, storyTitle: string): void {
+    const wsServer = getWebSocketServer();
+    if (!wsServer) return;
+
+    wsServer.broadcastToProject(String(projectId), {
+      type: "story_selected",
+      payload: {
+        projectId: String(projectId),
+        storyId,
+        storyTitle,
+      },
+      timestamp: Date.now(),
+    });
+
+    console.log(`[GeminiLoop] Pre-selected story: ${storyId} - ${storyTitle}`);
   }
 
   /**
