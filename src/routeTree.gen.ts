@@ -20,6 +20,7 @@ import { Route as DemoDbChatApiRouteImport } from './routes/demo/db-chat-api'
 import { Route as DemoDbChatRouteImport } from './routes/demo/db-chat'
 import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
 import { Route as ProjectIdIndexRouteImport } from './routes/project/$id/index'
+import { Route as ProjectIdTestingRouteImport } from './routes/project/$id/testing'
 import { Route as ProjectIdSettingsRouteImport } from './routes/project/$id/settings'
 import { Route as ProjectIdPromptsRouteImport } from './routes/project/$id/prompts'
 import { Route as ProjectIdKanbanRouteImport } from './routes/project/$id/kanban'
@@ -88,6 +89,11 @@ const DemoBetterAuthRoute = DemoBetterAuthRouteImport.update({
 const ProjectIdIndexRoute = ProjectIdIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => ProjectIdRoute,
+} as any)
+const ProjectIdTestingRoute = ProjectIdTestingRouteImport.update({
+  id: '/testing',
+  path: '/testing',
   getParentRoute: () => ProjectIdRoute,
 } as any)
 const ProjectIdSettingsRoute = ProjectIdSettingsRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
   '/project/$id/settings': typeof ProjectIdSettingsRoute
+  '/project/$id/testing': typeof ProjectIdTestingRoute
   '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
   '/project/$id/settings': typeof ProjectIdSettingsRoute
+  '/project/$id/testing': typeof ProjectIdTestingRoute
   '/project/$id': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/project/$id/kanban': typeof ProjectIdKanbanRoute
   '/project/$id/prompts': typeof ProjectIdPromptsRoute
   '/project/$id/settings': typeof ProjectIdSettingsRoute
+  '/project/$id/testing': typeof ProjectIdTestingRoute
   '/project/$id/': typeof ProjectIdIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/project/$id/kanban'
     | '/project/$id/prompts'
     | '/project/$id/settings'
+    | '/project/$id/testing'
     | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/project/$id/kanban'
     | '/project/$id/prompts'
     | '/project/$id/settings'
+    | '/project/$id/testing'
     | '/project/$id'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/project/$id/kanban'
     | '/project/$id/prompts'
     | '/project/$id/settings'
+    | '/project/$id/testing'
     | '/project/$id/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -427,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdIndexRouteImport
       parentRoute: typeof ProjectIdRoute
     }
+    '/project/$id/testing': {
+      id: '/project/$id/testing'
+      path: '/testing'
+      fullPath: '/project/$id/testing'
+      preLoaderRoute: typeof ProjectIdTestingRouteImport
+      parentRoute: typeof ProjectIdRoute
+    }
     '/project/$id/settings': {
       id: '/project/$id/settings'
       path: '/settings'
@@ -533,6 +552,7 @@ interface ProjectIdRouteChildren {
   ProjectIdKanbanRoute: typeof ProjectIdKanbanRoute
   ProjectIdPromptsRoute: typeof ProjectIdPromptsRoute
   ProjectIdSettingsRoute: typeof ProjectIdSettingsRoute
+  ProjectIdTestingRoute: typeof ProjectIdTestingRoute
   ProjectIdIndexRoute: typeof ProjectIdIndexRoute
 }
 
@@ -541,6 +561,7 @@ const ProjectIdRouteChildren: ProjectIdRouteChildren = {
   ProjectIdKanbanRoute: ProjectIdKanbanRoute,
   ProjectIdPromptsRoute: ProjectIdPromptsRoute,
   ProjectIdSettingsRoute: ProjectIdSettingsRoute,
+  ProjectIdTestingRoute: ProjectIdTestingRoute,
   ProjectIdIndexRoute: ProjectIdIndexRoute,
 }
 

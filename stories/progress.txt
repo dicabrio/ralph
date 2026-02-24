@@ -2521,3 +2521,37 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Template literals preferred over string concatenation for JSON serialization
 - Write order matters for atomicity: write the new file first (archived.json), then update existing (prd.json)
 - archiveMultiple uses partial success pattern: returns { archived: [], errors?: [] }
+
+## 2026-02-24 - REVIEW-003
+**Title:** Test Board pagina
+
+**Implemented:**
+- Created /project/$id/testing route for Test Board functionality
+- TestStoryCard component with Accept/Reject quick action buttons and View button
+- RejectDialog modal with status selection (Failed vs In Progress)
+- StoryDetailModal (read-only) showing story details, criteria, dependencies, skills
+- Optimistic updates for accept/reject flows using tRPC cache manipulation
+- Empty state with link to Kanban board when no stories in review
+- Loading state with spinner during data fetch
+- Error states for project not found and stories loading errors
+- Review count badge in header showing "X to review"
+- Acceptance criteria count display on story cards
+- 29 unit tests covering component logic and state transitions
+- E2E tests covering accept/reject flows, modal interactions, empty state
+
+**Files changed:**
+- src/routes/project/$id/testing.tsx (new route with components)
+- src/routes/project/$id/-testing.test.tsx (unit tests)
+- e2e/testing-board.spec.ts (E2E tests)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Components defined within route files don't need separate component files
+- useId() hook for generating unique IDs for form elements (lint requirement)
+- Number.isNaN() preferred over global isNaN() (lint requirement)
+- fieldset with legend for semantic grouping of radio-like button groups (a11y)
+- Using criterion string as key instead of array index for acceptance criteria list
+- Optimistic updates pattern: cancel outgoing queries, snapshot data, update cache, rollback on error
+- Empty state should provide navigation to related pages (Kanban board)
+- Archive link removed from header since REVIEW-004 (archive page) not yet implemented
+- Test file naming: use dash prefix (e.g., -testing.test.tsx) for route-associated tests

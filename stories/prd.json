@@ -538,7 +538,7 @@
       "title": "Test Board pagina",
       "description": "Nieuwe pagina /project/$id/testing die alle stories met status 'review' toont. Gebruikers kunnen stories accepteren (→ done) of rejecten (→ failed/in_progress).",
       "priority": 93,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-001"
@@ -873,6 +873,45 @@
         "Unit tests voor generateStoryPrompt output",
         "E2E test: runner selecteert story met onvervulde deps → skip",
         "E2E test: runner selecteert laagste priority eligible story",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "UI-032",
+      "title": "Runner status en review count in ProjectSelector",
+      "description": "Toon de runner status (idle/running/stopping) en het aantal stories in review in de sidebar ProjectSelector dropdown. Gebruikers kunnen in één oogopslag zien welke projecten een actieve runner hebben en hoeveel stories er wachten op testing.",
+      "priority": 103,
+      "status": "pending",
+      "epic": "Dashboard",
+      "dependencies": [
+        "REVIEW-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "ProjectSelector: fetch runner status voor alle projecten",
+        "ProjectSelector: fetch review count (stories met status 'review') per project",
+        "API: gebruik bestaande runner.getStatus per project",
+        "API: stories.getReviewCount(projectId) of uitbreiding van list endpoint",
+        "Runner indicator: gekleurde dot naast project naam",
+        "Runner kleuren: groen = running, geel = stopping, grijs/geen = idle",
+        "Review badge: oranje/amber pill met aantal (bijv. '3')",
+        "Review badge: alleen tonen als count > 0",
+        "Layout: [📁 Project] [🟢] [3] [▼] - status dot + review count",
+        "Indicator zichtbaar in dropdown trigger (geselecteerd project)",
+        "Indicators zichtbaar per project in dropdown lijst",
+        "Polling: elke 5-10 seconden status refreshen",
+        "Alternatief: WebSocket listener voor runner en story status changes",
+        "Collapsed sidebar: indicators zichtbaar in tooltip",
+        "Mobile: indicators ook zichtbaar",
+        "Performance: batch requests of single multi-project endpoint",
+        "Unit tests voor status indicator component",
+        "Unit tests voor review badge component",
+        "E2E test: start runner → indicator wordt groen",
+        "E2E test: story naar review → badge count verhoogt",
         "Lint passing (pnpm lint)",
         "Build slaagt (pnpm build)",
         "Code review completed"
