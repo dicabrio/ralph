@@ -27,6 +27,7 @@ vi.mock('@tanstack/react-router', () => ({
   }),
   useParams: () => ({ id: undefined }),
   useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/' }),
 }))
 
 // Mock tRPC client

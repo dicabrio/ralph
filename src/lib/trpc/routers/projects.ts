@@ -18,6 +18,7 @@ import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
 import { expandPath } from '@/lib/utils.server'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
 import { codexLoopService } from '@/lib/services/codexLoopService'
+import { geminiLoopService } from '@/lib/services/geminiLoopService'
 import { validatePrd } from '@/lib/schemas/prdSchema'
 import { getPrdFileWatcher } from '@/lib/services/prdFileWatcher'
 
@@ -104,6 +105,36 @@ async function createDefaultPrd(projectPath: string, projectName: string): Promi
   await writeFile(prdPath, JSON.stringify(defaultPrd, null, 2), 'utf-8')
 }
 
+// Runner status type
+type RunnerStatus = 'idle' | 'running' | 'stopping'
+type RunnerProvider = 'claude' | 'codex' | 'gemini'
+
+// Common interface for loop services with getStatus method
+interface LoopServiceWithStatus {
+  getStatus(projectId: number): { status: RunnerStatus; projectId: number }
+}
+
+/**
+ * Get runner status for a project across all providers
+ * Returns the first active provider found, or idle with null provider
+ */
+function getProjectRunnerStatus(projectId: number): { status: RunnerStatus; provider: RunnerProvider | null } {
+  const providers: { service: LoopServiceWithStatus; name: RunnerProvider }[] = [
+    { service: claudeLoopService, name: 'claude' },
+    { service: codexLoopService, name: 'codex' },
+    { service: geminiLoopService, name: 'gemini' },
+  ]
+
+  for (const { service, name } of providers) {
+    const state = service.getStatus(projectId)
+    if (state.status !== 'idle') {
+      return { status: state.status, provider: name }
+    }
+  }
+
+  return { status: 'idle', provider: null }
+}
+
 // Story stats included with project data
 interface ProjectWithStats extends Project {
   stats: {
@@ -112,17 +143,23 @@ interface ProjectWithStats extends Project {
     failed: number
     inProgress: number
     backlog: number
+    review: number
     progress: number
   }
+  runnerStatus: RunnerStatus
+  runnerProvider: RunnerProvider | null
 }
 
 /**
  * Syncs project metadata from prd.json file
  * Updates description and branch_name from the file if they differ
- * Also computes story statistics
+ * Also computes story statistics and runner status
  */
 async function syncProjectWithPrd(project: Project): Promise<ProjectWithStats> {
   const prdData = await readPrdJson(project.path)
+
+  // Get runner status for this project
+  const { status: runnerStatus, provider: runnerProvider } = getProjectRunnerStatus(project.id)
 
   // Default stats when no prd.json
   const defaultStats = {
@@ -131,11 +168,12 @@ async function syncProjectWithPrd(project: Project): Promise<ProjectWithStats> {
     failed: 0,
     inProgress: 0,
     backlog: 0,
+    review: 0,
     progress: 0,
   }
 
   if (!prdData) {
-    return { ...project, stats: defaultStats }
+    return { ...project, stats: defaultStats, runnerStatus, runnerProvider }
   }
 
   // Compute story statistics
@@ -146,9 +184,10 @@ async function syncProjectWithPrd(project: Project): Promise<ProjectWithStats> {
   const inProgress = stories.filter((s) => s.status === 'in_progress').length
   // Backlog includes both 'pending' and 'backlog' statuses
   const backlog = stories.filter((s) => s.status === 'pending' || s.status === 'backlog').length
+  const review = stories.filter((s) => s.status === 'review').length
   const progress = total > 0 ? Math.round((done / total) * 100) : 0
 
-  const stats = { total, done, failed, inProgress, backlog, progress }
+  const stats = { total, done, failed, inProgress, backlog, review, progress }
 
   // Extract metadata from prd.json
   const prdDescription = prdData.projectDescription || null
@@ -175,10 +214,10 @@ async function syncProjectWithPrd(project: Project): Promise<ProjectWithStats> {
       .where(eq(projects.id, project.id))
       .returning()
 
-    return { ...updated, stats }
+    return { ...updated, stats, runnerStatus, runnerProvider }
   }
 
-  return { ...project, stats }
+  return { ...project, stats, runnerStatus, runnerProvider }
 }
 
 /**

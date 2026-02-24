@@ -883,7 +883,7 @@
       "title": "Runner status en review count in ProjectSelector",
       "description": "Toon de runner status (idle/running/stopping) en het aantal stories in review in de sidebar ProjectSelector dropdown. Gebruikers kunnen in één oogopslag zien welke projecten een actieve runner hebben en hoeveel stories er wachten op testing.",
       "priority": 103,
-      "status": "pending",
+      "status": "review",
       "epic": "Dashboard",
       "dependencies": [
         "REVIEW-001"
