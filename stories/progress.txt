@@ -2490,3 +2490,34 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Badge component uses status variants directly (pending, in_progress, done, failed, backlog, review)
 - When adding a new status, update: schema, router, kanban, StoryCard, StoryDetailModal, Badge, and all test files
 - Test fixtures that count stories need updating when adding new test data
+
+## 2026-02-24 - REVIEW-002
+**Title:** Archive router en archived.json schema
+
+**Implemented:**
+- Added archivedStorySchema extending storySchema with archivedAt timestamp
+- Added archivedPrdSchema for archived.json file structure
+- Created archive.ts tRPC router with three procedures:
+  - listByProject: Returns archived stories, creates empty structure if file doesn't exist
+  - archiveStory: Moves single done story from prd.json to archived.json with timestamp
+  - archiveMultiple: Archives multiple stories, returns both success and error arrays
+- Validation that only 'done' status stories can be archived
+- Check for already archived stories (CONFLICT error)
+- Atomic-ish write: writes archived.json first, then prd.json (safe order for data loss prevention)
+- Creates stories directory and archived.json if they don't exist
+- Comprehensive unit tests (24 tests)
+
+**Files changed:**
+- src/lib/schemas/prdSchema.ts (archivedStorySchema, archivedPrdSchema, types)
+- src/lib/trpc/routers/archive.ts (new router)
+- src/lib/trpc/routers/archive.test.ts (new tests)
+- src/lib/trpc/routers/index.ts (register archive router)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Use Zod .extend() to add fields to existing schemas (archivedStorySchema extends storySchema)
+- PathLike type from node:fs requires String() conversion for .includes() in mock implementations
+- Follow existing test patterns: import PathLike, use String(path).includes() in mockImplementation
+- Template literals preferred over string concatenation for JSON serialization
+- Write order matters for atomicity: write the new file first (archived.json), then update existing (prd.json)
+- archiveMultiple uses partial success pattern: returns { archived: [], errors?: [] }

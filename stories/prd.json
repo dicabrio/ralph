@@ -506,7 +506,7 @@
       "title": "Archive router en archived.json schema",
       "description": "Implementeer de archive functionaliteit met een nieuw archived.json bestand en tRPC router. Stories kunnen van done naar archief verplaatst worden.",
       "priority": 92,
-      "status": "pending",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-001"

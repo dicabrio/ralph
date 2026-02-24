@@ -44,6 +44,20 @@ export type ImplementationGuide = z.infer<typeof implementationGuideSchema>
 export type Prd = z.infer<typeof prdSchema>
 export type StoryStatus = z.infer<typeof storyStatusEnum>
 
+// Archived story schema - extends story with archivedAt timestamp
+export const archivedStorySchema = storySchema.extend({
+  archivedAt: z.string().datetime({ message: 'archivedAt must be a valid ISO datetime string' }),
+})
+
+// Archived PRD schema for archived.json structure
+export const archivedPrdSchema = z.object({
+  projectName: z.string().min(1, 'Project name is required'),
+  archivedStories: z.array(archivedStorySchema).default([]),
+})
+
+export type ArchivedStory = z.infer<typeof archivedStorySchema>
+export type ArchivedPrd = z.infer<typeof archivedPrdSchema>
+
 // Validation result type
 export interface PrdValidationResult {
   isValid: boolean

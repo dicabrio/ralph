@@ -13,6 +13,7 @@ import { runnerRouter } from './runner'
 import { brainstormRouter } from './brainstorm'
 import { promptsRouter } from './prompts'
 import { prdRouter } from './prd'
+import { archiveRouter } from './archive'
 
 /**
  * Main application router
@@ -27,6 +28,7 @@ export const appRouter = router({
   brainstorm: brainstormRouter,
   prompts: promptsRouter,
   prd: prdRouter,
+  archive: archiveRouter,
 })
 
 /**
