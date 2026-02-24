@@ -807,7 +807,7 @@
       "title": "Gemini provider implementatie",
       "description": "Implementeer Gemini als derde runner provider naast Claude en Codex. Gebruikt de AI Studio CLI voor story executie.",
       "priority": 101,
-      "status": "pending",
+      "status": "done",
       "epic": "Runner",
       "dependencies": [
         "RUNNER-009"

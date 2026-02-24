@@ -1,7 +1,7 @@
 /**
  * Runner Router
  *
- * API endpoints for managing Claude/Codex runners.
+ * API endpoints for managing Claude/Codex/Gemini runners.
  * Handles starting, stopping, and querying runner status.
  */
 import { z } from 'zod'
@@ -12,9 +12,10 @@ import { db } from '@/db'
 import { projects } from '@/db/schema'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
 import { codexLoopService } from '@/lib/services/codexLoopService'
+import { geminiLoopService } from '@/lib/services/geminiLoopService'
 import { expandPath } from '@/lib/utils.server'
 
-const runnerProviderSchema = z.enum(['claude', 'codex'])
+const runnerProviderSchema = z.enum(['claude', 'codex', 'gemini'])
 type RunnerProvider = z.infer<typeof runnerProviderSchema>
 
 // Input schemas
@@ -41,11 +42,19 @@ const setAutoRestartSchema = z.object({
 })
 
 function getService(provider: RunnerProvider) {
-  return provider === 'codex' ? codexLoopService : claudeLoopService
+  switch (provider) {
+    case 'codex':
+      return codexLoopService
+    case 'gemini':
+      return geminiLoopService
+    default:
+      return claudeLoopService
+  }
 }
 
-function getOtherProvider(provider: RunnerProvider): RunnerProvider {
-  return provider === 'codex' ? 'claude' : 'codex'
+function getOtherProviders(provider: RunnerProvider): RunnerProvider[] {
+  const allProviders: RunnerProvider[] = ['claude', 'codex', 'gemini']
+  return allProviders.filter((p) => p !== provider)
 }
 
 function getProviderAwareStatus(projectId: number, preferredProvider: RunnerProvider) {
@@ -55,11 +64,14 @@ function getProviderAwareStatus(projectId: number, preferredProvider: RunnerProv
     return { ...preferredState, provider: preferredProvider }
   }
 
-  const fallbackProvider = getOtherProvider(preferredProvider)
-  const fallbackService = getService(fallbackProvider)
-  const fallbackState = fallbackService.getStatus(projectId)
-  if (fallbackState.status !== 'idle') {
-    return { ...fallbackState, provider: fallbackProvider }
+  // Check other providers
+  const otherProviders = getOtherProviders(preferredProvider)
+  for (const fallbackProvider of otherProviders) {
+    const fallbackService = getService(fallbackProvider)
+    const fallbackState = fallbackService.getStatus(projectId)
+    if (fallbackState.status !== 'idle') {
+      return { ...fallbackState, provider: fallbackProvider }
+    }
   }
 
   return { ...preferredState, provider: preferredProvider }
@@ -89,20 +101,24 @@ export const runnerRouter = router({
 
       try {
         const selectedService = getService(provider)
-        const otherProvider = getOtherProvider(provider)
-        const otherService = getService(otherProvider)
+        const otherProviders = getOtherProviders(provider)
 
-        const otherStatus = otherService.getStatus(projectId)
-        if (otherStatus.status !== 'idle') {
-          throw new Error(
-            `Cannot start ${provider} runner while ${otherProvider} runner is ${otherStatus.status}. Stop it first.`,
-          )
+        // Check if any other provider is running
+        for (const otherProvider of otherProviders) {
+          const otherService = getService(otherProvider)
+          const otherStatus = otherService.getStatus(projectId)
+          if (otherStatus.status !== 'idle') {
+            throw new Error(
+              `Cannot start ${provider} runner while ${otherProvider} runner is ${otherStatus.status}. Stop it first.`,
+            )
+          }
         }
 
         // In single story mode, disable auto-restart so runner stops after completing the story
         if (singleStoryMode) {
           claudeLoopService.setAutoRestart(projectId, false)
           codexLoopService.setAutoRestart(projectId, false)
+          geminiLoopService.setAutoRestart(projectId, false)
         }
 
         // Ensure absolute path - CLI runs directly on filesystem
@@ -141,6 +157,7 @@ export const runnerRouter = router({
       try {
         const claudeStatus = claudeLoopService.getStatus(projectId)
         const codexStatus = codexLoopService.getStatus(projectId)
+        const geminiStatus = geminiLoopService.getStatus(projectId)
 
         if (claudeStatus.status !== 'idle') {
           await claudeLoopService.stop(projectId, force)
@@ -148,6 +165,10 @@ export const runnerRouter = router({
 
         if (codexStatus.status !== 'idle') {
           await codexLoopService.stop(projectId, force)
+        }
+
+        if (geminiStatus.status !== 'idle') {
+          await geminiLoopService.stop(projectId, force)
         }
 
         return { status: 'idle' as const, projectId }
@@ -203,7 +224,11 @@ export const runnerRouter = router({
         ...state,
         provider: 'codex' as const,
       }))
-      return [...claudeStates, ...codexStates]
+      const geminiStates = geminiLoopService.getAllStatus().map((state) => ({
+        ...state,
+        provider: 'gemini' as const,
+      }))
+      return [...claudeStates, ...codexStates, ...geminiStates]
     } catch (error) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
@@ -235,6 +260,7 @@ export const runnerRouter = router({
 
       claudeLoopService.setAutoRestart(projectId, enabled)
       codexLoopService.setAutoRestart(projectId, enabled)
+      geminiLoopService.setAutoRestart(projectId, enabled)
 
       return {
         projectId,
@@ -267,7 +293,8 @@ export const runnerRouter = router({
         projectId,
         autoRestartEnabled:
           claudeLoopService.isAutoRestartEnabled(projectId) &&
-          codexLoopService.isAutoRestartEnabled(projectId),
+          codexLoopService.isAutoRestartEnabled(projectId) &&
+          geminiLoopService.isAutoRestartEnabled(projectId),
       }
     }),
 })

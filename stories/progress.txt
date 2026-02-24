@@ -2418,3 +2418,39 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Gemini CLI has larger context window (1M tokens vs 200K for Claude)
 - Gemini CLI is open-source (Apache 2.0) with generous free tier
 - Integration approach: spawn gemini process with stream-json, parse JSONL events for log streaming
+
+## 2026-02-24 - RUNNER-010
+**Title:** Gemini provider implementatie
+
+**Implemented:**
+- Created geminiLoopService.ts following the same structure as claudeLoopService and codexLoopService
+- Service spawns Gemini CLI with `-p`, `--output-format stream-json`, and `--yolo` flags
+- Parses JSONL stream events (init, message, tool_use, tool_result, result)
+- Handles stats output from result events (tokens, duration, tool calls)
+- Created geminiPermissions.ts with DEFAULT_GEMINI_PERMISSIONS (allowed tools: read_file, write_file, list_directory, shell)
+- Updated runner router to support 'gemini' as third provider
+- Updated getService() to return geminiLoopService for 'gemini' provider
+- Changed getOtherProvider() to getOtherProviders() to handle 3 providers
+- Updated start, stop, getAllStatus, setAutoRestart to include Gemini
+- Added Gemini button to UI provider selector (kanban.tsx and index.tsx)
+- Changed provider buttons from 2-column to 3-column grid layout
+- Updated localStorage provider preference validation to include 'gemini'
+- Created comprehensive unit tests (31 tests passing)
+
+**Files changed:**
+- src/lib/services/geminiLoopService.ts (new)
+- src/lib/services/geminiPermissions.ts (new)
+- src/lib/services/geminiLoopService.test.ts (new)
+- src/lib/trpc/routers/runner.ts (updated for 3 providers)
+- src/routes/project/$id/kanban.tsx (added Gemini provider button)
+- src/routes/project/$id/index.tsx (added Gemini provider button)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Gemini CLI uses `gemini -p "prompt" --yolo --output-format stream-json` for headless mode
+- stream-json format outputs JSONL with typed events for parsing
+- Event types: init (session start), message (assistant/user text), tool_use, tool_result, result (final stats)
+- GEMINI_API_KEY or GOOGLE_AI_STUDIO_KEY environment variable required for headless mode
+- `--allowed-tools` flag accepts comma-separated list of tool names
+- Router required refactoring from binary provider logic (getOtherProvider) to multi-provider (getOtherProviders array)
+- UI provider buttons work well with 3-column grid layout

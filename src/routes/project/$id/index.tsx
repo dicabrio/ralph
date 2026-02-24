@@ -97,7 +97,7 @@ interface Story {
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
-type RunnerProvider = "claude" | "codex";
+type RunnerProvider = "claude" | "codex" | "gemini";
 
 // Compute project stats from stories
 function computeProjectStats(stories: Story[]) {
@@ -330,7 +330,7 @@ function RunnerControls({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         <Button
           type="button"
           size="sm"
@@ -348,6 +348,15 @@ function RunnerControls({
           disabled={isBusy || isRunning}
         >
           Codex
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={selectedProvider === "gemini" ? "default" : "outline"}
+          onClick={() => onProviderChange("gemini")}
+          disabled={isBusy || isRunning}
+        >
+          Gemini
         </Button>
       </div>
 
@@ -551,7 +560,7 @@ function ProjectDetail() {
   useEffect(() => {
     if (typeof window === "undefined" || Number.isNaN(projectId)) return;
     const stored = window.localStorage.getItem(`ralph.runner-provider.${projectId}`);
-    if (stored === "claude" || stored === "codex") {
+    if (stored === "claude" || stored === "codex" || stored === "gemini") {
       setRunnerProvider(stored);
     }
   }, [projectId]);

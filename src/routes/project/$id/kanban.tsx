@@ -87,7 +87,7 @@ export const Route = createFileRoute("/project/$id/kanban")({
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
-type RunnerProvider = "claude" | "codex";
+type RunnerProvider = "claude" | "codex" | "gemini";
 
 // Kanban column definition
 interface KanbanColumn {
@@ -568,6 +568,19 @@ function KanbanRunnerControls({
         >
           Codex
         </button>
+        <button
+          type="button"
+          onClick={() => onProviderChange("gemini")}
+          disabled={isBusy || isRunning}
+          className={cn(
+            "rounded px-2 py-1 text-xs font-medium transition-colors",
+            selectedProvider === "gemini"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Gemini
+        </button>
       </div>
       <RunnerStatusBadge status={runnerStatus} storyId={currentStoryId} />
       {activeProvider && runnerStatus === "running" && (
@@ -940,7 +953,7 @@ function KanbanBoard() {
     const stored = window.localStorage.getItem(
       `ralph.runner-provider.${projectId}`,
     );
-    if (stored === "claude" || stored === "codex") {
+    if (stored === "claude" || stored === "codex" || stored === "gemini") {
       setRunnerProvider(stored);
     }
   }, [projectId]);
