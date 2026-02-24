@@ -838,6 +838,45 @@
         "Build slaagt (pnpm build)",
         "Code review completed"
       ]
+    },
+    {
+      "id": "RUNNER-011",
+      "title": "Pre-selectie story met inline context in prompt",
+      "description": "Optimaliseer de runner flow door de volgende story vooraf te selecteren en inline mee te geven in de prompt. Dit voorkomt dat de LLM zelf prd.json moet parsen voor story selectie, bespaart tokens, en garandeert correcte dependency checking.",
+      "priority": 102,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": [],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Service: selectNextStory(projectId) - bepaal volgende story met dependency check",
+        "Service: hergebruik bestaande findNextPendingStory() logica",
+        "Service: sorteer op priority (laagste eerst)",
+        "Service: check alle dependencies zijn 'done' voordat story eligible is",
+        "Service: return null als geen eligible stories",
+        "Prompt: generateStoryPrompt(story, doneDepTitles) - maak inline prompt",
+        "Prompt: story ID, title, description, acceptance criteria inline",
+        "Prompt: dependencies met status (done/pending) voor context",
+        "Prompt: alleen titles van done dependencies meegeven (geen volledige stories)",
+        "Prompt: recommended skills inline",
+        "Prompt: instructies voor status updates in prd.json",
+        "Runner: bij start, selecteer story VOORDAT LLM spawnt",
+        "Runner: als geen eligible story, return error 'No eligible stories'",
+        "Runner: log geselecteerde story naar WebSocket",
+        "Template: update promptTemplate.ts met nieuwe structuur",
+        "Template: verwijder 'lees prd.json en selecteer story' instructies",
+        "Template: behoud instructies voor status updates",
+        "Backward compat: oude prompt.md in projects blijft werken",
+        "Unit tests voor selectNextStory met dependency scenarios",
+        "Unit tests voor generateStoryPrompt output",
+        "E2E test: runner selecteert story met onvervulde deps → skip",
+        "E2E test: runner selecteert laagste priority eligible story",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
     }
   ],
   "implementationGuides": [
