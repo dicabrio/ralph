@@ -2682,3 +2682,46 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Used `aria-current="page"` instead of `aria-selected` for navigation links
 - Pattern: move shared headers to parent layout component to avoid duplication
 - Badge count is fetched via `trpc.stories.listByProject` with staleTime for caching
+
+
+## 2026-02-24 - RUNNER-011
+**Title:** Pre-selectie story met inline context in prompt
+
+**Implemented:**
+- Created new storySelector service (`src/lib/services/storySelector.ts`):
+  - `selectNextStory(projectPath)` - reads prd.json, finds eligible story with dependency checking
+  - `findNextEligibleStory(stories)` - pure function for story selection logic
+  - `generateStoryPrompt(selection, basePrompt)` - generates inline prompt with story details
+  - `getNoEligibleStoryReason(stories)` - human-readable reason when no story found
+  - `readPrdJson(projectPath)` - reads and validates prd.json
+- Updated all three loop services (Claude, Codex, Gemini):
+  - Pre-select story BEFORE spawning the LLM process
+  - Use inline prompt with full story details when auto-selecting
+  - Return "No eligible stories" error with reason if none found
+  - Broadcast `story_selected` WebSocket event for UI
+- Updated promptTemplate.ts:
+  - Removed "read prd.json and select story" instructions
+  - Added "story is provided above this section" reference
+  - Kept status update instructions (agent still updates prd.json)
+- Added WebSocket `story_selected` event type
+- Full unit test coverage for storySelector (33 tests)
+
+**Files changed:**
+- src/lib/services/storySelector.ts (new)
+- src/lib/services/storySelector.test.ts (new)
+- src/lib/services/claudeLoopService.ts (pre-selection, broadcastStorySelected)
+- src/lib/services/codexLoopService.ts (pre-selection, broadcastStorySelected)
+- src/lib/services/geminiLoopService.ts (pre-selection, broadcastStorySelected)
+- src/lib/services/promptTemplate.ts (updated instructions)
+- src/lib/websocket/types.ts (story_selected event)
+- src/lib/services/claudeLoopService.test.ts (mock storySelector)
+- src/lib/services/codexLoopService.test.ts (mock storySelector)
+- src/lib/services/geminiLoopService.test.ts (mock storySelector)
+- src/lib/services/promptTemplate.test.ts (updated assertions)
+
+**Learnings:**
+- Dependency checking: both 'done' and 'review' are considered completed states
+- Story selection logic was already in loop services (findNextPendingStory) - refactored to shared utility
+- Inline prompt saves tokens: agent doesn't need to read/parse entire prd.json
+- Test mocking: need to mock storySelector in loop service tests to prevent file system access
+- The prompt is prepended to basePrompt with separator (---) for clean structure
