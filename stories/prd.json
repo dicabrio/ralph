@@ -472,6 +472,372 @@
         "Build slaagt (pnpm build)",
         "Code review completed"
       ]
+    },
+    {
+      "id": "REVIEW-001",
+      "title": "Review status en schema update",
+      "description": "Voeg de nieuwe 'review' status toe aan het story schema en update alle gerelateerde validaties en transitions. Dit is de foundation voor de Test Board feature.",
+      "priority": 91,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Schema: prdSchema.ts - voeg 'review' toe aan storyStatusEnum",
+        "Schema: stories.ts router - voeg 'review' toe aan VALID_STATUSES",
+        "Schema: update validTransitions met review status",
+        "Transitions: in_progress → review (nieuw)",
+        "Transitions: review → done, failed, in_progress",
+        "Kanban: voeg review status toe aan StoryStatus type",
+        "Kanban: update getTargetStatusForColumn voor review",
+        "Kanban: update validTransitions object",
+        "Unit tests voor nieuwe status transitions",
+        "Unit tests voor schema validatie met review status",
+        "Bestaande tests blijven passing",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-002",
+      "title": "Archive router en archived.json schema",
+      "description": "Implementeer de archive functionaliteit met een nieuw archived.json bestand en tRPC router. Stories kunnen van done naar archief verplaatst worden.",
+      "priority": 92,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Schema: archivedStorySchema met archivedAt timestamp",
+        "Schema: archivedPrdSchema voor archived.json structuur",
+        "Router: src/lib/trpc/routers/archive.ts",
+        "API: archive.listByProject - lees archived.json, return stories",
+        "API: archive.archiveStory - verplaats story van prd.json naar archived.json",
+        "API: validatie dat alleen done stories gearchiveerd kunnen worden",
+        "API: atomische operatie (remove from prd + add to archived)",
+        "API: maak archived.json aan als niet bestaat",
+        "API: voeg archivedAt timestamp toe aan gearchiveerde story",
+        "Router registreren in src/lib/trpc/routers/index.ts",
+        "Unit tests voor archive.listByProject",
+        "Unit tests voor archive.archiveStory",
+        "Unit tests voor atomische operatie rollback bij error",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-003",
+      "title": "Test Board pagina",
+      "description": "Nieuwe pagina /project/$id/testing die alle stories met status 'review' toont. Gebruikers kunnen stories accepteren (→ done) of rejecten (→ failed/in_progress).",
+      "priority": 93,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Route: src/routes/project/$id/testing.tsx",
+        "Fetch stories met status 'review' via trpc.stories.listByProject",
+        "TestStoryCard component met Accept/Reject buttons",
+        "Cards gesorteerd op priority (P1 eerst)",
+        "Accept button: status → done, optimistic update, toast",
+        "Reject button: opent RejectDialog modal",
+        "RejectDialog: keuze tussen failed of in_progress",
+        "RejectDialog: optioneel reden veld (alleen voor feedback, niet opgeslagen)",
+        "Card verdwijnt na accept/reject (optimistic)",
+        "Klik op card opent StoryDetailModal (read-only)",
+        "Empty state wanneer geen review stories",
+        "Loading state tijdens fetch",
+        "Error state bij API errors",
+        "Link naar Archive pagina rechtsboven",
+        "Unit tests voor TestStoryCard component",
+        "Unit tests voor accept/reject flows",
+        "E2E test: accept story flow",
+        "E2E test: reject story flow",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-004",
+      "title": "Archive pagina met zoeken en filteren",
+      "description": "Nieuwe pagina /project/$id/archive die gearchiveerde stories toont met zoek- en filterfunctionaliteit.",
+      "priority": 94,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-002"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Route: src/routes/project/$id/archive.tsx",
+        "Fetch stories via trpc.archive.listByProject",
+        "Zoekbalk: zoek in story ID, titel, description",
+        "Epic filter: dropdown met unieke epics uit archief",
+        "Client-side filtering (debounced 300ms)",
+        "Filters combineren (zoekterm + epic)",
+        "ArchivedStoryCard component met relatieve timestamp",
+        "Timestamp format: '2 dagen geleden', '1 week geleden'",
+        "Cards gesorteerd op archivedAt (nieuwste eerst)",
+        "Klik op card opent read-only detail modal",
+        "Empty state wanneer geen gearchiveerde stories",
+        "Empty state wanneer filters geen resultaten",
+        "Loading state tijdens fetch",
+        "Link terug naar Test Board",
+        "Unit tests voor zoek/filter logica",
+        "Unit tests voor ArchivedStoryCard",
+        "E2E test: zoeken in archief",
+        "E2E test: filteren op epic",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-005",
+      "title": "Kanban board update met Review kolom en Archive knop",
+      "description": "Update het Kanban board met een nieuwe Review kolom (locked) en archive knop op done stories.",
+      "priority": 95,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-001",
+        "REVIEW-002"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Nieuwe kolom 'Review' tussen In Progress en Voltooid",
+        "Review kolom is locked (isDroppable: false, isDraggable: false)",
+        "Review kolom toont stories met status 'review'",
+        "Lock icon op Review kolom header",
+        "Archive knop (📦 icon) op done story cards",
+        "Archive knop alleen zichtbaar bij hover",
+        "Klik archive → confirmatie dialog",
+        "Confirmatie: 'Weet je zeker dat je [story] wilt archiveren?'",
+        "Bij confirm: roep archive.archiveStory aan",
+        "Optimistic update: story verdwijnt uit done kolom",
+        "Toast: 'Story gearchiveerd'",
+        "Bulk archive: 'Archiveer alle' knop in done kolom header",
+        "Bulk archive: confirmatie met aantal stories",
+        "Bulk archive: API archive.archiveMultiple([storyIds])",
+        "Error handling bij archive failure",
+        "Unit tests voor archive button visibility",
+        "Unit tests voor single archive flow",
+        "Unit tests voor bulk archive flow",
+        "E2E test: archive story vanaf Kanban",
+        "E2E test: bulk archive alle done stories",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-006",
+      "title": "Runner aanpassing naar review status",
+      "description": "Pas de runner aan zodat voltooide stories naar 'review' status gaan in plaats van 'done'. Dit triggert de Test Board workflow.",
+      "priority": 96,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "claudeLoopService: bij story completion → status 'review' (was 'done')",
+        "codexLoopService: bij story completion → status 'review' (was 'done')",
+        "Prompt templates: update instructies voor nieuwe status",
+        "WebSocket broadcast: 'story_review' event bij review status",
+        "Runner status monitor: herken 'review' als voltooide staat",
+        "Backward compatible: bestaande 'done' stories blijven werken",
+        "Unit tests voor status change naar review",
+        "Unit tests voor WebSocket event",
+        "E2E test: runner voltooit story → status wordt review",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-008",
+      "title": "Test scenario generatie bij review status",
+      "description": "Wanneer een story naar review status gaat, genereert AI automatisch een test scenario op basis van de acceptance criteria. Dit wordt opgeslagen als markdown (documentatie) en JSON (UI checklist).",
+      "priority": 98,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-003",
+        "REVIEW-006"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Directory: stories/test-scenarios/ automatisch aanmaken",
+        "Bij status → review: trigger test scenario generatie",
+        "AI prompt met story title, description, acceptance criteria",
+        "Output: stories/test-scenarios/STORY-ID.md (markdown)",
+        "Output: stories/test-scenarios/STORY-ID.json (structured)",
+        "JSON schema: sections[] met items[] (id, text, checked)",
+        "Markdown format: headers per sectie, checkboxes per item",
+        "Categorieën: Functionele Tests, UI Verificatie, Quality Gates",
+        "Quality Gates altijd: pnpm test, pnpm lint, pnpm build",
+        "API: testScenarios.getByStoryId(storyId) - return JSON",
+        "API: testScenarios.updateItem(storyId, itemId, checked)",
+        "Graceful fallback als AI generatie faalt",
+        "Unit tests voor scenario generatie",
+        "Unit tests voor JSON/MD file writing",
+        "E2E test: story → review → test scenario bestaat",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-009",
+      "title": "Test Board UI met interactieve checklist",
+      "description": "Integreer de gegenereerde test scenarios in de Test Board UI als interactieve checklists. Gebruikers kunnen items afvinken en de voortgang wordt getoond.",
+      "priority": 99,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-003",
+        "REVIEW-008"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Test Board cards tonen checklist progress (3/8 ✓)",
+        "Expandable card toont volledige checklist",
+        "Secties zijn collapsible (▼/▶)",
+        "Checkboxes zijn klikbaar, update via API",
+        "Optimistic update bij checkbox toggle",
+        "Progress bar per sectie",
+        "Alle items checked: groene highlight op Accept knop",
+        "Link naar markdown file voor volledige documentatie",
+        "Empty state als geen test scenario bestaat",
+        "Loading state tijdens fetch",
+        "Unit tests voor checklist component",
+        "Unit tests voor progress berekening",
+        "E2E test: toggle checkbox → saved",
+        "E2E test: alle items checked → accept enabled",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-007",
+      "title": "Project navigatie met Testing badge",
+      "description": "Update de project navigatie met links naar Testing en Archive pagina's, inclusief badge indicator voor aantal review stories.",
+      "priority": 97,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-003",
+        "REVIEW-004"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Navigation tabs: Overview | Kanban | Testing | Archive",
+        "Testing tab toont badge met aantal review stories",
+        "Badge styling: oranje/amber kleur, pill shape",
+        "Badge hidden wanneer count = 0",
+        "Active tab highlighting",
+        "Responsive: tabs worden icons op mobile",
+        "Keyboard navigation support",
+        "Project index pagina: quick links naar Testing en Archive",
+        "Unit tests voor badge count logic",
+        "Unit tests voor navigation component",
+        "E2E test: navigatie tussen tabs",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "RUNNER-009",
+      "title": "Research Gemini CLI / AI Studio integratie",
+      "description": "Onderzoek hoe Google's AI Studio CLI (aistudio/gemini) werkt en hoe we dit kunnen integreren als runner provider. Documenteer de CLI commands, authenticatie, en tool calling mogelijkheden.",
+      "priority": 100,
+      "status": "done",
+      "epic": "Runner",
+      "dependencies": [],
+      "recommendedSkills": [],
+      "acceptanceCriteria": [
+        "Research: AI Studio CLI installatie en setup",
+        "Research: Authenticatie methode (API key, OAuth, login)",
+        "Research: CLI command structuur voor prompts",
+        "Research: Streaming output mogelijkheden",
+        "Research: Tool calling / function calling support",
+        "Research: File reading capabilities",
+        "Research: Working directory / project context",
+        "Research: Rate limits en quota's",
+        "Research: Error handling en exit codes",
+        "Vergelijking met Claude CLI qua features",
+        "Documentatie: docs/gemini-cli-research.md",
+        "Proof of concept: simpele prompt via CLI",
+        "Conclusie: geschiktheid voor Ralph loop integratie",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "RUNNER-010",
+      "title": "Gemini provider implementatie",
+      "description": "Implementeer Gemini als derde runner provider naast Claude en Codex. Gebruikt de AI Studio CLI voor story executie.",
+      "priority": 101,
+      "status": "pending",
+      "epic": "Runner",
+      "dependencies": [
+        "RUNNER-009"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Service: src/lib/services/geminiLoopService.ts",
+        "Service: vergelijkbare structuur als claudeLoopService",
+        "Service: spawn Gemini CLI met project context",
+        "Service: streaming output parsing",
+        "Service: story status updates (in_progress, review, failed)",
+        "Service: log buffering en database storage",
+        "Config: GEMINI_API_KEY of GOOGLE_AI_STUDIO_KEY env var",
+        "Config: graceful error als CLI niet geïnstalleerd",
+        "Router: runnerProviderSchema uitbreiden met 'gemini'",
+        "Router: getService() update voor gemini provider",
+        "Router: getOtherProvider() update voor 3 providers",
+        "UI: Gemini optie in provider selector (Kanban header)",
+        "UI: Gemini optie in project runner controls",
+        "UI: Gemini icon/badge wanneer actief",
+        "Permissions: geminiPermissions.ts (vergelijkbaar met claude)",
+        "Unit tests voor geminiLoopService",
+        "Unit tests voor provider routing",
+        "E2E test: start runner met Gemini provider",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
     }
   ],
   "implementationGuides": [
@@ -601,6 +967,10 @@
     {
       "name": "Slack",
       "description": "Slack integratie voor brainstormen en runner controle per project"
+    },
+    {
+      "name": "Test Board",
+      "description": "Test Board voor review van voltooide stories en archivering"
     }
   ]
 }

@@ -45,6 +45,7 @@
 - TanStack Router nested routes: parent $id.tsx must render <Outlet />, content goes in $id/index.tsx
 - E2E locators: use filter with data-testid for exact ID match (avoids matching partial text in other elements)
 - E2E modal testing: use coordinates for backdrop click, test behavior not strict expectations for edge cases
+- Gemini CLI: GEMINI_API_KEY env var for headless mode, --yolo for auto-approval, --output-format stream-json for JSONL events (see docs/gemini-cli-research.md)
 
 ## 2026-02-06 - SETUP-001
 **Title:** TanStack Start project initialisatie
@@ -2387,3 +2388,33 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Test data-testid pattern: `play-story-{storyId}` for play buttons, `dep-status-{depId}` for dependency items
 - `PLAYABLE_STATUSES` constant makes visibility logic clear and testable
 - Runner status is polled every 3 seconds - play button automatically hides when runner starts
+
+## 2026-02-24 - RUNNER-009
+**Title:** Research Gemini CLI / AI Studio integratie
+
+**Implemented:**
+- Comprehensive research on Google's Gemini CLI as alternative runner provider
+- Documented installation methods: npm, npx, brew, MacPorts, conda
+- Documented authentication options: OAuth, API Key, Vertex AI
+- Documented CLI command structure and flags (-p, -m, -o, --yolo, etc.)
+- Documented streaming output with stream-json format (JSONL events)
+- Documented tool calling capabilities (read_file, write_file, list_directory, shell)
+- Documented rate limits: 60 req/min, 1000 req/day (free tier)
+- Created feature comparison with Claude CLI
+- Created proof of concept tests: version check, simple prompt, file reading, tool calling
+- Created comprehensive research documentation at docs/gemini-cli-research.md
+
+**Files changed:**
+- docs/gemini-cli-research.md (new - comprehensive research documentation)
+- stories/prd.json (status updated to done)
+
+**Learnings:**
+- Gemini CLI is installed via npm: `npm i -g @google/gemini-cli`
+- GEMINI_API_KEY environment variable for headless/CI/CD usage
+- `--yolo` flag auto-approves all tool executions (similar to Claude's --dangerously-skip-permissions)
+- `--output-format stream-json` returns JSONL with event types: init, message, tool_use, tool_result, result
+- GEMINI.md file provides project context (equivalent to CLAUDE.md)
+- Free tier rate limit: 1000 requests/day with automatic retry on quota exhaustion
+- Gemini CLI has larger context window (1M tokens vs 200K for Claude)
+- Gemini CLI is open-source (Apache 2.0) with generous free tier
+- Integration approach: spawn gemini process with stream-json, parse JSONL events for log streaming
