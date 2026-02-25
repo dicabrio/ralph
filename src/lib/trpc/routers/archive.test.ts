@@ -543,6 +543,287 @@ describe('archiveRouter', () => {
     })
   })
 
+  describe('dependency cleanup', () => {
+    // prd.json with dependencies for testing cleanup
+    const prdWithDependencies = {
+      projectName: 'Test Project',
+      projectDescription: 'A test project',
+      branchName: 'main',
+      userStories: [
+        {
+          id: 'STORY-001',
+          title: 'First Story',
+          description: 'Description of first story',
+          priority: 1,
+          status: 'done' as StoryStatus,
+          epic: 'Core',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: ['Criteria 1'],
+        },
+        {
+          id: 'STORY-002',
+          title: 'Second Story',
+          description: 'Description of second story',
+          priority: 2,
+          status: 'pending' as StoryStatus,
+          epic: 'Core',
+          dependencies: ['STORY-001'], // Depends on STORY-001
+          recommendedSkills: [],
+          acceptanceCriteria: ['Criteria A'],
+        },
+        {
+          id: 'STORY-003',
+          title: 'Third Story',
+          description: 'Description of third story',
+          priority: 3,
+          status: 'pending' as StoryStatus,
+          epic: 'Testing',
+          dependencies: ['STORY-001', 'STORY-002'], // Depends on both
+          recommendedSkills: [],
+          acceptanceCriteria: ['Criteria X'],
+        },
+        {
+          id: 'STORY-004',
+          title: 'Fourth Story',
+          description: 'Description of fourth story',
+          priority: 4,
+          status: 'done' as StoryStatus,
+          epic: 'Testing',
+          dependencies: [],
+          recommendedSkills: [],
+          acceptanceCriteria: ['Criteria Y'],
+        },
+      ],
+    }
+
+    it('cleans up dependencies when archiving a story that others depend on', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithDependencies))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-001', // STORY-002 and STORY-003 depend on this
+      })
+
+      // Should return count of cleaned dependencies
+      expect(result.cleanedDependencies).toBe(2) // STORY-002 has 1, STORY-003 has 1
+
+      // Verify prd.json content has dependencies cleaned
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+
+      // STORY-002 should have empty dependencies now
+      const story2 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')
+      expect(story2.dependencies).toEqual([])
+
+      // STORY-003 should only have STORY-002 as dependency now
+      const story3 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-003')
+      expect(story3.dependencies).toEqual(['STORY-002'])
+    })
+
+    it('returns cleanedDependencies: 0 when story has no dependents', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithDependencies))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-004', // No one depends on this
+      })
+
+      expect(result.cleanedDependencies).toBe(0)
+    })
+
+    it('handles bulk archive with dependency cleanup', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithDependencies))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveMultiple({
+        projectId: testProjectId,
+        storyIds: ['STORY-001', 'STORY-004'], // Archive both done stories
+      })
+
+      expect(result.archived).toHaveLength(2)
+      expect(result.cleanedDependencies).toBe(2) // STORY-001 was in dependencies of 2 stories
+
+      // Verify prd.json content
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+
+      // Only STORY-002 and STORY-003 should remain
+      expect(prdData.userStories).toHaveLength(2)
+
+      // STORY-002 should have empty dependencies
+      const story2 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')
+      expect(story2.dependencies).toEqual([])
+
+      // STORY-003 should only have STORY-002 as dependency (STORY-001 was removed)
+      const story3 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-003')
+      expect(story3.dependencies).toEqual(['STORY-002'])
+    })
+
+    it('ignores self-references in dependencies during cleanup', async () => {
+      const prdWithSelfRef = {
+        ...prdWithDependencies,
+        userStories: [
+          {
+            id: 'STORY-001',
+            title: 'First Story',
+            description: 'Description',
+            priority: 1,
+            status: 'done' as StoryStatus,
+            epic: 'Core',
+            dependencies: ['STORY-001'], // Self-reference (edge case)
+            recommendedSkills: [],
+            acceptanceCriteria: ['Criteria'],
+          },
+          {
+            id: 'STORY-002',
+            title: 'Second Story',
+            description: 'Description',
+            priority: 2,
+            status: 'pending' as StoryStatus,
+            epic: 'Core',
+            dependencies: ['STORY-001'],
+            recommendedSkills: [],
+            acceptanceCriteria: ['Criteria'],
+          },
+        ],
+      }
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithSelfRef))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-001',
+      })
+
+      // Should clean the dependency from STORY-002
+      expect(result.cleanedDependencies).toBe(1)
+
+      // Verify prd.json content
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+
+      const story2 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')
+      expect(story2.dependencies).toEqual([])
+    })
+
+    it('handles stories with no dependencies array', async () => {
+      const prdWithNoDeps = {
+        projectName: 'Test Project',
+        projectDescription: 'A test project',
+        branchName: 'main',
+        userStories: [
+          {
+            id: 'STORY-001',
+            title: 'First Story',
+            description: 'Description',
+            priority: 1,
+            status: 'done' as StoryStatus,
+            epic: 'Core',
+            dependencies: [],
+            recommendedSkills: [],
+            acceptanceCriteria: ['Criteria'],
+          },
+          {
+            id: 'STORY-002',
+            title: 'Second Story',
+            description: 'Description',
+            priority: 2,
+            status: 'pending' as StoryStatus,
+            epic: 'Core',
+            // No dependencies field or empty array
+            dependencies: [],
+            recommendedSkills: [],
+            acceptanceCriteria: ['Criteria'],
+          },
+        ],
+      }
+
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithNoDeps))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-001',
+      })
+
+      // No dependencies to clean
+      expect(result.cleanedDependencies).toBe(0)
+    })
+
+    it('performs atomistic prd.json update (story removal + dependency cleanup in one write)', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(prdWithDependencies))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-001',
+      })
+
+      // Should only write prd.json once (after archived.json)
+      expect(writeFile).toHaveBeenCalledTimes(2)
+
+      // Get the prd.json write call
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      expect(String(prdWriteCall[0])).toContain('prd.json')
+
+      // Parse and verify both operations happened
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+
+      // Story removed
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'STORY-001')).toBeUndefined()
+
+      // Dependencies cleaned
+      const story2 = prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')
+      expect(story2.dependencies).not.toContain('STORY-001')
+    })
+  })
+
   describe('atomicity and error handling', () => {
     it('handles writeFile error for archived.json', async () => {
       vi.mocked(existsSync).mockImplementation((path: PathLike) => {

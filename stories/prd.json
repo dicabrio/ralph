@@ -854,7 +854,7 @@
       "title": "Dependency cleanup bij archivering",
       "description": "Bij het archiveren van een story, verwijder de story ID uit de dependencies van alle andere stories. Voorkomt broken references en houdt de prd.json clean.",
       "priority": 105,
-      "status": "pending",
+      "status": "review",
       "epic": "Test Board",
       "dependencies": [
       ],
