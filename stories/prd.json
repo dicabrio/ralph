@@ -434,106 +434,6 @@
       ]
     },
     {
-      "id": "RUNNER-008",
-      "title": "Run single story via Kanban card",
-      "description": "Voeg een play-knop toe aan story cards op het Kanban board waarmee gebruikers één specifieke story kunnen laten uitvoeren. De runner draait alleen die ene story en stopt daarna (geen auto-restart). De knop is alleen zichtbaar wanneer er geen runner actief is.",
-      "priority": 90,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "UI-007",
-        "RUNNER-001"
-      ],
-      "recommendedSkills": [
-        "frontend-design",
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Play icon (▶️) op story cards in Kanban board",
-        "Knop alleen zichtbaar voor stories met status: pending, failed, backlog",
-        "Knop NIET zichtbaar wanneer runner status === 'running'",
-        "Knop NIET zichtbaar voor stories met status: done, in_progress",
-        "Klik op play → opent confirmatie dialog",
-        "Confirmatie dialog toont: story ID, titel, beschrijving",
-        "Dialog toont dependency status (welke done/pending zijn)",
-        "Warning icon als niet alle dependencies done zijn",
-        "[Cancel] knop sluit dialog",
-        "[Start] knop start runner met auto-restart: OFF",
-        "API: runner.start({ projectId, storyId, singleStoryMode: true })",
-        "Backend: singleStoryMode=true → setAutoRestart(projectId, false)",
-        "Na story completion: runner stopt (geen volgende story oppakken)",
-        "Toast notificatie: 'Runner gestart voor [story-id]'",
-        "Story card toont loading state tijdens runner start",
-        "Unit tests voor singleStoryMode flag handling",
-        "Unit tests voor play button visibility logic",
-        "E2E test: klik play → dialog → start → story runs → runner stopt",
-        "E2E test: play button hidden wanneer runner actief",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "REVIEW-001",
-      "title": "Review status en schema update",
-      "description": "Voeg de nieuwe 'review' status toe aan het story schema en update alle gerelateerde validaties en transitions. Dit is de foundation voor de Test Board feature.",
-      "priority": 91,
-      "status": "done",
-      "epic": "Test Board",
-      "dependencies": [],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Schema: prdSchema.ts - voeg 'review' toe aan storyStatusEnum",
-        "Schema: stories.ts router - voeg 'review' toe aan VALID_STATUSES",
-        "Schema: update validTransitions met review status",
-        "Transitions: in_progress → review (nieuw)",
-        "Transitions: review → done, failed, in_progress",
-        "Kanban: voeg review status toe aan StoryStatus type",
-        "Kanban: update getTargetStatusForColumn voor review",
-        "Kanban: update validTransitions object",
-        "Unit tests voor nieuwe status transitions",
-        "Unit tests voor schema validatie met review status",
-        "Bestaande tests blijven passing",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "REVIEW-002",
-      "title": "Archive router en archived.json schema",
-      "description": "Implementeer de archive functionaliteit met een nieuw archived.json bestand en tRPC router. Stories kunnen van done naar archief verplaatst worden.",
-      "priority": 92,
-      "status": "done",
-      "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-001"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Schema: archivedStorySchema met archivedAt timestamp",
-        "Schema: archivedPrdSchema voor archived.json structuur",
-        "Router: src/lib/trpc/routers/archive.ts",
-        "API: archive.listByProject - lees archived.json, return stories",
-        "API: archive.archiveStory - verplaats story van prd.json naar archived.json",
-        "API: validatie dat alleen done stories gearchiveerd kunnen worden",
-        "API: atomische operatie (remove from prd + add to archived)",
-        "API: maak archived.json aan als niet bestaat",
-        "API: voeg archivedAt timestamp toe aan gearchiveerde story",
-        "Router registreren in src/lib/trpc/routers/index.ts",
-        "Unit tests voor archive.listByProject",
-        "Unit tests voor archive.archiveStory",
-        "Unit tests voor atomische operatie rollback bij error",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
       "id": "REVIEW-003",
       "title": "Test Board pagina",
       "description": "Nieuwe pagina /project/$id/testing die alle stories met status 'review' toont. Gebruikers kunnen stories accepteren (→ done) of rejecten (→ failed/in_progress).",
@@ -807,7 +707,7 @@
       "title": "Gemini provider implementatie",
       "description": "Implementeer Gemini als derde runner provider naast Claude en Codex. Gebruikt de AI Studio CLI voor story executie.",
       "priority": 101,
-      "status": "done",
+      "status": "review",
       "epic": "Runner",
       "dependencies": [
         "RUNNER-009"
@@ -912,6 +812,70 @@
         "Unit tests voor review badge component",
         "E2E test: start runner → indicator wordt groen",
         "E2E test: story naar review → badge count verhoogt",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-010",
+      "title": "Test checklist modal",
+      "description": "Toon de test checklist in een grotere modal in plaats van inline op de card. Geeft meer ruimte voor het bekijken en afvinken van test items.",
+      "priority": 104,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-009"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Test Board card: checklist knop (📋) toevoegen naast Accept/Reject",
+        "Klik op checklist knop opent TestChecklistModal",
+        "Modal: story ID en titel in header",
+        "Modal: progress bar met percentage (bijv. 37%)",
+        "Modal: secties met items (collapsible)",
+        "Modal: checkboxes zijn klikbaar, update via API",
+        "Modal: voortgang per sectie tonen (bijv. 1/3)",
+        "Modal: footer met Sluiten, Accept en Reject knoppen",
+        "Modal: responsive, werkt op mobile",
+        "Modal: sluit met Escape of klik buiten modal",
+        "Modal: behoud scroll positie bij checkbox toggle",
+        "Unit tests voor TestChecklistModal component",
+        "E2E test: open modal, toggle checkbox, sluit modal",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)",
+        "Code review completed"
+      ]
+    },
+    {
+      "id": "REVIEW-011",
+      "title": "Dependency cleanup bij archivering",
+      "description": "Bij het archiveren van een story, verwijder de story ID uit de dependencies van alle andere stories. Voorkomt broken references en houdt de prd.json clean.",
+      "priority": 105,
+      "status": "pending",
+      "epic": "Test Board",
+      "dependencies": [
+        "REVIEW-002"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Archive service: bij archivering, scan alle stories voor dependencies",
+        "Archive service: verwijder gearchiveerde story ID uit dependencies arrays",
+        "Archive service: update prd.json atomisch (remove story + cleanup deps)",
+        "API: archive.archiveStory bevat dependency cleanup",
+        "API: return aantal opgeschoonde dependencies in response",
+        "UI: toast melding 'Story gearchiveerd, 3 dependencies opgeschoond'",
+        "Bulk archive: cleanup voor alle gearchiveerde stories",
+        "Validatie: alleen done stories kunnen gearchiveerd worden",
+        "Edge case: story zonder dependencies = geen cleanup nodig",
+        "Edge case: story is dependency van zichzelf = negeren",
+        "Unit tests voor dependency cleanup logica",
+        "Unit tests voor atomische prd.json update",
+        "E2E test: archiveer story → dependency verwijderd uit andere story",
         "Lint passing (pnpm lint)",
         "Build slaagt (pnpm build)",
         "Code review completed"

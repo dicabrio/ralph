@@ -140,7 +140,7 @@ async function readPrdJson(projectPath: string): Promise<PrdJson> {
     if (error instanceof z.ZodError) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
-        message: `Invalid prd.json format: ${error.issues.map((e: z.ZodIssue) => e.message).join(', ')}`,
+        message: `Invalid prd.json format: ${error.issues.map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
       })
     }
     throw new TRPCError({
