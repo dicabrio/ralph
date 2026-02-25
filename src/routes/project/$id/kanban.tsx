@@ -1458,9 +1458,12 @@ function KanbanBoard() {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     },
-    onSuccess: (archivedStory) => {
+    onSuccess: (result) => {
+      const depCleanupText = result.cleanedDependencies > 0
+        ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
+        : '';
       toast.success("Story gearchiveerd", {
-        description: `${archivedStory.id} is verplaatst naar het archief`,
+        description: `${result.id} is verplaatst naar het archief${depCleanupText}`,
       });
       setIsArchiveDialogOpen(false);
       setArchiveTarget(null);
@@ -1508,8 +1511,11 @@ function KanbanBoard() {
     },
     onSuccess: (result) => {
       const count = result.archived.length;
+      const depCleanupText = result.cleanedDependencies > 0
+        ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
+        : '';
       toast.success("Stories gearchiveerd", {
-        description: `${count} ${count === 1 ? "story" : "stories"} verplaatst naar het archief`,
+        description: `${count} ${count === 1 ? "story" : "stories"} verplaatst naar het archief${depCleanupText}`,
       });
       if (result.errors && result.errors.length > 0) {
         toast.warning("Some stories could not be archived", {

@@ -822,7 +822,7 @@
       "title": "Test checklist modal",
       "description": "Toon de test checklist in een grotere modal in plaats van inline op de card. Geeft meer ruimte voor het bekijken en afvinken van test items.",
       "priority": 104,
-      "status": "review",
+      "status": "done",
       "epic": "Test Board",
       "dependencies": [
         "REVIEW-009"
@@ -854,10 +854,9 @@
       "title": "Dependency cleanup bij archivering",
       "description": "Bij het archiveren van een story, verwijder de story ID uit de dependencies van alle andere stories. Voorkomt broken references en houdt de prd.json clean.",
       "priority": 105,
-      "status": "pending",
+      "status": "review",
       "epic": "Test Board",
-      "dependencies": [
-      ],
+      "dependencies": [],
       "recommendedSkills": [
         "backend-development:api-design-principles"
       ],

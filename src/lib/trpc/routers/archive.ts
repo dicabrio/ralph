@@ -181,6 +181,31 @@ function createArchivedStory(story: Story): ArchivedStory {
   }
 }
 
+/**
+ * Clean up dependencies: remove archived story IDs from all remaining stories
+ * Returns the number of dependencies that were cleaned up
+ */
+function cleanupDependencies(prdData: PrdJson, archivedStoryIds: string[]): number {
+  let cleanedCount = 0
+
+  for (const story of prdData.userStories) {
+    if (!story.dependencies || story.dependencies.length === 0) {
+      continue
+    }
+
+    const originalLength = story.dependencies.length
+
+    // Filter out archived story IDs (also ignores self-references as edge case)
+    story.dependencies = story.dependencies.filter(
+      (depId) => !archivedStoryIds.includes(depId) && depId !== story.id
+    )
+
+    cleanedCount += originalLength - story.dependencies.length
+  }
+
+  return cleanedCount
+}
+
 export const archiveRouter = router({
   /**
    * List all archived stories for a project
@@ -251,16 +276,23 @@ export const archiveRouter = router({
       // Remove from prd.json
       prdData.userStories.splice(storyIndex, 1)
 
+      // Clean up dependencies: remove archived story ID from all remaining stories
+      const cleanedDependencies = cleanupDependencies(prdData, [input.storyId])
+
       // Add to archived.json
       archivedData.archivedStories.push(archivedStory)
 
       // Atomic-ish write: write archived first, then prd
       // If prd write fails after archived write, we may have duplicates
       // but no data loss. The archived version is preserved.
+      // Note: both story removal and dependency cleanup are written atomically to prd.json
       await writeArchivedJson(project.path, archivedData)
       await writePrdJson(project.path, prdData)
 
-      return archivedStory
+      return {
+        ...archivedStory,
+        cleanedDependencies,
+      }
     }),
 
   /**
@@ -323,15 +355,20 @@ export const archiveRouter = router({
         prdData.userStories.splice(index, 1)
       }
 
+      // Clean up dependencies: remove all archived story IDs from remaining stories
+      const archivedIds = archivedStories.map(s => s.id)
+      const cleanedDependencies = cleanupDependencies(prdData, archivedIds)
+
       // Add all archived stories
       archivedData.archivedStories.push(...archivedStories)
 
-      // Write both files
+      // Write both files atomically (story removal + dependency cleanup in one prd.json write)
       await writeArchivedJson(project.path, archivedData)
       await writePrdJson(project.path, prdData)
 
       return {
         archived: archivedStories,
+        cleanedDependencies,
         errors: errors.length > 0 ? errors : undefined,
       }
     }),

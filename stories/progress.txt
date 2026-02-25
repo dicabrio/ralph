@@ -2894,3 +2894,30 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Use separate state for checklist modal (checklistStory) vs detail modal (selectedStory)
 - TestChecklistModal is self-contained - fetches scenario data via trpc.testScenarios.getByStoryId
 - Progress percentage displayed with Math.round() for clean integers
+
+## 2026-02-25 - REVIEW-011
+**Title:** Dependency cleanup bij archivering
+
+**Implemented:**
+- Added cleanupDependencies() helper function to archive router
+- Function scans all remaining stories and removes archived story IDs from their dependencies arrays
+- Updated archiveStory to perform dependency cleanup and return cleanedDependencies count
+- Updated archiveMultiple to perform bulk dependency cleanup for all archived stories
+- Both operations write to prd.json atomically (story removal + dependency cleanup in single write)
+- Updated UI toast messages to show cleanup count: "Story gearchiveerd, 3 dependencies opgeschoond"
+- Added edge case handling: ignores self-references in dependencies
+- Added edge case handling: stories without dependencies skip cleanup (no unnecessary processing)
+- Validation: only done stories can be archived (existing behavior preserved)
+
+**Files changed:**
+- src/lib/trpc/routers/archive.ts (added cleanupDependencies function, updated archiveStory/archiveMultiple)
+- src/lib/trpc/routers/archive.test.ts (added 6 new tests for dependency cleanup)
+- src/routes/project/$id/kanban.tsx (updated toast messages to show cleanup count)
+- stories/prd.json (status updated to review)
+
+**Learnings:**
+- Dependency cleanup is a pure function operating on PrdJson - easy to unit test
+- Return count from cleanup function allows UI to show meaningful feedback
+- Atomicity in this context means both operations (story removal + dep cleanup) are written to prd.json in a single writeFile call
+- Self-reference in dependencies (story depends on itself) is an edge case that should be silently filtered
+- The cleanedDependencies count reflects total dependencies removed across all stories
