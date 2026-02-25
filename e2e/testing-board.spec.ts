@@ -947,4 +947,404 @@ test.describe("Testing Board (REVIEW-003)", () => {
       await expect(storyCard.locator('[data-testid="checklist-item-ft-1"]')).toBeVisible();
     });
   });
+
+  test.describe("Test Checklist Modal (REVIEW-010)", () => {
+    test.beforeAll(async () => {
+      // Ensure we have a review story with test scenario
+      const prdPath = path.join(testProject.path, "stories", "prd.json");
+      const prdContent = fs.readFileSync(prdPath, "utf-8");
+      const prdData = JSON.parse(prdContent);
+
+      // Check if REVIEW-MODAL-001 exists
+      const hasModalStory = prdData.userStories.some(
+        (s: { id: string }) => s.id === "REVIEW-MODAL-001",
+      );
+
+      if (!hasModalStory) {
+        prdData.userStories.push({
+          id: "REVIEW-MODAL-001",
+          title: "Story for modal test",
+          description: "Testing the checklist modal functionality",
+          priority: 1,
+          status: "review",
+          epic: "Test Board",
+          dependencies: [],
+          recommendedSkills: ["frontend-design"],
+          acceptanceCriteria: [
+            "Modal opens correctly",
+            "Modal displays progress",
+            "Checkboxes are interactive",
+          ],
+        });
+
+        fs.writeFileSync(prdPath, JSON.stringify(prdData, null, 2));
+      }
+
+      // Create test scenario for REVIEW-MODAL-001
+      const testScenariosDir = path.join(testProject.path, "stories", "test-scenarios");
+      fs.mkdirSync(testScenariosDir, { recursive: true });
+
+      const testScenario = {
+        storyId: "REVIEW-MODAL-001",
+        title: "Story for modal test",
+        description: "Testing the checklist modal functionality",
+        generatedAt: new Date().toISOString(),
+        sections: [
+          {
+            id: "functional-tests",
+            title: "Functional Tests",
+            items: [
+              { id: "modal-ft-1", text: "Modal opens correctly", checked: false },
+              { id: "modal-ft-2", text: "Modal displays progress", checked: false },
+              { id: "modal-ft-3", text: "Checkboxes are interactive", checked: false },
+            ],
+          },
+          {
+            id: "quality-gates",
+            title: "Quality Gates",
+            items: [
+              { id: "modal-qg-test", text: "pnpm test passes", checked: false },
+              { id: "modal-qg-lint", text: "pnpm lint passes", checked: false },
+              { id: "modal-qg-build", text: "pnpm build succeeds", checked: false },
+            ],
+          },
+        ],
+      };
+
+      fs.writeFileSync(
+        path.join(testScenariosDir, "REVIEW-MODAL-001.json"),
+        JSON.stringify(testScenario, null, 2),
+      );
+    });
+
+    test("should display checklist button on story card", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      const storyCard = getStoryCard(page, "REVIEW-MODAL-001");
+      await expect(storyCard).toBeVisible();
+
+      // Checklist button should be visible
+      const checklistButton = page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]');
+      await expect(checklistButton).toBeVisible();
+    });
+
+    test("should open checklist modal when clicking checklist button", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Click checklist button
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      // Modal should open
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+    });
+
+    test("should display story ID and title in modal header", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Check header content
+      await expect(modal.locator('[data-testid="modal-story-id"]')).toHaveText("REVIEW-MODAL-001");
+      await expect(modal.locator('[data-testid="modal-story-title"]')).toContainText("Story for modal test");
+    });
+
+    test("should display progress bar with percentage in modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Progress bar should be visible
+      const progressContainer = modal.locator('[data-testid="modal-total-progress"]');
+      await expect(progressContainer).toBeVisible({ timeout: 5000 });
+
+      // Should show percentage (0% initially)
+      await expect(progressContainer).toContainText("0%");
+    });
+
+    test("should display collapsible sections in modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Should show section headers
+      await expect(modal.locator("text=Functional Tests")).toBeVisible();
+      await expect(modal.locator("text=Quality Gates")).toBeVisible();
+    });
+
+    test("should display section progress in modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+
+      // Each section should show progress (e.g., "0/3")
+      const sectionTrigger = modal.locator('[data-testid="modal-section-trigger-functional-tests"]');
+      await expect(sectionTrigger).toContainText("0/3");
+    });
+
+    test("should toggle checkbox in modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Click a checkbox
+      const checkbox = modal.locator('[data-testid="modal-checkbox-modal-ft-1"]');
+      await expect(checkbox).toBeVisible();
+      await checkbox.click();
+
+      // Wait for update
+      await page.waitForTimeout(500);
+
+      // Checkbox should be checked
+      await expect(checkbox).toHaveAttribute("data-state", "checked", { timeout: 3000 });
+    });
+
+    test("should update progress after toggling checkbox in modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+
+      // Progress should show updated percentage
+      const progressContainer = modal.locator('[data-testid="modal-total-progress"]');
+      await expect(progressContainer).toBeVisible({ timeout: 5000 });
+
+      // Should be more than 0% after previous test
+      const progressText = await progressContainer.textContent();
+      expect(progressText).not.toContain("0%");
+    });
+
+    test("should display Close, Accept, and Reject buttons in modal footer", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+
+      // Check footer buttons
+      await expect(modal.locator('[data-testid="modal-close-btn"]')).toBeVisible();
+      await expect(modal.locator('[data-testid="modal-accept-btn"]')).toBeVisible();
+      await expect(modal.locator('[data-testid="modal-reject-btn"]')).toBeVisible();
+    });
+
+    test("should close modal when clicking Close button", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Click Close button
+      await modal.locator('[data-testid="modal-close-btn"]').click();
+
+      // Modal should close
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+    });
+
+    test("should close modal with Escape key", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Press Escape
+      await page.keyboard.press("Escape");
+
+      // Modal should close
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+    });
+
+    test("should close modal when clicking outside (backdrop)", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Click on the backdrop (outside modal content)
+      // Use the overlay/backdrop element
+      await page.locator('[data-slot="dialog-overlay"]').click({ position: { x: 10, y: 10 } });
+
+      // Modal should close
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+    });
+
+    test("should accept story from modal", async ({ page }) => {
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Ensure story is still in review
+      const storyCard = getStoryCard(page, "REVIEW-MODAL-001");
+      const isVisible = await storyCard.isVisible().catch(() => false);
+
+      if (!isVisible) {
+        // Story was already processed, restore it
+        const prdPath = path.join(testProject.path, "stories", "prd.json");
+        const prdContent = fs.readFileSync(prdPath, "utf-8");
+        const prdData = JSON.parse(prdContent);
+
+        const storyIndex = prdData.userStories.findIndex(
+          (s: { id: string }) => s.id === "REVIEW-MODAL-001",
+        );
+        if (storyIndex >= 0) {
+          prdData.userStories[storyIndex].status = "review";
+          fs.writeFileSync(prdPath, JSON.stringify(prdData, null, 2));
+        }
+
+        // Reload page
+        await gotoTestingBoard(page, testProject);
+        await page.waitForTimeout(1000);
+      }
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Click Accept
+      await modal.locator('[data-testid="modal-accept-btn"]').click();
+
+      // Wait for update
+      await page.waitForTimeout(1000);
+
+      // Modal should close and story should be gone
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+      await expect(getStoryCard(page, "REVIEW-MODAL-001")).not.toBeVisible({ timeout: 5000 });
+    });
+
+    test("should reject story from modal and open reject dialog", async ({ page }) => {
+      // First restore the story to review status
+      const prdPath = path.join(testProject.path, "stories", "prd.json");
+      const prdContent = fs.readFileSync(prdPath, "utf-8");
+      const prdData = JSON.parse(prdContent);
+
+      const storyIndex = prdData.userStories.findIndex(
+        (s: { id: string }) => s.id === "REVIEW-MODAL-001",
+      );
+      if (storyIndex >= 0) {
+        prdData.userStories[storyIndex].status = "review";
+        fs.writeFileSync(prdPath, JSON.stringify(prdData, null, 2));
+      }
+
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Click Reject
+      await modal.locator('[data-testid="modal-reject-btn"]').click();
+
+      // Modal should close
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+
+      // Reject dialog should open
+      const rejectDialog = page.locator('[data-testid="reject-dialog"]');
+      await expect(rejectDialog).toBeVisible();
+
+      // Complete the rejection
+      await page.locator('[data-testid="reject-confirm"]').click();
+
+      // Wait for update
+      await page.waitForTimeout(1000);
+
+      // Story should be gone
+      await expect(getStoryCard(page, "REVIEW-MODAL-001")).not.toBeVisible({ timeout: 5000 });
+    });
+
+    test("should maintain scroll position when toggling checkboxes in modal", async ({ page }) => {
+      // Restore story for this test
+      const prdPath = path.join(testProject.path, "stories", "prd.json");
+      const prdContent = fs.readFileSync(prdPath, "utf-8");
+      const prdData = JSON.parse(prdContent);
+
+      const storyIndex = prdData.userStories.findIndex(
+        (s: { id: string }) => s.id === "REVIEW-MODAL-001",
+      );
+      if (storyIndex >= 0) {
+        prdData.userStories[storyIndex].status = "review";
+        fs.writeFileSync(prdPath, JSON.stringify(prdData, null, 2));
+      }
+
+      await gotoTestingBoard(page, testProject);
+      await page.waitForTimeout(1000);
+
+      // Open modal
+      await page.locator('[data-testid="checklist-story-REVIEW-MODAL-001"]').click();
+
+      const modal = page.locator('[data-testid="test-checklist-modal"]');
+      await expect(modal).toBeVisible();
+
+      // Find the scrollable area and scroll down
+      const scrollArea = modal.locator('[data-radix-scroll-area-viewport]');
+
+      if (await scrollArea.isVisible()) {
+        // Scroll down
+        await scrollArea.evaluate((el) => {
+          el.scrollTop = 100;
+        });
+
+        // Get initial scroll position
+        const initialScrollTop = await scrollArea.evaluate((el) => el.scrollTop);
+
+        // Toggle a checkbox
+        const checkbox = modal.locator('[data-testid="modal-checkbox-modal-qg-test"]');
+        if (await checkbox.isVisible()) {
+          await checkbox.click();
+          await page.waitForTimeout(500);
+
+          // Check scroll position is preserved (within tolerance)
+          const newScrollTop = await scrollArea.evaluate((el) => el.scrollTop);
+
+          // Allow for small differences due to rerendering
+          expect(Math.abs(newScrollTop - initialScrollTop)).toBeLessThan(50);
+        }
+      }
+    });
+  });
 });

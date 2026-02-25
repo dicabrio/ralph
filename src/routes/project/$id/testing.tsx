@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { TestChecklistModal } from "@/components/TestChecklistModal";
 import type { Story, StoryStatus } from "@/components/StoryCard";
 import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
 
@@ -157,6 +158,7 @@ interface TestStoryCardProps {
   onAccept: (story: Story) => void;
   onReject: (story: Story) => void;
   onClick: (story: Story) => void;
+  onOpenChecklist: (story: Story) => void;
   isAccepting: boolean;
   isRejecting: boolean;
 }
@@ -167,6 +169,7 @@ function TestStoryCard({
   onAccept,
   onReject,
   onClick,
+  onOpenChecklist,
   isAccepting,
   isRejecting,
 }: TestStoryCardProps) {
@@ -297,6 +300,21 @@ function TestStoryCard({
               data-testid={`view-story-${story.id}`}
             >
               <Eye className="w-4 h-4" />
+            </Button>
+            {/* Checklist button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChecklist(story);
+              }}
+              disabled={isProcessing}
+              className="h-7 w-7"
+              aria-label="Open test checklist"
+              data-testid={`checklist-story-${story.id}`}
+            >
+              <ClipboardCheck className="w-4 h-4" />
             </Button>
             {/* Reject button */}
             <Button
@@ -741,6 +759,8 @@ function TestingBoard() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [storyToReject, setStoryToReject] = useState<Story | null>(null);
+  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+  const [checklistStory, setChecklistStory] = useState<Story | null>(null);
 
   // Track which story is being processed
   const [processingStoryId, setProcessingStoryId] = useState<string | null>(
@@ -886,6 +906,36 @@ function TestingBoard() {
     setTimeout(() => setStoryToReject(null), 200);
   }, []);
 
+  // Handle open checklist modal
+  const handleOpenChecklistModal = useCallback((story: Story) => {
+    setChecklistStory(story);
+    setIsChecklistModalOpen(true);
+  }, []);
+
+  // Handle close checklist modal
+  const handleCloseChecklistModal = useCallback(() => {
+    setIsChecklistModalOpen(false);
+    setTimeout(() => setChecklistStory(null), 200);
+  }, []);
+
+  // Handle accept from checklist modal
+  const handleAcceptFromModal = useCallback(
+    (story: Story) => {
+      handleCloseChecklistModal();
+      handleAccept(story);
+    },
+    [handleAccept, handleCloseChecklistModal]
+  );
+
+  // Handle reject from checklist modal
+  const handleRejectFromModal = useCallback(
+    (story: Story) => {
+      handleCloseChecklistModal();
+      handleRejectClick(story);
+    },
+    [handleRejectClick, handleCloseChecklistModal]
+  );
+
   // Loading state
   if (isLoadingProject || isLoadingStories) {
     return (
@@ -939,6 +989,7 @@ function TestingBoard() {
                 onAccept={handleAccept}
                 onReject={handleRejectClick}
                 onClick={handleStoryClick}
+                onOpenChecklist={handleOpenChecklistModal}
                 isAccepting={
                   processingStoryId === story.id &&
                   processingAction === "accept"
@@ -967,6 +1018,24 @@ function TestingBoard() {
         story={storyToReject}
         onConfirm={handleRejectConfirm}
         isLoading={updateStatus.isPending}
+      />
+
+      {/* Test checklist modal */}
+      <TestChecklistModal
+        isOpen={isChecklistModalOpen}
+        onClose={handleCloseChecklistModal}
+        story={checklistStory}
+        projectId={projectId}
+        onAccept={handleAcceptFromModal}
+        onReject={handleRejectFromModal}
+        isAccepting={
+          processingStoryId === checklistStory?.id &&
+          processingAction === "accept"
+        }
+        isRejecting={
+          processingStoryId === checklistStory?.id &&
+          processingAction === "reject"
+        }
       />
     </>
   );
