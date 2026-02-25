@@ -10,9 +10,7 @@
       "priority": 71,
       "status": "backlog",
       "epic": "Testing",
-      "dependencies": [
-        "SETUP-004"
-      ],
+      "dependencies": [],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -51,9 +49,7 @@
       "priority": 72,
       "status": "backlog",
       "epic": "Dashboard",
-      "dependencies": [
-        "SETUP-002"
-      ],
+      "dependencies": [],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -90,9 +86,7 @@
       "status": "backlog",
       "epic": "Dashboard",
       "dependencies": [],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Genereer favicon.ico (16x16, 32x32) van src/logo.svg",
         "Genereer apple-touch-icon.png (180x180) voor iOS bookmarks",
@@ -113,12 +107,8 @@
       "priority": 80,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "BRAIN-001"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["BRAIN-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Nieuwe service: src/lib/services/claudeChatService.ts",
         "Claude CLI spawn met --tools 'Read,Glob,Grep' (read-only)",
@@ -145,9 +135,7 @@
       "priority": 81,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "CHAT-001"
-      ],
+      "dependencies": ["CHAT-001"],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -179,12 +167,8 @@
       "priority": 82,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "CHAT-001"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["CHAT-001"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Claude output parser detecteert code blocks met wijzigingen",
         "Heuristiek: code block met '+'/'-' lines, of '// BEFORE' / '// AFTER' markers",
@@ -212,13 +196,8 @@
       "priority": 83,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "CHAT-002",
-        "CHAT-003"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["CHAT-002", "CHAT-003"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Chat container met donkere/lichte theme support (VS Code-style)",
         "User messages: rechts uitgelijnd, accent kleur",
@@ -246,10 +225,7 @@
       "priority": 84,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "CHAT-004",
-        "BRAIN-001"
-      ],
+      "dependencies": ["CHAT-004", "BRAIN-001"],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -282,12 +258,8 @@
       "priority": 85,
       "status": "backlog",
       "epic": "Brainstorm",
-      "dependencies": [
-        "CHAT-001"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["CHAT-001"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Sidebar panel met lijst van chat sessies voor huidig project",
         "Sessie card: titel (auto-generated of custom), laatste bericht preview, timestamp",
@@ -315,12 +287,8 @@
       "priority": 86,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": [
-        "API-003"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["API-003"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Database: slackChannelId (string, nullable) kolom toevoegen aan projects tabel",
         "Database: slackEnabled (boolean, default false) kolom toevoegen aan projects tabel",
@@ -346,13 +314,8 @@
       "priority": 87,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": [
-        "SLACK-001",
-        "CHAT-001"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["SLACK-001", "CHAT-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Slack event subscription voor message events in gekoppelde channels",
         "Filter: alleen reageren op berichten die @ralph mentionen of in thread zijn",
@@ -376,13 +339,8 @@
       "priority": 88,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": [
-        "SLACK-001",
-        "RUNNER-001"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["SLACK-001", "RUNNER-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Slack slash command handler: src/routes/api/slack/commands.ts",
         "/ralph start - start runner voor gekoppeld project",
@@ -409,13 +367,8 @@
       "priority": 89,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": [
-        "SLACK-001",
-        "RUNNER-004"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["SLACK-001", "RUNNER-004"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Hook in claudeLoopService voor status change events",
         "Bij runner start: post bericht met story ID en titel naar Slack",
@@ -440,9 +393,7 @@
       "priority": 93,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-001"
-      ],
+      "dependencies": ["REVIEW-001"],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -478,12 +429,8 @@
       "priority": 94,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-002"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-002"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Route: src/routes/project/$id/archive.tsx",
         "Fetch stories via trpc.archive.listByProject",
@@ -515,13 +462,8 @@
       "priority": 95,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-001",
-        "REVIEW-002"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-001", "REVIEW-002"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Nieuwe kolom 'Review' tussen In Progress en Voltooid",
         "Review kolom is locked (isDroppable: false, isDraggable: false)",
@@ -555,12 +497,8 @@
       "priority": 96,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-001"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["REVIEW-001"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "claudeLoopService: bij story completion → status 'review' (was 'done')",
         "codexLoopService: bij story completion → status 'review' (was 'done')",
@@ -583,13 +521,8 @@
       "priority": 98,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-003",
-        "REVIEW-006"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["REVIEW-003", "REVIEW-006"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Directory: stories/test-scenarios/ automatisch aanmaken",
         "Bij status → review: trigger test scenario generatie",
@@ -618,13 +551,8 @@
       "priority": 99,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-003",
-        "REVIEW-008"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-003", "REVIEW-008"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Test Board cards tonen checklist progress (3/8 ✓)",
         "Expandable card toont volledige checklist",
@@ -652,13 +580,8 @@
       "priority": 97,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-003",
-        "REVIEW-004"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-003", "REVIEW-004"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Navigation tabs: Overview | Kanban | Testing | Archive",
         "Testing tab toont badge met aantal review stories",
@@ -709,12 +632,8 @@
       "priority": 101,
       "status": "review",
       "epic": "Runner",
-      "dependencies": [
-        "RUNNER-009"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "dependencies": ["RUNNER-009"],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Service: src/lib/services/geminiLoopService.ts",
         "Service: vergelijkbare structuur als claudeLoopService",
@@ -747,9 +666,7 @@
       "status": "done",
       "epic": "Runner",
       "dependencies": [],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Service: selectNextStory(projectId) - bepaal volgende story met dependency check",
         "Service: hergebruik bestaande findNextPendingStory() logica",
@@ -785,12 +702,8 @@
       "priority": 103,
       "status": "done",
       "epic": "Dashboard",
-      "dependencies": [
-        "REVIEW-001"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-001"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "ProjectSelector: fetch runner status voor alle projecten",
         "ProjectSelector: fetch review count (stories met status 'review') per project",
@@ -824,12 +737,8 @@
       "priority": 104,
       "status": "done",
       "epic": "Test Board",
-      "dependencies": [
-        "REVIEW-009"
-      ],
-      "recommendedSkills": [
-        "frontend-design"
-      ],
+      "dependencies": ["REVIEW-009"],
+      "recommendedSkills": ["frontend-design"],
       "acceptanceCriteria": [
         "Test Board card: checklist knop (📋) toevoegen naast Accept/Reject",
         "Klik op checklist knop opent TestChecklistModal",
@@ -857,9 +766,7 @@
       "status": "review",
       "epic": "Test Board",
       "dependencies": [],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
+      "recommendedSkills": ["backend-development:api-design-principles"],
       "acceptanceCriteria": [
         "Archive service: bij archivering, scan alle stories voor dependencies",
         "Archive service: verwijder gearchiveerde story ID uit dependencies arrays",
