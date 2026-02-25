@@ -857,7 +857,6 @@
       "status": "pending",
       "epic": "Test Board",
       "dependencies": [
-        "REVIEW-002"
       ],
       "recommendedSkills": [
         "backend-development:api-design-principles"
