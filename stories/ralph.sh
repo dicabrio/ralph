@@ -4,6 +4,8 @@ set -e
 MAX_ITERATIONS=${1:-10}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_FILE="$SCRIPT_DIR/.ralph_output.tmp"
+ALLOWED_TOOLS="Skill,WebSearch,WebFetch,Read,Edit,Write,MultiEdit,Bash"
+DISALLOWED_TOOLS="Bash(rm -rf:*),Bash(sudo:*),Bash(chmod 777:*),Bash(chown:*),Read(.env*),Read(~/.aws/**),Read(~/.ssh/**),Read(~/.gnupg/**),Write(.env*),Write(~/.aws/**),Write(~/.ssh/**)"
 
 echo "Starting Ralph"
 for i in $(seq 1 $MAX_ITERATIONS); do
@@ -12,7 +14,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
 
   # Stream output directly to terminal AND capture to file
-  cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee "$OUTPUT_FILE"
+  cat "$SCRIPT_DIR/prompt.md" | claude -p --permission-mode dontAsk --allowedTools "$ALLOWED_TOOLS" --disallowedTools "$DISALLOWED_TOOLS" 2>&1 | tee "$OUTPUT_FILE"
   # cat "$SCRIPT_DIR/prompt.md" | codex exec - 2>&1 | tee "$OUTPUT_FILE"
   # gemini ask "$(cat "$SCRIPT_DIR/prompt.md")" > "$OUTPUT_FILE"
 
