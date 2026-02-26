@@ -194,7 +194,13 @@ class TestLoopService extends BaseLoopService {
   public testFindNextPendingStory(
     stories: Array<{
       id: string;
-      status: string;
+      status:
+        | "pending"
+        | "done"
+        | "failed"
+        | "in_progress"
+        | "review"
+        | "backlog";
       dependencies: string[];
       priority: number;
     }>,

@@ -709,6 +709,17 @@ export abstract class BaseLoopService implements ILoopService {
     const wsServer = getWebSocketServer();
     if (!wsServer) return;
 
+    // Filter out 'backlog' status as it's not a valid completed state
+    const validCompletedStatus =
+      completedStoryStatus && completedStoryStatus !== "backlog"
+        ? (completedStoryStatus as
+            | "done"
+            | "failed"
+            | "pending"
+            | "in_progress"
+            | "review")
+        : undefined;
+
     wsServer.broadcastToProject(String(projectId), {
       type: "runner_completed",
       payload: {
@@ -716,7 +727,7 @@ export abstract class BaseLoopService implements ILoopService {
         storyId,
         exitCode,
         success,
-        completedStoryStatus,
+        completedStoryStatus: validCompletedStatus,
         nextStoryId,
         willAutoRestart,
       },

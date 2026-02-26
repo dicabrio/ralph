@@ -2956,3 +2956,30 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Re-exporting types from interface maintains backwards compatibility for consumers
 - BaseLoopService handles all shared concerns: process management, log buffering, WebSocket broadcasting, PRD parsing, auto-restart, test scenario generation
 - Pre-existing test failures in runner.test.ts (unrelated to this story) exist on main branch
+
+## 2026-02-26 - RUNNER-011
+**Title:** ILoopService interface en BaseLoopService abstract class
+
+**Implemented:**
+- Verified ILoopService interface in src/lib/services/loopService.interface.ts
+- Verified BaseLoopService abstract class in src/lib/services/baseLoopService.ts
+- Fixed TypeScript type mismatch for StoryStatus 'backlog' in broadcastCompletion
+- Fixed test type annotation for testFindNextPendingStory method
+- All acceptance criteria already implemented by previous work
+
+**Verified acceptance criteria:**
+- ILoopService interface with all required methods (start, stop, getStatus, getAllStatus, setAutoRestart, isAutoRestartEnabled, getBufferedLogs)
+- BaseLoopService abstract class with abstract methods (providerName, isAvailable, isConfigured, buildSpawnConfig)
+- Base class implements: process management (Map<number, ProcessHandle>), log buffering, database persistence, WebSocket broadcasting, prd.json parsing, story selection, auto-restart logic with loop prevention, test scenario generation trigger
+- Shared types exported: RunnerState, LogEntry, PrdStory, SpawnConfig, PrdJson, StoryStatus, RunnerStatus
+- Unit tests for BaseLoopService pass (40 tests)
+- All concrete loop service tests pass (Claude: 34, Gemini: 29, Codex: 31 tests)
+
+**Files changed:**
+- src/lib/services/baseLoopService.ts (fixed type for completedStoryStatus in broadcastCompletion)
+- src/lib/services/baseLoopService.test.ts (fixed type annotation for testFindNextPendingStory)
+
+**Learnings:**
+- StoryStatus type includes 'backlog' but WebSocket message types only allow completed states ('done' | 'failed' | 'pending' | 'in_progress' | 'review') - filter before broadcasting
+- Test helper methods need explicit type annotations matching the actual types to avoid TypeScript errors
+- Pre-existing TypeScript errors in demo files and websocket/server.ts don't affect the loop service functionality
