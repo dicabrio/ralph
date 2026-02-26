@@ -183,12 +183,12 @@ describe('CodexLoopService', () => {
     delete process.env.HOME
   })
 
-  describe('isCodexAvailable', () => {
+  describe('isAvailable', () => {
     it('returns true when codex CLI is available', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: 'codex 1.0.0', stderr: '' })
 
-      const result = await service.isCodexAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(true)
     })
@@ -197,18 +197,18 @@ describe('CodexLoopService', () => {
       const service = await createTestService()
       mockExecAsync.mockRejectedValue(new Error('command not found: codex'))
 
-      const result = await service.isCodexAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(false)
     })
   })
 
-  describe('isCodexLoggedIn', () => {
+  describe('isConfigured', () => {
     it('returns true when OPENAI_API_KEY is set', async () => {
       process.env.OPENAI_API_KEY = 'test-key'
       const service = await createTestService()
 
-      const result = await service.isCodexLoggedIn()
+      const result = await service.isConfigured()
 
       expect(result).toBe(true)
       delete process.env.OPENAI_API_KEY
@@ -217,7 +217,7 @@ describe('CodexLoopService', () => {
     it('returns true when .codex/auth.json exists', async () => {
       const service = await createTestService()
 
-      const result = await service.isCodexLoggedIn()
+      const result = await service.isConfigured()
 
       expect(result).toBe(true)
     })
@@ -233,7 +233,7 @@ describe('CodexLoopService', () => {
       })
 
       const service = await createTestService()
-      const result = await service.isCodexLoggedIn()
+      const result = await service.isConfigured()
 
       expect(result).toBe(false)
     })

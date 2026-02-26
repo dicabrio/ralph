@@ -180,12 +180,12 @@ describe('GeminiLoopService', () => {
     delete process.env.GOOGLE_AI_STUDIO_KEY
   })
 
-  describe('isGeminiAvailable', () => {
+  describe('isAvailable', () => {
     it('returns true when gemini CLI is available', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: '0.26.0', stderr: '' })
 
-      const result = await service.isGeminiAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(true)
     })
@@ -194,18 +194,18 @@ describe('GeminiLoopService', () => {
       const service = await createTestService()
       mockExecAsync.mockRejectedValue(new Error('command not found: gemini'))
 
-      const result = await service.isGeminiAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(false)
     })
   })
 
-  describe('isGeminiConfigured', () => {
+  describe('isConfigured', () => {
     it('returns true when GEMINI_API_KEY is set', async () => {
       const service = await createTestService()
       process.env.GEMINI_API_KEY = 'test-key'
 
-      const result = await service.isGeminiConfigured()
+      const result = await service.isConfigured()
 
       expect(result).toBe(true)
     })
@@ -216,7 +216,7 @@ describe('GeminiLoopService', () => {
 
       const service = await createTestService()
 
-      const result = await service.isGeminiConfigured()
+      const result = await service.isConfigured()
 
       expect(result).toBe(true)
     })
@@ -227,7 +227,7 @@ describe('GeminiLoopService', () => {
 
       const service = await createTestService()
 
-      const result = await service.isGeminiConfigured()
+      const result = await service.isConfigured()
 
       expect(result).toBe(false)
     })

@@ -200,12 +200,12 @@ describe('ClaudeLoopService', () => {
     delete process.env.HOME
   })
 
-  describe('isClaudeAvailable', () => {
+  describe('isAvailable', () => {
     it('returns true when claude CLI is available', async () => {
       const service = await createTestService()
       mockExecAsync.mockResolvedValue({ stdout: 'claude 1.0.0', stderr: '' })
 
-      const result = await service.isClaudeAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(true)
     })
@@ -214,17 +214,17 @@ describe('ClaudeLoopService', () => {
       const service = await createTestService()
       mockExecAsync.mockRejectedValue(new Error('command not found: claude'))
 
-      const result = await service.isClaudeAvailable()
+      const result = await service.isAvailable()
 
       expect(result).toBe(false)
     })
   })
 
-  describe('isClaudeLoggedIn', () => {
+  describe('isConfigured', () => {
     it('returns true when .claude.json exists', async () => {
       const service = await createTestService()
 
-      const result = await service.isClaudeLoggedIn()
+      const result = await service.isConfigured()
 
       expect(result).toBe(true)
     })
@@ -240,7 +240,7 @@ describe('ClaudeLoopService', () => {
       })
 
       const service = await createTestService()
-      const result = await service.isClaudeLoggedIn()
+      const result = await service.isConfigured()
 
       expect(result).toBe(false)
     })

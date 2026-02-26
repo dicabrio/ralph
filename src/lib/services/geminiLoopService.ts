@@ -6,91 +6,17 @@
  *
  * Authentication via GEMINI_API_KEY environment variable.
  * See docs/gemini-cli-research.md for details.
+ *
+ * Extends BaseLoopService for shared functionality.
+ * Overrides parseOutput for stream-json output format.
  */
-import { spawn, exec, type ChildProcess } from "node:child_process";
+import { exec, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { db } from "@/db";
-import { runnerLogs } from "@/db/schema";
-import { getWebSocketServer } from "@/lib/websocket/server";
-import { getEffectivePrompt } from "@/lib/services/promptTemplate";
-import { DEFAULT_GEMINI_PERMISSIONS } from "@/lib/services/geminiPermissions";
-import {
-  selectNextStory,
-  generateStoryPrompt,
-  getNoEligibleStoryReason,
-  readPrdJson,
-} from "@/lib/services/storySelector";
-import { generateTestScenarios } from "@/lib/services/testScenarioGenerator";
+import { BaseLoopService } from "./baseLoopService";
+import type { SpawnConfig } from "./loopService.interface";
+import { DEFAULT_GEMINI_PERMISSIONS } from "./geminiPermissions";
 
 const execAsync = promisify(exec);
-
-/**
- * Runner status enum
- */
-export type RunnerStatus = "idle" | "running" | "stopping";
-
-/**
- * Story status from prd.json
- */
-export type StoryStatus = "pending" | "in_progress" | "done" | "failed" | "review";
-
-/**
- * Story from prd.json
- */
-export interface PrdStory {
-  id: string;
-  title: string;
-  status: StoryStatus;
-  dependencies: string[];
-  priority: number;
-}
-
-/**
- * Prd.json structure
- */
-export interface PrdJson {
-  userStories: PrdStory[];
-}
-
-/**
- * Runner state for a project
- */
-export interface RunnerState {
-  status: RunnerStatus;
-  projectId: number;
-  storyId?: string;
-  pid?: number;
-  startedAt?: Date;
-}
-
-/**
- * Log buffer size
- */
-const LOG_BUFFER_SIZE = 100;
-
-/**
- * Log entry structure
- */
-interface LogEntry {
-  projectId: number;
-  storyId?: string;
-  content: string;
-  logType: "stdout" | "stderr";
-  timestamp: Date;
-}
-
-/**
- * Active process handle
- */
-interface GeminiProcess {
-  projectId: number;
-  process: ChildProcess;
-  storyId?: string;
-  startedAt: Date;
-  projectPath: string;
-}
 
 /**
  * Gemini stream-json event types
@@ -126,19 +52,21 @@ interface GeminiStreamEvent {
  *
  * Singleton that tracks running Gemini CLI processes.
  * Spawns Gemini CLI directly without Docker.
+ * Extends BaseLoopService for shared process management.
+ * Uses custom output parsing for stream-json format.
  */
-class GeminiLoopService {
-  private processes: Map<number, GeminiProcess> = new Map();
-  private stoppingProcesses: Set<number> = new Set();
-  private stopRequestedProcesses: Set<number> = new Set();
-  private projectPaths: Map<number, string> = new Map();
-  private autoRestartEnabled: Map<number, boolean> = new Map();
-  private logBuffers: Map<number, LogEntry[]> = new Map();
+class GeminiLoopService extends BaseLoopService {
+  /**
+   * Provider name for logging and identification
+   */
+  get providerName(): string {
+    return "gemini";
+  }
 
   /**
    * Check if Gemini CLI is available
    */
-  async isGeminiAvailable(): Promise<boolean> {
+  async isAvailable(): Promise<boolean> {
     try {
       await execAsync("gemini --version");
       return true;
@@ -150,7 +78,7 @@ class GeminiLoopService {
   /**
    * Check if user has API key configured
    */
-  async isGeminiConfigured(): Promise<boolean> {
+  async isConfigured(): Promise<boolean> {
     // Check for API key in environment
     if (
       process.env.GEMINI_API_KEY?.trim() ||
@@ -164,213 +92,9 @@ class GeminiLoopService {
   }
 
   /**
-   * Start a runner for a project
-   *
-   * @param projectId - Database ID of the project
-   * @param projectPath - Filesystem path to the project
-   * @param storyId - Optional story ID being worked on (if not provided, auto-selects)
-   * @returns The runner state after starting
+   * Build spawn configuration for Gemini CLI
    */
-  async start(
-    projectId: number,
-    projectPath: string,
-    storyId?: string,
-  ): Promise<RunnerState> {
-    // Check if already running
-    if (this.processes.has(projectId)) {
-      const existing = this.processes.get(projectId)!;
-      return {
-        status: "running",
-        projectId,
-        storyId: existing.storyId,
-        pid: existing.process.pid,
-        startedAt: existing.startedAt,
-      };
-    }
-
-    // Check if stopping
-    if (this.stoppingProcesses.has(projectId)) {
-      throw new Error(`Runner for project ${projectId} is currently stopping`);
-    }
-
-    // Check if Gemini CLI is available
-    if (!(await this.isGeminiAvailable())) {
-      throw new Error(
-        "Gemini CLI is not installed. Install with: npm install -g @google/gemini-cli",
-      );
-    }
-
-    // Check if configured
-    if (!(await this.isGeminiConfigured())) {
-      throw new Error(
-        "Gemini API key not configured. Set GEMINI_API_KEY or GOOGLE_AI_STUDIO_KEY environment variable",
-      );
-    }
-
-    // Store project path for auto-restart
-    this.projectPaths.set(projectId, projectPath);
-
-    // Initialize log buffer
-    if (!this.logBuffers.has(projectId)) {
-      this.logBuffers.set(projectId, []);
-    }
-
-    // Pre-select the story before spawning the LLM
-    let selectedStoryId = storyId;
-    let prompt: string;
-
-    if (storyId) {
-      // Specific story requested - generate prompt with that story
-      prompt = await this.generatePrompt(projectPath, storyId);
-    } else {
-      // Auto-select the next eligible story
-      const selection = await selectNextStory(projectPath);
-
-      if (!selection) {
-        // No eligible stories - get detailed reason
-        const prd = await readPrdJson(projectPath);
-        const reason = prd
-          ? getNoEligibleStoryReason(prd.userStories)
-          : "No prd.json found";
-        throw new Error(`No eligible stories: ${reason}`);
-      }
-
-      selectedStoryId = selection.story.id;
-
-      // Generate prompt with inline story context
-      const { content: basePrompt } = await getEffectivePrompt(projectPath);
-      prompt = generateStoryPrompt(selection, basePrompt);
-
-      // Broadcast the selected story via WebSocket
-      this.broadcastStorySelected(projectId, selection.story.id, selection.story.title);
-    }
-
-    // Build CLI arguments
-    const args = this.buildCliArgs(prompt);
-
-    // Spawn Gemini CLI process
-    const geminiProcess = spawn("gemini", args, {
-      cwd: projectPath,
-      env: {
-        ...process.env,
-        // Ensure API key is available
-        GEMINI_API_KEY:
-          process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_STUDIO_KEY,
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    const processHandle: GeminiProcess = {
-      projectId,
-      process: geminiProcess,
-      storyId: selectedStoryId,
-      startedAt: new Date(),
-      projectPath,
-    };
-
-    this.processes.set(projectId, processHandle);
-
-    console.log(`[GeminiLoop] ========================================`);
-    console.log(`[GeminiLoop] Starting Gemini CLI`);
-    console.log(`[GeminiLoop] Project ID: ${projectId}`);
-    console.log(`[GeminiLoop] Story: ${selectedStoryId || "none"}`);
-    console.log(`[GeminiLoop] Path: ${projectPath}`);
-    console.log(`[GeminiLoop] PID: ${geminiProcess.pid}`);
-    console.log(`[GeminiLoop] Prompt length: ${prompt.length} chars`);
-    console.log(`[GeminiLoop] ========================================`);
-
-    // Buffer for accumulating partial JSON lines
-    let stdoutBuffer = "";
-    let stderrBuffer = "";
-
-    // Handle stdout - parse stream-json output
-    geminiProcess.stdout?.on("data", (data: Buffer) => {
-      stdoutBuffer += data.toString();
-      const lines = stdoutBuffer.split("\n");
-
-      // Process complete lines, keep incomplete line in buffer
-      for (let i = 0; i < lines.length - 1; i++) {
-        const line = lines[i].trim();
-        if (line) {
-          this.handleStreamJsonLine(projectId, selectedStoryId, line);
-        }
-      }
-      stdoutBuffer = lines[lines.length - 1];
-    });
-
-    // Handle stderr
-    geminiProcess.stderr?.on("data", (data: Buffer) => {
-      stderrBuffer += data.toString();
-      const lines = stderrBuffer.split("\n");
-
-      for (let i = 0; i < lines.length - 1; i++) {
-        const line = lines[i].trim();
-        if (line) {
-          this.handleLogData(projectId, selectedStoryId, line, "stderr");
-        }
-      }
-      stderrBuffer = lines[lines.length - 1];
-    });
-
-    // Handle process exit
-    geminiProcess.on("close", async (exitCode) => {
-      // Process remaining buffer
-      if (stdoutBuffer.trim()) {
-        this.handleStreamJsonLine(projectId, selectedStoryId, stdoutBuffer.trim());
-      }
-      if (stderrBuffer.trim()) {
-        this.handleLogData(projectId, selectedStoryId, stderrBuffer.trim(), "stderr");
-      }
-
-      console.log(`[GeminiLoop] ========================================`);
-      console.log(`[GeminiLoop] Gemini CLI exited`);
-      console.log(`[GeminiLoop] Project ID: ${projectId}`);
-      console.log(`[GeminiLoop] Exit code: ${exitCode}`);
-      console.log(`[GeminiLoop] ========================================`);
-      this.processes.delete(projectId);
-
-      // Manual stop should never trigger completion handling or auto-restart.
-      if (this.stopRequestedProcesses.has(projectId)) {
-        this.stopRequestedProcesses.delete(projectId);
-        this.stoppingProcesses.delete(projectId);
-        this.broadcastStatus(projectId, "idle");
-        return;
-      }
-
-      // Handle completion
-      await this.handleProcessExit(
-        projectId,
-        selectedStoryId,
-        exitCode ?? 0,
-        projectPath,
-      );
-    });
-
-    // Handle errors
-    geminiProcess.on("error", (error) => {
-      console.error(`[GeminiLoop] Error for project ${projectId}:`, error);
-      this.processes.delete(projectId);
-      this.stopRequestedProcesses.delete(projectId);
-      this.stoppingProcesses.delete(projectId);
-      this.broadcastStatus(projectId, "idle");
-    });
-
-    // Broadcast running status
-    this.broadcastStatus(projectId, "running", selectedStoryId, geminiProcess.pid);
-
-    return {
-      status: "running",
-      projectId,
-      storyId: selectedStoryId,
-      pid: geminiProcess.pid,
-      startedAt: new Date(),
-    };
-  }
-
-  /**
-   * Build CLI arguments for Gemini
-   */
-  private buildCliArgs(prompt: string): string[] {
+  buildSpawnConfig(prompt: string): SpawnConfig {
     const args = [
       "-p",
       prompt, // Non-interactive prompt mode
@@ -385,7 +109,70 @@ class GeminiLoopService {
       args.push("--allowed-tools", allowedTools.join(","));
     }
 
-    return args;
+    return {
+      command: "gemini",
+      args,
+      env: {
+        ...process.env,
+        // Ensure API key is available
+        GEMINI_API_KEY:
+          process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_STUDIO_KEY,
+      },
+      useStdin: false,
+    };
+  }
+
+  /**
+   * Override setupOutputHandlers for stream-json parsing
+   * Gemini outputs JSONL format that needs special parsing
+   */
+  protected setupOutputHandlers(
+    process: ChildProcess,
+    projectId: number,
+    storyId: string | undefined,
+  ): void {
+    // Buffer for accumulating partial JSON lines
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+
+    // Handle stdout - parse stream-json output
+    process.stdout?.on("data", (data: Buffer) => {
+      stdoutBuffer += data.toString();
+      const lines = stdoutBuffer.split("\n");
+
+      // Process complete lines, keep incomplete line in buffer
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          this.handleStreamJsonLine(projectId, storyId, line);
+        }
+      }
+      stdoutBuffer = lines[lines.length - 1];
+    });
+
+    // Handle stderr
+    process.stderr?.on("data", (data: Buffer) => {
+      stderrBuffer += data.toString();
+      const lines = stderrBuffer.split("\n");
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          this.handleLogData(projectId, storyId, line, "stderr");
+        }
+      }
+      stderrBuffer = lines[lines.length - 1];
+    });
+
+    // Handle process close to flush remaining buffers
+    process.on("close", () => {
+      if (stdoutBuffer.trim()) {
+        this.handleStreamJsonLine(projectId, storyId, stdoutBuffer.trim());
+      }
+      if (stderrBuffer.trim()) {
+        this.handleLogData(projectId, storyId, stderrBuffer.trim(), "stderr");
+      }
+    });
   }
 
   /**
@@ -441,7 +228,9 @@ class GeminiLoopService {
 
         case "init":
           // Session started - log for debugging
-          console.log(`[GeminiLoop] Session initialized for project ${projectId}`);
+          console.log(
+            `${this.logPrefix} Session initialized for project ${projectId}`,
+          );
           break;
       }
     } catch {
@@ -453,497 +242,17 @@ class GeminiLoopService {
   }
 
   /**
-   * Stop a running runner
-   *
-   * @param projectId - Database ID of the project
-   * @param force - Force kill instead of graceful stop
-   * @returns The runner state after stopping
+   * Custom error message when CLI is not available
    */
-  async stop(projectId: number, force: boolean = false): Promise<RunnerState> {
-    const processHandle = this.processes.get(projectId);
-    if (!processHandle) {
-      return { status: "idle", projectId };
-    }
-
-    this.stoppingProcesses.add(projectId);
-    this.stopRequestedProcesses.add(projectId);
-    this.broadcastStatus(
-      projectId,
-      "stopping",
-      processHandle.storyId,
-      processHandle.process.pid,
-    );
-
-    try {
-      let closed = false;
-
-      // Kill the process
-      if (force) {
-        processHandle.process.kill("SIGKILL");
-        closed = await this.waitForProcessClose(processHandle.process, 5000);
-      } else {
-        processHandle.process.kill("SIGTERM");
-
-        // Wait for graceful shutdown, then force kill
-        const closedGracefully = await this.waitForProcessClose(
-          processHandle.process,
-          10000,
-        );
-        if (!closedGracefully) {
-          processHandle.process.kill("SIGKILL");
-          closed = await this.waitForProcessClose(processHandle.process, 5000);
-        } else {
-          closed = true;
-        }
-      }
-
-      if (!closed) {
-        throw new Error(
-          `Failed to stop runner process for project ${projectId}: process did not exit`,
-        );
-      }
-
-      this.processes.delete(projectId);
-
-      return { status: "idle", projectId };
-    } finally {
-      this.stoppingProcesses.delete(projectId);
-    }
+  protected getNotAvailableError(): string {
+    return "Gemini CLI is not installed. Install with: npm install -g @google/gemini-cli";
   }
 
   /**
-   * Wait until a process emits close, or timeout elapses.
+   * Custom error message when not configured
    */
-  private waitForProcessClose(
-    process: ChildProcess,
-    timeoutMs: number,
-  ): Promise<boolean> {
-    return new Promise((resolve) => {
-      let settled = false;
-      const timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve(false);
-      }, timeoutMs);
-
-      process.once("close", () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolve(true);
-      });
-    });
-  }
-
-  /**
-   * Get the status of a runner
-   *
-   * @param projectId - Database ID of the project
-   * @returns The current runner state
-   */
-  getStatus(projectId: number): RunnerState {
-    if (this.stoppingProcesses.has(projectId)) {
-      return { status: "stopping", projectId };
-    }
-
-    const processHandle = this.processes.get(projectId);
-    if (processHandle) {
-      return {
-        status: "running",
-        projectId,
-        storyId: processHandle.storyId,
-        pid: processHandle.process.pid,
-        startedAt: processHandle.startedAt,
-      };
-    }
-
-    return { status: "idle", projectId };
-  }
-
-  /**
-   * Get status of all tracked runners
-   */
-  getAllStatus(): RunnerState[] {
-    const states: RunnerState[] = [];
-
-    for (const [projectId] of this.processes) {
-      states.push(this.getStatus(projectId));
-    }
-
-    return states;
-  }
-
-  /**
-   * Enable or disable auto-restart for a project
-   */
-  setAutoRestart(projectId: number, enabled: boolean): void {
-    this.autoRestartEnabled.set(projectId, enabled);
-    console.log(
-      `[GeminiLoop] Auto-restart ${enabled ? "enabled" : "disabled"} for project ${projectId}`,
-    );
-  }
-
-  /**
-   * Check if auto-restart is enabled for a project
-   * Default is TRUE - auto-restart is on unless explicitly disabled
-   */
-  isAutoRestartEnabled(projectId: number): boolean {
-    return this.autoRestartEnabled.get(projectId) ?? true;
-  }
-
-  /**
-   * Get buffered logs for a project
-   */
-  getBufferedLogs(projectId: number): LogEntry[] {
-    return this.logBuffers.get(projectId) || [];
-  }
-
-  /**
-   * Generate a prompt for Gemini based on the project and story
-   *
-   * Reads the prompt from stories/prompt.md if it exists,
-   * otherwise uses the default template from promptTemplate.ts
-   */
-  private async generatePrompt(
-    projectPath: string,
-    storyId?: string,
-  ): Promise<string> {
-    // Get the effective prompt (project-specific or default)
-    const { content: basePrompt } = await getEffectivePrompt(projectPath);
-
-    // If a specific story is requested, prepend that instruction
-    if (storyId) {
-      return `Focus on story: ${storyId}\n\n${basePrompt}`;
-    }
-
-    return basePrompt;
-  }
-
-  /**
-   * Handle incoming log data
-   */
-  private handleLogData(
-    projectId: number,
-    storyId: string | undefined,
-    data: string,
-    logType: "stdout" | "stderr",
-  ): void {
-    const lines = data.split("\n").filter((line) => line.trim() !== "");
-
-    for (const line of lines) {
-      // Log to server console for visibility
-      const prefix = logType === "stderr" ? "[Gemini ERR]" : "[Gemini]";
-      console.log(`${prefix} [P${projectId}]`, line);
-
-      const entry: LogEntry = {
-        projectId,
-        storyId,
-        content: line,
-        logType,
-        timestamp: new Date(),
-      };
-
-      // Add to buffer
-      this.addToBuffer(projectId, entry);
-
-      // Broadcast to WebSocket
-      this.broadcastLog(entry);
-
-      // Persist to database (async)
-      this.persistLog(entry).catch((error) => {
-        console.error(`[GeminiLoop] Failed to persist log:`, error);
-      });
-    }
-  }
-
-  /**
-   * Add log entry to buffer
-   */
-  private addToBuffer(projectId: number, entry: LogEntry): void {
-    let buffer = this.logBuffers.get(projectId);
-    if (!buffer) {
-      buffer = [];
-      this.logBuffers.set(projectId, buffer);
-    }
-
-    buffer.push(entry);
-
-    if (buffer.length > LOG_BUFFER_SIZE) {
-      buffer.shift();
-    }
-  }
-
-  /**
-   * Broadcast log to WebSocket subscribers
-   */
-  private broadcastLog(entry: LogEntry): void {
-    const wsServer = getWebSocketServer();
-    if (!wsServer) return;
-
-    wsServer.broadcastLog(
-      String(entry.projectId),
-      entry.storyId,
-      entry.content,
-      entry.logType,
-    );
-  }
-
-  /**
-   * Persist log to database
-   */
-  private async persistLog(entry: LogEntry): Promise<void> {
-    await db.insert(runnerLogs).values({
-      projectId: entry.projectId,
-      storyId: entry.storyId,
-      logContent: entry.content,
-      logType: entry.logType,
-      timestamp: entry.timestamp,
-    });
-  }
-
-  /**
-   * Handle process exit
-   */
-  private async handleProcessExit(
-    projectId: number,
-    storyId: string | undefined,
-    exitCode: number,
-    projectPath: string,
-  ): Promise<void> {
-    const success = exitCode === 0;
-    let completedStoryStatus: StoryStatus | undefined;
-    let nextStoryId: string | undefined;
-
-    // Read prd.json to check story status
-    try {
-      const prdData = await this.readPrdJson(projectPath);
-
-      // Find completed story status
-      if (storyId) {
-        const completedStory = prdData.userStories.find(
-          (s) => s.id === storyId,
-        );
-        completedStoryStatus = completedStory?.status;
-
-        // Generate test scenarios when story transitions to review
-        if (completedStory && completedStoryStatus === "review") {
-          // Trigger async generation without blocking
-          this.triggerTestScenarioGeneration(completedStory, projectPath);
-        }
-      }
-
-      // Find next pending story for auto-restart
-      if (this.isAutoRestartEnabled(projectId)) {
-        nextStoryId = this.findNextPendingStory(prdData.userStories);
-      }
-    } catch (error) {
-      console.error(`[GeminiLoop] Failed to read prd.json:`, error);
-    }
-
-    const willAutoRestart =
-      this.isAutoRestartEnabled(projectId) && !!nextStoryId;
-    const isSameStoryRestart = !!storyId && nextStoryId === storyId;
-
-    if (willAutoRestart && isSameStoryRestart) {
-      console.warn(
-        `[GeminiLoop] Prevented restart loop for project ${projectId} on story ${storyId}`,
-      );
-      nextStoryId = undefined;
-    }
-
-    const finalWillAutoRestart =
-      this.isAutoRestartEnabled(projectId) && !!nextStoryId;
-
-    // Broadcast completion
-    this.broadcastCompletion(
-      projectId,
-      storyId,
-      exitCode,
-      success,
-      completedStoryStatus,
-      nextStoryId,
-      finalWillAutoRestart,
-    );
-
-    // Trigger auto-restart if enabled
-    if (finalWillAutoRestart && nextStoryId) {
-      console.log(
-        `[GeminiLoop] Auto-restarting for project ${projectId} with story ${nextStoryId}`,
-      );
-
-      setTimeout(async () => {
-        try {
-          await this.start(projectId, projectPath, nextStoryId);
-        } catch (error) {
-          console.error(`[GeminiLoop] Failed to auto-restart:`, error);
-          this.broadcastStatus(projectId, "idle");
-        }
-      }, 1000);
-    } else {
-      this.broadcastStatus(projectId, "idle");
-    }
-  }
-
-  /**
-   * Read and parse prd.json
-   */
-  private async readPrdJson(projectPath: string): Promise<PrdJson> {
-    const prdPath = path.join(projectPath, "stories", "prd.json");
-    const content = await readFile(prdPath, "utf-8");
-    return JSON.parse(content) as PrdJson;
-  }
-
-  /**
-   * Find next pending story with met dependencies
-   */
-  private findNextPendingStory(stories: PrdStory[]): string | undefined {
-    const eligibleStories = stories
-      .filter((s) => s.status === "pending" || s.status === "failed")
-      .sort((a, b) => a.priority - b.priority);
-
-    // Both 'done' and 'review' are considered completed states for dependency checking
-    const completedStoryIds = new Set(
-      stories.filter((s) => s.status === "done" || s.status === "review").map((s) => s.id),
-    );
-
-    for (const story of eligibleStories) {
-      const dependenciesMet = story.dependencies.every((depId) =>
-        completedStoryIds.has(depId),
-      );
-      if (dependenciesMet) {
-        return story.id;
-      }
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Broadcast status change via WebSocket
-   */
-  private broadcastStatus(
-    projectId: number,
-    status: "idle" | "running" | "stopping",
-    storyId?: string,
-    pid?: number,
-  ): void {
-    const wsServer = getWebSocketServer();
-    if (!wsServer) return;
-
-    wsServer.broadcastToProject(String(projectId), {
-      type: "runner_status",
-      payload: {
-        projectId: String(projectId),
-        status,
-        storyId,
-        pid,
-      },
-      timestamp: Date.now(),
-    });
-  }
-
-  /**
-   * Broadcast completion event via WebSocket
-   */
-  private broadcastCompletion(
-    projectId: number,
-    storyId: string | undefined,
-    exitCode: number,
-    success: boolean,
-    completedStoryStatus: StoryStatus | undefined,
-    nextStoryId: string | undefined,
-    willAutoRestart: boolean,
-  ): void {
-    const wsServer = getWebSocketServer();
-    if (!wsServer) return;
-
-    wsServer.broadcastToProject(String(projectId), {
-      type: "runner_completed",
-      payload: {
-        projectId: String(projectId),
-        storyId,
-        exitCode,
-        success,
-        completedStoryStatus,
-        nextStoryId,
-        willAutoRestart,
-      },
-      timestamp: Date.now(),
-    });
-
-    // Broadcast story_review event when story status is 'review'
-    if (storyId && completedStoryStatus === "review") {
-      this.broadcastStoryReview(projectId, storyId);
-    }
-  }
-
-  /**
-   * Broadcast story review event via WebSocket
-   * Triggered when a story transitions to review status
-   */
-  private broadcastStoryReview(projectId: number, storyId: string): void {
-    const wsServer = getWebSocketServer();
-    if (!wsServer) return;
-
-    wsServer.broadcastToProject(String(projectId), {
-      type: "story_review",
-      payload: {
-        projectId: String(projectId),
-        storyId,
-      },
-      timestamp: Date.now(),
-    });
-  }
-
-  /**
-   * Trigger async test scenario generation for a story
-   * Runs in background without blocking the main flow
-   */
-  private triggerTestScenarioGeneration(story: PrdStory, projectPath: string): void {
-    // Use setTimeout to avoid blocking the main flow
-    setTimeout(async () => {
-      try {
-        console.log(`[GeminiLoop] Generating test scenarios for ${story.id}`);
-        await generateTestScenarios(story, projectPath);
-        console.log(`[GeminiLoop] Test scenarios generated for ${story.id}`);
-      } catch (error) {
-        // Log error but don't fail - test scenario generation is not critical
-        console.error(`[GeminiLoop] Failed to generate test scenarios for ${story.id}:`, error);
-      }
-    }, 100);
-  }
-
-  /**
-   * Broadcast story selected event via WebSocket
-   * Triggered when a story is pre-selected before spawning the LLM
-   */
-  private broadcastStorySelected(projectId: number, storyId: string, storyTitle: string): void {
-    const wsServer = getWebSocketServer();
-    if (!wsServer) return;
-
-    wsServer.broadcastToProject(String(projectId), {
-      type: "story_selected",
-      payload: {
-        projectId: String(projectId),
-        storyId,
-        storyTitle,
-      },
-      timestamp: Date.now(),
-    });
-
-    console.log(`[GeminiLoop] Pre-selected story: ${storyId} - ${storyTitle}`);
-  }
-
-  /**
-   * Stop all active processes (for cleanup)
-   */
-  async stopAll(): Promise<void> {
-    for (const [projectId] of this.processes) {
-      await this.stop(projectId, true);
-    }
-    this.autoRestartEnabled.clear();
-    this.stopRequestedProcesses.clear();
-    this.logBuffers.clear();
+  protected getNotConfiguredError(): string {
+    return "Gemini API key not configured. Set GEMINI_API_KEY or GOOGLE_AI_STUDIO_KEY environment variable";
   }
 }
 
@@ -952,3 +261,13 @@ export const geminiLoopService = new GeminiLoopService();
 
 // Export class for testing
 export { GeminiLoopService };
+
+// Re-export types from interface for backwards compatibility
+export type {
+  RunnerStatus,
+  StoryStatus,
+  PrdStory,
+  PrdJson,
+  RunnerState,
+  LogEntry,
+} from "./loopService.interface";
