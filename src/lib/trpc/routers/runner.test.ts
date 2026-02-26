@@ -33,12 +33,38 @@ vi.mock('@/lib/services/codexLoopService', () => ({
   },
 }))
 
+// Mock the geminiLoopService
+vi.mock('@/lib/services/geminiLoopService', () => ({
+  geminiLoopService: {
+    start: vi.fn(),
+    stop: vi.fn(),
+    getStatus: vi.fn(),
+    getAllStatus: vi.fn(),
+    setAutoRestart: vi.fn(),
+    isAutoRestartEnabled: vi.fn(() => false),
+  },
+}))
+
+// Mock the ollamaLoopService
+vi.mock('@/lib/services/ollamaLoopService', () => ({
+  ollamaLoopService: {
+    start: vi.fn(),
+    stop: vi.fn(),
+    getStatus: vi.fn(),
+    getAllStatus: vi.fn(),
+    setAutoRestart: vi.fn(),
+    isAutoRestartEnabled: vi.fn(() => false),
+  },
+}))
+
 import { createCallerFactory } from '../trpc'
 import { runnerRouter } from './runner'
 import { db } from '@/db'
 import { projects } from '@/db/schema'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
 import { codexLoopService } from '@/lib/services/codexLoopService'
+import { geminiLoopService } from '@/lib/services/geminiLoopService'
+import { ollamaLoopService } from '@/lib/services/ollamaLoopService'
 
 const createCaller = createCallerFactory(runnerRouter)
 
@@ -49,8 +75,12 @@ describe('runnerRouter', () => {
     vi.clearAllMocks()
     vi.mocked(claudeLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
     vi.mocked(codexLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
+    vi.mocked(geminiLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
+    vi.mocked(ollamaLoopService.getStatus).mockReturnValue({ status: 'idle', projectId: 0 })
     vi.mocked(claudeLoopService.getAllStatus).mockReturnValue([])
     vi.mocked(codexLoopService.getAllStatus).mockReturnValue([])
+    vi.mocked(geminiLoopService.getAllStatus).mockReturnValue([])
+    vi.mocked(ollamaLoopService.getAllStatus).mockReturnValue([])
   })
 
   afterEach(() => {
@@ -210,12 +240,14 @@ describe('runnerRouter', () => {
 
       expect(result.status).toBe('running')
       expect(result.storyId).toBe('RUNNER-008')
-      // setAutoRestart should be called with false for both services
+      // setAutoRestart should be called with false for all services
       expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
       expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(geminiLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(ollamaLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
     })
 
-    it('does not disable auto-restart when singleStoryMode is false', async () => {
+    it('enables auto-restart when singleStoryMode is false', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test-normal',
@@ -236,12 +268,14 @@ describe('runnerRouter', () => {
         singleStoryMode: false,
       })
 
-      // setAutoRestart should NOT be called when singleStoryMode is false
-      expect(claudeLoopService.setAutoRestart).not.toHaveBeenCalled()
-      expect(codexLoopService.setAutoRestart).not.toHaveBeenCalled()
+      // setAutoRestart should be called with true when singleStoryMode is false (enable auto-restart)
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(geminiLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(ollamaLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
     })
 
-    it('does not disable auto-restart when singleStoryMode is not specified', async () => {
+    it('enables auto-restart when singleStoryMode is not specified (default)', async () => {
       const [project] = await db.insert(projects).values({
         name: 'Test Project',
         path: '/projects/test-default',
@@ -259,9 +293,11 @@ describe('runnerRouter', () => {
         projectId: project.id,
       })
 
-      // setAutoRestart should NOT be called when singleStoryMode is not specified (defaults to false)
-      expect(claudeLoopService.setAutoRestart).not.toHaveBeenCalled()
-      expect(codexLoopService.setAutoRestart).not.toHaveBeenCalled()
+      // setAutoRestart should be called with true when singleStoryMode is not specified (defaults to false, enabling auto-restart)
+      expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(geminiLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
+      expect(ollamaLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, true)
     })
 
     it('disables auto-restart for both providers when starting codex in single story mode', async () => {
@@ -286,9 +322,11 @@ describe('runnerRouter', () => {
         singleStoryMode: true,
       })
 
-      // Both services should have auto-restart disabled
+      // All services should have auto-restart disabled
       expect(claudeLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
       expect(codexLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(geminiLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
+      expect(ollamaLoopService.setAutoRestart).toHaveBeenCalledWith(project.id, false)
       // But only codex should be started
       expect(codexLoopService.start).toHaveBeenCalled()
       expect(claudeLoopService.start).not.toHaveBeenCalled()
@@ -599,6 +637,8 @@ describe('runnerRouter', () => {
 
       vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(true)
       vi.mocked(codexLoopService.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(geminiLoopService.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(ollamaLoopService.isAutoRestartEnabled).mockReturnValue(true)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })
@@ -607,6 +647,8 @@ describe('runnerRouter', () => {
       expect(result.autoRestartEnabled).toBe(true)
       expect(claudeLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
       expect(codexLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
+      expect(geminiLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
+      expect(ollamaLoopService.isAutoRestartEnabled).toHaveBeenCalledWith(project.id)
     })
 
     it('returns false when auto-restart is not enabled', async () => {
@@ -617,6 +659,8 @@ describe('runnerRouter', () => {
 
       vi.mocked(claudeLoopService.isAutoRestartEnabled).mockReturnValue(false)
       vi.mocked(codexLoopService.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(geminiLoopService.isAutoRestartEnabled).mockReturnValue(true)
+      vi.mocked(ollamaLoopService.isAutoRestartEnabled).mockReturnValue(true)
 
       const caller = createCaller({})
       const result = await caller.getAutoRestartStatus({ projectId: project.id })

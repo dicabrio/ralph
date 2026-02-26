@@ -1,7 +1,7 @@
 /**
  * Runner Router
  *
- * API endpoints for managing Claude/Codex/Gemini runners.
+ * API endpoints for managing Claude/Codex/Gemini/Ollama runners.
  * Handles starting, stopping, and querying runner status.
  */
 import { z } from "zod";
@@ -13,9 +13,10 @@ import { projects } from "@/db/schema";
 import { claudeLoopService } from "@/lib/services/claudeLoopService";
 import { codexLoopService } from "@/lib/services/codexLoopService";
 import { geminiLoopService } from "@/lib/services/geminiLoopService";
+import { ollamaLoopService } from "@/lib/services/ollamaLoopService";
 import { expandPath } from "@/lib/utils.server";
 
-const runnerProviderSchema = z.enum(["claude", "codex", "gemini"]);
+const runnerProviderSchema = z.enum(["claude", "codex", "gemini", "ollama"]);
 type RunnerProvider = z.infer<typeof runnerProviderSchema>;
 
 // Input schemas
@@ -47,13 +48,15 @@ function getService(provider: RunnerProvider) {
       return codexLoopService;
     case "gemini":
       return geminiLoopService;
+    case "ollama":
+      return ollamaLoopService;
     default:
       return claudeLoopService;
   }
 }
 
 function getOtherProviders(provider: RunnerProvider): RunnerProvider[] {
-  const allProviders: RunnerProvider[] = ["claude", "codex", "gemini"];
+  const allProviders: RunnerProvider[] = ["claude", "codex", "gemini", "ollama"];
   return allProviders.filter((p) => p !== provider);
 }
 
@@ -123,10 +126,12 @@ export const runnerRouter = router({
           claudeLoopService.setAutoRestart(projectId, false);
           codexLoopService.setAutoRestart(projectId, false);
           geminiLoopService.setAutoRestart(projectId, false);
+          ollamaLoopService.setAutoRestart(projectId, false);
         } else {
           claudeLoopService.setAutoRestart(projectId, true);
           codexLoopService.setAutoRestart(projectId, true);
           geminiLoopService.setAutoRestart(projectId, true);
+          ollamaLoopService.setAutoRestart(projectId, true);
         }
 
         // Ensure absolute path - CLI runs directly on filesystem
@@ -169,6 +174,7 @@ export const runnerRouter = router({
       const claudeStatus = claudeLoopService.getStatus(projectId);
       const codexStatus = codexLoopService.getStatus(projectId);
       const geminiStatus = geminiLoopService.getStatus(projectId);
+      const ollamaStatus = ollamaLoopService.getStatus(projectId);
 
       if (claudeStatus.status !== "idle") {
         await claudeLoopService.stop(projectId, force);
@@ -180,6 +186,10 @@ export const runnerRouter = router({
 
       if (geminiStatus.status !== "idle") {
         await geminiLoopService.stop(projectId, force);
+      }
+
+      if (ollamaStatus.status !== "idle") {
+        await ollamaLoopService.stop(projectId, force);
       }
 
       return { status: "idle" as const, projectId };
@@ -241,7 +251,11 @@ export const runnerRouter = router({
         ...state,
         provider: "gemini" as const,
       }));
-      return [...claudeStates, ...codexStates, ...geminiStates];
+      const ollamaStates = ollamaLoopService.getAllStatus().map((state) => ({
+        ...state,
+        provider: "ollama" as const,
+      }));
+      return [...claudeStates, ...codexStates, ...geminiStates, ...ollamaStates];
     } catch (error) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -277,6 +291,7 @@ export const runnerRouter = router({
       claudeLoopService.setAutoRestart(projectId, enabled);
       codexLoopService.setAutoRestart(projectId, enabled);
       geminiLoopService.setAutoRestart(projectId, enabled);
+      ollamaLoopService.setAutoRestart(projectId, enabled);
 
       return {
         projectId,
@@ -310,7 +325,8 @@ export const runnerRouter = router({
         autoRestartEnabled:
           claudeLoopService.isAutoRestartEnabled(projectId) &&
           codexLoopService.isAutoRestartEnabled(projectId) &&
-          geminiLoopService.isAutoRestartEnabled(projectId),
+          geminiLoopService.isAutoRestartEnabled(projectId) &&
+          ollamaLoopService.isAutoRestartEnabled(projectId),
       };
     }),
 });

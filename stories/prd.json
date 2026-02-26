@@ -520,7 +520,7 @@
       "title": "OllamaLoopService implementatie",
       "description": "Implementeer Ollama als runner provider die de Claude CLI gebruikt met aangepaste environment variables. Maakt het mogelijk om lokale modellen te gebruiken voor story executie.",
       "priority": 105,
-      "status": "pending",
+      "status": "review",
       "epic": "Runner",
       "dependencies": ["RUNNER-013"],
       "recommendedSkills": ["backend-development:api-design-principles"],

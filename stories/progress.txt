@@ -2983,3 +2983,62 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - StoryStatus type includes 'backlog' but WebSocket message types only allow completed states ('done' | 'failed' | 'pending' | 'in_progress' | 'review') - filter before broadcasting
 - Test helper methods need explicit type annotations matching the actual types to avoid TypeScript errors
 - Pre-existing TypeScript errors in demo files and websocket/server.ts don't affect the loop service functionality
+
+## 2026-02-26 - RUNNER-013
+**Title:** ralph.config.json project configuratie
+
+**Implemented:**
+- Created Zod schema for RalphConfig with runner configuration (provider, model, baseUrl)
+- Added ralphConfigSchema.ts with runnerProviderEnum, runnerConfigSchema, ralphConfigSchema
+- Added ralphConfig.ts service with read/write functions and getEffectiveProvider
+- Added tRPC procedures getRalphConfig and updateRalphConfig to projects router
+- Graceful fallback to 'claude' provider when config doesn't exist or is invalid
+- baseUrl validated as proper URL format for Ollama custom endpoints
+
+**Files changed:**
+- src/lib/schemas/ralphConfigSchema.ts (new)
+- src/lib/schemas/ralphConfigSchema.test.ts (new - 17 tests)
+- src/lib/services/ralphConfig.ts (new)
+- src/lib/services/ralphConfig.test.ts (new - 21 tests)
+- src/lib/trpc/routers/projects.ts (added getRalphConfig and updateRalphConfig procedures)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Config location is stories/ralph.config.json (same folder as prd.json)
+- Use `as unknown as RalphConfig` for type casting in tests when testing invalid configs
+- Service uses readRalphConfigSync for contexts where async is not available
+- All 38 tests pass
+
+## 2026-02-26 - RUNNER-014
+**Title:** OllamaLoopService implementatie
+
+**Implemented:**
+- Created OllamaLoopService extending BaseLoopService for Ollama provider support
+- Implemented isAvailable() that checks 'ollama list' command
+- Implemented isConfigured() that always returns true (no API key needed)
+- Implemented buildSpawnConfig() with Ollama environment variables:
+  - ANTHROPIC_AUTH_TOKEN='ollama'
+  - ANTHROPIC_API_KEY=''
+  - ANTHROPIC_BASE_URL from config or default 'http://localhost:11434'
+  - --model flag from ralph.config.json
+- Added validateModelConfig() to require model name in ralph.config.json
+- Added isModelAvailable() to check if model is installed in Ollama
+- Clear error messages for common issues (Ollama not running, model not configured, model not available)
+- Updated runner router to include 'ollama' provider in all places
+- Comprehensive unit tests for OllamaLoopService (36 tests)
+- Fixed runner.test.ts to properly mock geminiLoopService and ollamaLoopService
+
+**Files changed:**
+- src/lib/services/ollamaLoopService.ts (new)
+- src/lib/services/ollamaLoopService.test.ts (new - 36 tests)
+- src/lib/trpc/routers/runner.ts (added ollama provider)
+- src/lib/trpc/routers/runner.test.ts (added ollama mocks, fixed test expectations)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- OllamaLoopService uses Claude CLI with environment variables to connect to Ollama
+- Model validation happens before starting to give clear error messages
+- The service checks isAvailable() first, then model config, then model availability
+- Mock variable hoisting in vitest requires using object references (mockConfigStore.value) not let variables for configurable test values
+- Runner router tests needed gemini and ollama mocks added for proper test isolation
+- Test expectations for setAutoRestart needed updating as behavior was already calling setAutoRestart(true) when singleStoryMode=false
