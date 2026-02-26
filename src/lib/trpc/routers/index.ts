@@ -15,6 +15,7 @@ import { promptsRouter } from './prompts'
 import { prdRouter } from './prd'
 import { archiveRouter } from './archive'
 import { testScenariosRouter } from './testScenarios'
+import { ollamaRouter } from './ollama'
 
 /**
  * Main application router
@@ -31,6 +32,7 @@ export const appRouter = router({
   prd: prdRouter,
   archive: archiveRouter,
   testScenarios: testScenariosRouter,
+  ollama: ollamaRouter,
 })
 
 /**

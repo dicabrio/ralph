@@ -552,7 +552,7 @@
       "title": "Ollama model discovery service",
       "description": "Service om beschikbare Ollama modellen te detecteren. Parsed de output van 'ollama list' en biedt een API endpoint voor de UI.",
       "priority": 106,
-      "status": "pending",
+      "status": "review",
       "epic": "Runner",
       "dependencies": ["RUNNER-014"],
       "recommendedSkills": ["backend-development:api-design-principles"],
