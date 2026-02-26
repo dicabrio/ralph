@@ -491,7 +491,7 @@
       "title": "ralph.config.json project configuratie",
       "description": "Implementeer per-project configuratie via stories/ralph.config.json. Hiermee kunnen gebruikers de runner provider en model per project instellen.",
       "priority": 104,
-      "status": "pending",
+      "status": "review",
       "epic": "Runner",
       "dependencies": ["RUNNER-012"],
       "recommendedSkills": ["backend-development:api-design-principles"],

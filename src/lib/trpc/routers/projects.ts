@@ -15,6 +15,14 @@ import { db } from '@/db'
 import { projects, type Project } from '@/db/schema'
 import { discoverProjects, isValidProjectPath } from '@/lib/services/projectDiscovery'
 import { ensureClaudePermissions } from '@/lib/services/claudePermissions'
+import {
+  readRalphConfig,
+  writeRalphConfig,
+} from '@/lib/services/ralphConfig'
+import {
+  ralphConfigSchema,
+  type RalphConfig,
+} from '@/lib/schemas/ralphConfigSchema'
 import { expandPath } from '@/lib/utils.server'
 import { claudeLoopService } from '@/lib/services/claudeLoopService'
 import { codexLoopService } from '@/lib/services/codexLoopService'
@@ -588,6 +596,59 @@ export const projectsRouter = router({
       scannedAt: discoveryResult.scannedAt,
     }
   }),
+
+  /**
+   * Get ralph.config.json for a project
+   * Returns the configuration or null if it doesn't exist
+   */
+  getRalphConfig: publicProcedure
+    .input(z.object({ projectId: z.number().int().positive() }))
+    .query(async ({ input }): Promise<RalphConfig | null> => {
+      // Get project from database
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, input.projectId))
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${input.projectId} not found`,
+        })
+      }
+
+      // Read ralph.config.json
+      return readRalphConfig(project.path)
+    }),
+
+  /**
+   * Update ralph.config.json for a project
+   * Creates the file if it doesn't exist
+   */
+  updateRalphConfig: publicProcedure
+    .input(z.object({
+      projectId: z.number().int().positive(),
+      config: ralphConfigSchema,
+    }))
+    .mutation(async ({ input }) => {
+      // Get project from database
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, input.projectId))
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${input.projectId} not found`,
+        })
+      }
+
+      // Write ralph.config.json
+      await writeRalphConfig(project.path, input.config)
+
+      return { success: true }
+    }),
 })
 
 export type ProjectsRouter = typeof projectsRouter
