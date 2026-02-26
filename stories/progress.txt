@@ -2921,3 +2921,43 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Atomicity in this context means both operations (story removal + dep cleanup) are written to prd.json in a single writeFile call
 - Self-reference in dependencies (story depends on itself) is an edge case that should be silently filtered
 - The cleanedDependencies count reflects total dependencies removed across all stories
+
+## 2026-02-26 - RUNNER-011
+**Title:** ILoopService interface en BaseLoopService abstract class
+
+**Implemented:**
+- Created ILoopService interface in src/lib/services/loopService.interface.ts
+  - Defines contract: start(), stop(), getStatus(), getAllStatus(), setAutoRestart(), isAutoRestartEnabled(), getBufferedLogs()
+  - Exports shared types: RunnerStatus, StoryStatus, PrdStory, PrdJson, RunnerState, LogEntry, SpawnConfig
+- Created BaseLoopService abstract class in src/lib/services/baseLoopService.ts
+  - Abstract methods: providerName getter, isAvailable(), isConfigured(), buildSpawnConfig()
+  - Shared logic: process management (Map<number, ProcessHandle>)
+  - Shared logic: log buffering with 100 entry limit
+  - Shared logic: database persistence via runnerLogs table
+  - Shared logic: WebSocket broadcasting (status, completion, logs, story_selected, story_review)
+  - Shared logic: prd.json parsing and story selection
+  - Shared logic: auto-restart with loop prevention
+  - Shared logic: test scenario generation trigger on review status
+  - Protected method setupOutputHandlers() allows override for custom parsing (e.g., Gemini stream-json)
+- Created comprehensive unit tests in src/lib/services/baseLoopService.test.ts (40 tests)
+  - Tests for getStatus, getAllStatus, setAutoRestart, getBufferedLogs
+  - Tests for start, stop, stopAll
+  - Tests for log handling and buffering
+  - Tests for findNextPendingStory with dependency checking
+  - Tests for process exit handling and review status broadcasting
+  - Tests for loop prevention on same story restart
+
+**Files changed:**
+- src/lib/services/loopService.interface.ts (new - interface and shared types)
+- src/lib/services/baseLoopService.ts (new - abstract base class)
+- src/lib/services/baseLoopService.test.ts (new - 40 unit tests)
+- stories/prd.json (status updated to review)
+
+**Learnings:**
+- The existing loop services (Claude, Gemini, Codex) share ~95% identical code
+- Key differences between providers: CLI command/args, availability check, configuration check, output parsing
+- Gemini uses stream-json output requiring custom parsing via setupOutputHandlers() override
+- All providers use stdin piping for prompts except when spawnConfig.useStdin is false
+- Test mocks with vi.mock need arrow function wrappers to avoid hoisting issues with variable references
+- BaseLoopService.ProcessHandle is exported for subclass access to protected processes Map
+- SpawnConfig interface allows flexible CLI configuration: command, args, env, useStdin, stdinContent
