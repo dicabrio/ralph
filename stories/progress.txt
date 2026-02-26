@@ -3042,3 +3042,64 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Mock variable hoisting in vitest requires using object references (mockConfigStore.value) not let variables for configurable test values
 - Runner router tests needed gemini and ollama mocks added for proper test isolation
 - Test expectations for setAutoRestart needed updating as behavior was already calling setAutoRestart(true) when singleStoryMode=false
+
+## 2026-02-26 - RUNNER-015
+**Title:** Ollama model discovery service
+
+**Implemented:**
+- Created ollamaDiscovery.ts service with isOllamaRunning() and getAvailableModels()
+- OllamaModel type with name, size, and modifiedAt properties
+- Parser for 'ollama list' CLI output (NAME, ID, SIZE, MODIFIED columns)
+- 60-second cache to avoid repeated CLI calls
+- Graceful error handling - returns empty array/false when Ollama is not running
+- tRPC ollama router with isAvailable() and getModels() queries
+- Added ollama router to appRouter
+
+**Files changed:**
+- src/lib/services/ollamaDiscovery.ts (new)
+- src/lib/services/ollamaDiscovery.test.ts (new - 17 tests)
+- src/lib/trpc/routers/ollama.ts (new)
+- src/lib/trpc/routers/ollama.test.ts (new - 5 tests)
+- src/lib/trpc/routers/index.ts (added ollama router)
+- stories/prd.json (status updated)
+
+**Learnings:**
+- Use vi.hoisted() for mock variables that need to be available when vi.mock is processed
+- The 'ollama list' output has columns: NAME, ID, SIZE, MODIFIED (e.g., "llama2:latest  78e26419b446  3.8 GB  4 weeks ago")
+- Cache should not store error results - only cache successful responses to allow retry on failure
+- Simple service functions (isOllamaRunning, getAvailableModels) should be separate from loop service for separation of concerns
+
+## 2026-02-26 - RUNNER-016
+**Title:** UI voor model en provider selectie
+
+**Implemented:**
+- Created RunnerConfigSection component for project settings page
+- Provider dropdown with Claude, Ollama, Gemini, Codex options
+- Claude model selection (Default, Sonnet, Opus, Haiku)
+- Ollama model dropdown populated from discovery service
+- Refresh button to reload Ollama models
+- Warning alert when Ollama is not available
+- Base URL configuration for Ollama (optional)
+- Save functionality to ralph.config.json
+- Success toast on save
+- Loading state during config fetch
+- Added provider/model badge to Kanban header
+- Kanban runner controls now include Ollama button
+- Auto-apply configured provider from ralph.config.json on Kanban load
+- Unit tests for RunnerConfigSection (8 tests)
+- E2E tests for runner configuration flow
+
+**Files changed:**
+- src/components/RunnerConfigSection.tsx (new)
+- src/components/RunnerConfigSection.test.tsx (new - 8 tests)
+- src/routes/project/$id/settings.tsx (added RunnerConfigSection)
+- src/routes/project/$id/kanban.tsx (added provider badge, Ollama button, config integration)
+- e2e/runner-config.spec.ts (new - E2E tests)
+- stories/prd.json (status updated to review)
+
+**Learnings:**
+- Radix Select components require non-empty string values for SelectItem - use 'default' instead of ''
+- Map 'default' back to undefined when saving to ralph.config.json
+- Use separate hasAppliedConfig state to track if config was already loaded to avoid overriding user selection
+- tRPC refetchInterval can be conditional based on state (e.g., only refetch Ollama availability when Ollama is selected)
+- The configured provider badge only shows when runner is idle to avoid confusion with active provider badge

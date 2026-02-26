@@ -16,6 +16,7 @@ import {
   Copy,
   CheckCheck,
   RotateCcw,
+  Server,
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { RunnerConfigSection } from '@/components/RunnerConfigSection'
 
 export const Route = createFileRoute('/project/$id/settings')({
   component: ProjectSettingsPage,
@@ -539,7 +541,7 @@ function ProjectSettingsPage() {
           <h2 className="text-lg font-semibold text-foreground mb-4">
             Runner
           </h2>
-          <div className="bg-card rounded-lg border p-4">
+          <div className="bg-card rounded-lg border p-4 space-y-6">
             <ToggleRow
               label="Auto-restart"
               description="Start automatisch de volgende story wanneer de huidige klaar is"
@@ -548,6 +550,24 @@ function ProjectSettingsPage() {
               onChange={handleAutoRestartToggle}
               isLoading={setAutoRestart.isPending}
             />
+
+            {/* Provider & Model Configuration */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-muted-foreground">
+                  <Server className="w-4 h-4" />
+                </span>
+                <div>
+                  <span className="text-sm font-medium text-foreground block">
+                    Provider & Model
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Configureer welke AI provider en model voor dit project wordt gebruikt
+                  </span>
+                </div>
+              </div>
+              <RunnerConfigSection projectId={projectId} />
+            </div>
           </div>
         </section>
 

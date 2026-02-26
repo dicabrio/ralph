@@ -88,7 +88,7 @@ export const Route = createFileRoute("/project/$id/kanban")({
 
 // Runner status type
 type RunnerStatus = "idle" | "running" | "stopping";
-type RunnerProvider = "claude" | "codex" | "gemini";
+type RunnerProvider = "claude" | "codex" | "gemini" | "ollama";
 
 // Kanban column definition
 interface KanbanColumn {
@@ -601,6 +601,8 @@ interface KanbanRunnerControlsProps {
   selectedProvider: RunnerProvider;
   activeProvider?: RunnerProvider;
   currentStoryId?: string | null;
+  configuredProvider?: RunnerProvider;
+  configuredModel?: string;
   onProviderChange: (provider: RunnerProvider) => void;
   onStart: () => void;
   onStop: () => void;
@@ -613,6 +615,8 @@ function KanbanRunnerControls({
   selectedProvider,
   activeProvider,
   currentStoryId,
+  configuredProvider,
+  configuredModel,
   onProviderChange,
   onStart,
   onStop,
@@ -624,6 +628,17 @@ function KanbanRunnerControls({
 
   return (
     <div className="flex items-center gap-3">
+      {/* Configured provider/model badge */}
+      {configuredProvider && runnerStatus === "idle" && (
+        <Badge
+          variant="secondary"
+          className="text-xs"
+          data-testid="configured-provider-badge"
+        >
+          {configuredProvider}
+          {configuredModel && `: ${configuredModel}`}
+        </Badge>
+      )}
       <div className="flex items-center gap-1.5 rounded-md border bg-background p-1">
         <button
           type="button"
@@ -637,6 +652,19 @@ function KanbanRunnerControls({
           )}
         >
           Claude
+        </button>
+        <button
+          type="button"
+          onClick={() => onProviderChange("ollama")}
+          disabled={isBusy || isRunning}
+          className={cn(
+            "rounded px-2 py-1 text-xs font-medium transition-colors",
+            selectedProvider === "ollama"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Ollama
         </button>
         <button
           type="button"
@@ -1205,17 +1233,41 @@ function KanbanBoard() {
   const utils = trpc.useUtils();
   const [runnerProvider, setRunnerProvider] =
     useState<RunnerProvider>("claude");
+  const [hasAppliedConfig, setHasAppliedConfig] = useState(false);
 
-  // Restore provider preference for this project
+  // Fetch ralph.config.json for configured provider/model
+  const { data: ralphConfig } = trpc.projects.getRalphConfig.useQuery(
+    { projectId },
+    { enabled: !isNaN(projectId) },
+  );
+
+  // Extract configured provider/model for display
+  const configuredProvider = ralphConfig?.runner?.provider as RunnerProvider | undefined;
+  const configuredModel = ralphConfig?.runner?.model;
+
+  // Apply configured provider as default (once, when config loads)
+  useEffect(() => {
+    if (ralphConfig && !hasAppliedConfig) {
+      const provider = ralphConfig.runner?.provider;
+      if (provider === "claude" || provider === "codex" || provider === "gemini" || provider === "ollama") {
+        setRunnerProvider(provider);
+        setHasAppliedConfig(true);
+      }
+    }
+  }, [ralphConfig, hasAppliedConfig]);
+
+  // Restore provider preference for this project (from localStorage as fallback)
   useEffect(() => {
     if (typeof window === "undefined" || Number.isNaN(projectId)) return;
+    // Only use localStorage if no config-based provider was applied
+    if (hasAppliedConfig) return;
     const stored = window.localStorage.getItem(
       `ralph.runner-provider.${projectId}`,
     );
-    if (stored === "claude" || stored === "codex" || stored === "gemini") {
+    if (stored === "claude" || stored === "codex" || stored === "gemini" || stored === "ollama") {
       setRunnerProvider(stored);
     }
-  }, [projectId]);
+  }, [projectId, hasAppliedConfig]);
 
   // Drag state
   const [activeStory, setActiveStory] = useState<Story | null>(null);
@@ -1853,6 +1905,8 @@ function KanbanBoard() {
                   runnerState?.provider as RunnerProvider | undefined
                 }
                 currentStoryId={runnerState?.storyId}
+                configuredProvider={configuredProvider}
+                configuredModel={configuredModel}
                 onProviderChange={handleRunnerProviderChange}
                 onStart={handleStartRunner}
                 onStop={handleStopRunner}

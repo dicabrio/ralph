@@ -580,7 +580,7 @@
       "title": "UI voor model en provider selectie",
       "description": "Voeg UI toe voor het configureren van de runner provider en model per project. Toont beschikbare Ollama modellen en slaat configuratie op in ralph.config.json.",
       "priority": 107,
-      "status": "pending",
+      "status": "review",
       "epic": "Runner",
       "dependencies": ["RUNNER-015", "RUNNER-013"],
       "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
