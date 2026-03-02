@@ -86,7 +86,9 @@
       "status": "backlog",
       "epic": "Dashboard",
       "dependencies": [],
-      "recommendedSkills": ["frontend-design"],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
       "acceptanceCriteria": [
         "Genereer favicon.ico (16x16, 32x32) van src/logo.svg",
         "Genereer apple-touch-icon.png (180x180) voor iOS bookmarks",
@@ -105,10 +107,14 @@
       "title": "Claude CLI read-only brainstorm service",
       "description": "Nieuwe brainstorm service die Claude CLI gebruikt in read-only mode. Claude kan de codebase lezen en analyseren maar voert geen wijzigingen uit. Vervangt de huidige OpenAI-based brainstormManager.",
       "priority": 80,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["BRAIN-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "BRAIN-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Nieuwe service: src/lib/services/claudeChatService.ts",
         "Claude CLI spawn met --tools 'Read,Glob,Grep' (read-only)",
@@ -133,9 +139,11 @@
       "title": "@-mention file parsing in chat input",
       "description": "Implementeer @-mention syntax voor file referenties in de brainstorm chat. Gebruikers kunnen @path/to/file.ts of @path/to/file.ts:10-20 typen om specifieke files of line ranges als context mee te geven.",
       "priority": 81,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
+      "dependencies": [
+        "CHAT-001"
+      ],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -165,10 +173,14 @@
       "title": "Diff preview rendering voor code suggesties",
       "description": "Wanneer Claude code wijzigingen suggereert in chat, render deze als visuele diff preview. Gebruikers zien side-by-side of unified diff view van voorgestelde changes, zonder dat deze automatisch worden toegepast.",
       "priority": 82,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
-      "recommendedSkills": ["frontend-design"],
+      "dependencies": [
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
       "acceptanceCriteria": [
         "Claude output parser detecteert code blocks met wijzigingen",
         "Heuristiek: code block met '+'/'-' lines, of '// BEFORE' / '// AFTER' markers",
@@ -194,10 +206,15 @@
       "title": "VS Code-style chat UI redesign",
       "description": "Herontwerp de brainstorm chat UI naar een VS Code-achtige interface met collapsible file context, inline code highlighting, en verbeterde message bubbles voor assistant responses.",
       "priority": 83,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["CHAT-002", "CHAT-003"],
-      "recommendedSkills": ["frontend-design"],
+      "dependencies": [
+        "CHAT-002",
+        "CHAT-003"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
       "acceptanceCriteria": [
         "Chat container met donkere/lichte theme support (VS Code-style)",
         "User messages: rechts uitgelijnd, accent kleur",
@@ -223,9 +240,12 @@
       "title": "Story generatie vanuit chat context",
       "description": "Voeg de mogelijkheid toe om vanuit een chat gesprek direct een story te genereren. De volledige chat context (discussie, suggesties, diffs) wordt samengevat en omgezet naar een gestructureerde story.",
       "priority": 84,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["CHAT-004", "BRAIN-001"],
+      "dependencies": [
+        "CHAT-004",
+        "BRAIN-001"
+      ],
       "recommendedSkills": [
         "frontend-design",
         "backend-development:api-design-principles"
@@ -256,10 +276,14 @@
       "title": "Chat sessie management en history",
       "description": "Verbeterde sessie management voor chat conversations. Gebruikers kunnen meerdere chat sessies per project hebben, sessies hervatten, en oude sessies bekijken of verwijderen.",
       "priority": 85,
-      "status": "backlog",
+      "status": "pending",
       "epic": "Brainstorm",
-      "dependencies": ["CHAT-001"],
-      "recommendedSkills": ["frontend-design"],
+      "dependencies": [
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
       "acceptanceCriteria": [
         "Sidebar panel met lijst van chat sessies voor huidig project",
         "Sessie card: titel (auto-generated of custom), laatste bericht preview, timestamp",
@@ -287,8 +311,12 @@
       "priority": 86,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": ["API-003"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "API-003"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Database: slackChannelId (string, nullable) kolom toevoegen aan projects tabel",
         "Database: slackEnabled (boolean, default false) kolom toevoegen aan projects tabel",
@@ -314,8 +342,13 @@
       "priority": 87,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": ["SLACK-001", "CHAT-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "SLACK-001",
+        "CHAT-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Slack event subscription voor message events in gekoppelde channels",
         "Filter: alleen reageren op berichten die @ralph mentionen of in thread zijn",
@@ -339,8 +372,13 @@
       "priority": 88,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": ["SLACK-001", "RUNNER-001"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "SLACK-001",
+        "RUNNER-001"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Slack slash command handler: src/routes/api/slack/commands.ts",
         "/ralph start - start runner voor gekoppeld project",
@@ -367,8 +405,13 @@
       "priority": 89,
       "status": "backlog",
       "epic": "Slack",
-      "dependencies": ["SLACK-001", "RUNNER-004"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "SLACK-001",
+        "RUNNER-004"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Hook in claudeLoopService voor status change events",
         "Bij runner start: post bericht met story ID en titel naar Slack",
@@ -393,8 +436,12 @@
       "priority": 101,
       "status": "review",
       "epic": "Runner",
-      "dependencies": ["RUNNER-009"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-009"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Service: src/lib/services/geminiLoopService.ts",
         "Service: vergelijkbare structuur als claudeLoopService",
@@ -424,10 +471,14 @@
       "title": "ILoopService interface en BaseLoopService abstract class",
       "description": "Refactor de loop services naar een gemeenschappelijke interface en abstract base class. Dit elimineert ~95% code duplicatie tussen ClaudeLoopService, GeminiLoopService en CodexLoopService door shared logica te centraliseren.",
       "priority": 102,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-010"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-010"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Interface: src/lib/services/loopService.interface.ts met ILoopService",
         "Interface: start(projectId, projectPath, storyId?): Promise<RunnerState>",
@@ -460,10 +511,14 @@
       "title": "Refactor bestaande LoopServices naar BaseLoopService",
       "description": "Migreer ClaudeLoopService, GeminiLoopService en CodexLoopService naar de nieuwe BaseLoopService. Elke service implementeert alleen provider-specifieke logica.",
       "priority": 103,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-011"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-011"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "ClaudeLoopService extends BaseLoopService",
         "Claude: providerName = 'claude'",
@@ -491,10 +546,14 @@
       "title": "ralph.config.json project configuratie",
       "description": "Implementeer per-project configuratie via stories/ralph.config.json. Hiermee kunnen gebruikers de runner provider en model per project instellen.",
       "priority": 104,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-012"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-012"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Schema: RalphConfig type met runner configuratie",
         "Schema: runner.provider ('claude' | 'ollama' | 'gemini' | 'codex')",
@@ -520,10 +579,14 @@
       "title": "OllamaLoopService implementatie",
       "description": "Implementeer Ollama als runner provider die de Claude CLI gebruikt met aangepaste environment variables. Maakt het mogelijk om lokale modellen te gebruiken voor story executie.",
       "priority": 105,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-013"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-013"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Service: src/lib/services/ollamaLoopService.ts extends BaseLoopService",
         "Service: providerName = 'ollama'",
@@ -552,10 +615,14 @@
       "title": "Ollama model discovery service",
       "description": "Service om beschikbare Ollama modellen te detecteren. Parsed de output van 'ollama list' en biedt een API endpoint voor de UI.",
       "priority": 106,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-014"],
-      "recommendedSkills": ["backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-014"
+      ],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "Service: src/lib/services/ollamaDiscovery.ts",
         "Service: isOllamaRunning(): Promise<boolean>",
@@ -580,10 +647,16 @@
       "title": "UI voor model en provider selectie",
       "description": "Voeg UI toe voor het configureren van de runner provider en model per project. Toont beschikbare Ollama modellen en slaat configuratie op in ralph.config.json.",
       "priority": 107,
-      "status": "review",
+      "status": "done",
       "epic": "Runner",
-      "dependencies": ["RUNNER-015", "RUNNER-013"],
-      "recommendedSkills": ["frontend-design", "backend-development:api-design-principles"],
+      "dependencies": [
+        "RUNNER-015",
+        "RUNNER-013"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
       "acceptanceCriteria": [
         "UI: Runner Config sectie op project settings pagina",
         "UI: Provider dropdown (Claude, Ollama, Gemini, Codex)",
