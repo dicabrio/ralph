@@ -617,8 +617,8 @@ export const projectsRouter = router({
         })
       }
 
-      // Read ralph.config.json
-      return readRalphConfig(project.path)
+      // Read ralph.config.json (use expandPath for consistent path handling)
+      return readRalphConfig(expandPath(project.path))
     }),
 
   /**
@@ -644,8 +644,8 @@ export const projectsRouter = router({
         })
       }
 
-      // Write ralph.config.json
-      await writeRalphConfig(project.path, input.config)
+      // Write ralph.config.json (use expandPath for consistent path handling)
+      await writeRalphConfig(expandPath(project.path), input.config)
 
       return { success: true }
     }),
