@@ -8,7 +8,7 @@ export const storySchema = z.object({
   id: z.string().min(1, 'Story ID is required'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
-  priority: z.number().int().positive('Priority must be a positive integer'),
+  priority: z.number().int().min(0, 'Priority must be an integer equal to or greater than 0'),
   status: storyStatusEnum,
   epic: z.string().min(1, 'Epic is required'),
   dependencies: z.array(z.string()).default([]),

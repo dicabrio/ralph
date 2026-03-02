@@ -117,11 +117,16 @@ class OllamaLoopService extends BaseLoopService {
    * Uses project-specific configuration when available
    */
   buildSpawnConfig(prompt: string): SpawnConfig {
+    console.log(`${this.logPrefix} buildSpawnConfig called`);
+    console.log(`${this.logPrefix} _currentProjectPath: ${this._currentProjectPath}`);
+
     // Use project-specific config if available
     if (this._currentProjectPath) {
       const config = readRalphConfigSync(this._currentProjectPath);
       const model = config?.runner?.model;
       const baseUrl = config?.runner?.baseUrl || DEFAULT_OLLAMA_BASE_URL;
+
+      console.log(`${this.logPrefix} Config loaded - model: ${model}, baseUrl: ${baseUrl}`);
 
       const args = [
         "-p",
@@ -137,6 +142,9 @@ class OllamaLoopService extends BaseLoopService {
       if (model) {
         args.push("--model", model);
       }
+
+      console.log(`${this.logPrefix} Spawn args: claude ${args.join(" ")}`);
+      console.log(`${this.logPrefix} Prompt length: ${prompt.length} chars`);
 
       return {
         command: "claude",

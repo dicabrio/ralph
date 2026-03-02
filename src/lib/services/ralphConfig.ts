@@ -4,7 +4,7 @@
  * Manages per-project configuration stored in stories/ralph.config.json.
  * Provides read/write operations and fallback defaults when config doesn't exist.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import {
@@ -79,7 +79,6 @@ export function readRalphConfigSync(projectPath: string): RalphConfig | null {
   }
 
   try {
-    const { readFileSync } = require('node:fs')
     const content = readFileSync(configPath, 'utf-8')
     const data = JSON.parse(content)
     const result = ralphConfigSchema.safeParse(data)

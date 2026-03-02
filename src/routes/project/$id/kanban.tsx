@@ -43,6 +43,7 @@ import {
 import { StoryDetailModal } from "@/components/StoryDetailModal";
 import { RunnerLogModal } from "@/components/RunnerLogModal";
 import { useWebSocket } from "@/lib/websocket/client";
+import type { RalphConfig } from "@/lib/schemas/ralphConfigSchema";
 
 // Parse runner errors into user-friendly messages
 function getRunnerErrorMessage(error: unknown): string {
@@ -1406,6 +1407,18 @@ function KanbanBoard() {
     },
   });
 
+  // Mutation for persisting provider selection to ralph.config.json
+  const updateRalphConfig = trpc.projects.updateRalphConfig.useMutation({
+    onError: (error) => {
+      toast.error("Kon provider niet opslaan", {
+        description: error instanceof Error ? error.message : "Onbekende fout",
+      });
+    },
+    onSuccess: () => {
+      utils.projects.getRalphConfig.invalidate({ projectId });
+    },
+  });
+
   // Mutation for starting a single story
   const startSingleStory = trpc.runner.start.useMutation({
     onSuccess: (data) => {
@@ -1598,6 +1611,18 @@ function KanbanBoard() {
 
   const handleRunnerProviderChange = (provider: RunnerProvider) => {
     setRunnerProvider(provider);
+
+    // Persist naar ralph.config.json (behoud bestaande model/baseUrl)
+    const newConfig: RalphConfig = {
+      runner: {
+        provider,
+        ...(ralphConfig?.runner?.model && { model: ralphConfig.runner.model }),
+        ...(ralphConfig?.runner?.baseUrl && { baseUrl: ralphConfig.runner.baseUrl }),
+      },
+    };
+    updateRalphConfig.mutate({ projectId, config: newConfig });
+
+    // localStorage als fallback
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         `ralph.runner-provider.${projectId}`,
