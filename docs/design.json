@@ -1,0 +1,263 @@
+{
+  "meta": {
+    "name": "RALPH Neon Circuit Dark",
+    "version": "1.0.0",
+    "source": "Screenshot palette + layout extraction",
+    "notes": [
+      "Core vibe: deep purple space, neon gradient accents (amber→pink→violet→blue), futuristic geometric type, lots of breathing room, soft glow."
+    ]
+  },
+  "color": {
+    "bg": {
+      "canvas": "#3E1355",
+      "canvas2": "#461C5D",
+      "gradient": "radial-gradient(1200px 1200px at 50% 35%, rgba(90,34,120,0.35) 0%, rgba(62,19,85,1) 55%, rgba(70,28,93,1) 100%)"
+    },
+    "surface": {
+      "0": "rgba(255,255,255,0.00)",
+      "1": "rgba(255,255,255,0.04)",
+      "2": "rgba(255,255,255,0.07)",
+      "3": "rgba(255,255,255,0.10)"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "rgba(255,255,255,0.78)",
+      "muted": "rgba(255,255,255,0.60)",
+      "disabled": "rgba(255,255,255,0.40)",
+      "onAccent": "#0B0610"
+    },
+    "border": {
+      "subtle": "rgba(255,255,255,0.10)",
+      "soft": "rgba(255,255,255,0.16)",
+      "focus": "rgba(84,142,225,0.55)"
+    },
+    "neon": {
+      "amber": "#F8AD54",
+      "tangerine": "#D88C68",
+      "hotPink": "#D2578C",
+      "magenta": "#BB498D",
+      "violet": "#9865AA",
+      "indigo": "#6A69C3",
+      "electricBlue": "#548EE1",
+      "warmWhite": "#FAEFE2"
+    },
+    "accent": {
+      "primary": "#548EE1",
+      "secondary": "#F8AD54",
+      "gradient": "linear-gradient(90deg, #F8AD54 0%, #D2578C 45%, #9865AA 70%, #548EE1 100%)",
+      "gradientSoft": "linear-gradient(90deg, rgba(248,173,84,0.92) 0%, rgba(210,87,140,0.92) 45%, rgba(152,101,170,0.92) 70%, rgba(84,142,225,0.92) 100%)"
+    },
+    "state": {
+      "success": "#43D7A7",
+      "warning": "#F8AD54",
+      "danger": "#DB686D",
+      "info": "#548EE1"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "display": "\"Orbitron\", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      "body": "\"Space Grotesk\", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      "mono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace"
+    },
+    "letterSpacing": {
+      "tight": "-0.02em",
+      "normal": "0em",
+      "wide": "0.06em",
+      "display": "0.10em"
+    },
+    "fontWeight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "snug": 1.25,
+      "normal": 1.5
+    },
+    "scale": {
+      "xs": { "fontSize": "12px", "lineHeight": "16px" },
+      "sm": { "fontSize": "14px", "lineHeight": "20px" },
+      "base": { "fontSize": "16px", "lineHeight": "24px" },
+      "lg": { "fontSize": "18px", "lineHeight": "26px" },
+      "xl": { "fontSize": "22px", "lineHeight": "30px" },
+      "2xl": { "fontSize": "28px", "lineHeight": "34px" },
+      "3xl": { "fontSize": "40px", "lineHeight": "44px" },
+      "4xl": { "fontSize": "56px", "lineHeight": "60px" }
+    },
+    "presets": {
+      "brandWordmark": {
+        "fontFamily": "{typography.fontFamily.display}",
+        "fontWeight": 700,
+        "letterSpacing": "{typography.letterSpacing.display}",
+        "textTransform": "uppercase"
+      },
+      "h1": {
+        "fontFamily": "{typography.fontFamily.display}",
+        "fontWeight": 700,
+        "letterSpacing": "{typography.letterSpacing.wide}"
+      },
+      "body": {
+        "fontFamily": "{typography.fontFamily.body}",
+        "fontWeight": 400,
+        "letterSpacing": "{typography.letterSpacing.normal}"
+      }
+    }
+  },
+  "space": {
+    "base": 8,
+    "scale": {
+      "0": "0px",
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "20px",
+      "6": "24px",
+      "7": "32px",
+      "8": "40px",
+      "9": "48px",
+      "10": "56px",
+      "11": "64px",
+      "12": "80px",
+      "13": "96px",
+      "14": "128px",
+      "15": "160px"
+    },
+    "layout": {
+      "pagePadding": {
+        "mobile": "24px",
+        "tablet": "40px",
+        "desktop": "64px"
+      },
+      "heroTopPadding": {
+        "mobile": "64px",
+        "desktop": "120px"
+      },
+      "heroBottomPadding": {
+        "mobile": "56px",
+        "desktop": "120px"
+      },
+      "stackGap": {
+        "tight": "12px",
+        "normal": "20px",
+        "loose": "32px",
+        "xl": "56px"
+      }
+    }
+  },
+  "radius": {
+    "none": "0px",
+    "sm": "10px",
+    "md": "14px",
+    "lg": "18px",
+    "xl": "24px",
+    "pill": "999px"
+  },
+  "shadow": {
+    "soft": "0 10px 40px rgba(0,0,0,0.35)",
+    "lift": "0 16px 60px rgba(0,0,0,0.45)",
+    "glowBlue": "0 0 24px rgba(84,142,225,0.35)",
+    "glowPink": "0 0 24px rgba(210,87,140,0.32)",
+    "glowWarm": "0 0 24px rgba(248,173,84,0.28)"
+  },
+  "stroke": {
+    "hairline": "1px",
+    "thin": "2px"
+  },
+  "motion": {
+    "duration": {
+      "fast": "140ms",
+      "base": "220ms",
+      "slow": "360ms"
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      "out": "cubic-bezier(0.16, 1, 0.3, 1)"
+    }
+  },
+  "layout": {
+    "grid": {
+      "maxWidth": "1200px",
+      "columns": 12,
+      "gutter": "24px"
+    },
+    "alignment": {
+      "primary": "center",
+      "hero": "center"
+    },
+    "composition": {
+      "hero": {
+        "logoToWordmarkGap": "56px",
+        "wordmarkSize": { "mobile": "56px", "desktop": "72px" },
+        "logoSize": { "mobile": "260px", "desktop": "360px" }
+      }
+    }
+  },
+  "components": {
+    "appShell": {
+      "background": "{color.bg.gradient}",
+      "textColor": "{color.text.primary}"
+    },
+    "card": {
+      "background": "{color.surface.1}",
+      "border": "{stroke.hairline} solid {color.border.subtle}",
+      "radius": "{radius.xl}",
+      "shadow": "{shadow.soft}",
+      "backdropBlur": "16px",
+      "padding": "{space.scale.8}"
+    },
+    "button": {
+      "radius": "{radius.pill}",
+      "paddingX": "{space.scale.6}",
+      "paddingY": "{space.scale.4}",
+      "font": {
+        "fontFamily": "{typography.fontFamily.display}",
+        "fontWeight": 700,
+        "letterSpacing": "{typography.letterSpacing.wide}"
+      },
+      "primary": {
+        "background": "{color.accent.gradient}",
+        "text": "{color.text.primary}",
+        "shadow": "{shadow.glowBlue}"
+      },
+      "secondary": {
+        "background": "rgba(255,255,255,0.08)",
+        "text": "{color.text.primary}",
+        "border": "{stroke.hairline} solid {color.border.soft}"
+      },
+      "hover": {
+        "transform": "translateY(-1px)",
+        "shadow": "{shadow.lift}"
+      },
+      "focus": {
+        "outline": "2px solid {color.border.focus}",
+        "outlineOffset": "3px"
+      }
+    },
+    "logoMark": {
+      "strokeGradient": "{color.accent.gradient}",
+      "glow": "drop-shadow(0 0 22px rgba(210,87,140,0.25)) drop-shadow(0 0 22px rgba(84,142,225,0.22))"
+    },
+    "wordmark": {
+      "font": "{typography.presets.brandWordmark}",
+      "color": "{color.text.primary}",
+      "tracking": "{typography.letterSpacing.display}"
+    }
+  },
+  "assets": {
+    "recommendedGoogleFonts": [
+      { "family": "Orbitron", "weights": [500, 700] },
+      { "family": "Space Grotesk", "weights": [400, 500, 600] },
+      { "family": "JetBrains Mono", "weights": [400, 600] }
+    ],
+    "iconStyle": {
+      "type": "outlined",
+      "strokeWidth": 2,
+      "cornerStyle": "rounded",
+      "accentUsage": "use neon gradients sparingly for highlights; keep most UI in white/soft-white on purple"
+    }
+  }
+}
