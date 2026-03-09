@@ -3163,3 +3163,33 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Both archiveStory and archiveMultiple still remove dependencies from remaining stories
 - The `action` field is typed as a const to ensure type safety with literal types
 
+
+## 2026-03-09 - KAN-001
+**Title:** Kanban matrix layout met EPIC rows
+
+**Implemented:**
+- Redesigned Kanban view from vertical column layout to horizontal EPIC row matrix
+- EPIC rows sorted by highest priority story (lowest number = highest priority)
+- Horizontal columns: Backlog → Te doen → Gefaald → In Progress → Review → Voltooid
+- EPIC row header shows name + story count badges per status
+- Compact story cards: drag handle + ID + title + hover action buttons
+- Story click opens detail modal (or log modal for in_progress)
+- Drag & drop between status columns within matrix cells
+- Mobile responsive: accordion layout with EPICs as collapsible sections
+- useIsMobile() hook detects viewport < 768px
+- Empty cell state shows "-" on hover, "Drop here" when valid drop target
+- Column header shows lock icon for runner-controlled columns (In Progress, Review)
+- Failed column only appears when there are failed stories
+- Preserved all existing functionality: runner controls, archive dialogs, status transitions
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (complete redesign ~2300 lines)
+
+**Learnings:**
+- Matrix layout uses CSS Grid with minmax(160px, 1fr) for equal column widths
+- Cell IDs for droppable: "epicName:columnId" format, parse to get target column
+- groupStoriesByEpic() creates EpicData with storiesByStatus[columnId] arrays
+- Compact cards use drag handle separate from card body for better UX
+- Mobile accordion uses Radix Accordion with type="multiple" for independent expand
+- Status column visibility can be dynamic (failed only when stories exist)
+- EPIC ordering: Math.min(...stories.map(s => s.priority)) for highest priority

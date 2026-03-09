@@ -131,6 +131,132 @@
       ]
     },
     {
+      "id": "KAN-001",
+      "title": "Kanban matrix layout met EPIC rows",
+      "description": "Herontwerp de Kanban view naar een matrix layout met horizontale EPIC rows en verticale status kolommen. Geeft beter overzicht per EPIC en maakt bulk operaties mogelijk.",
+      "priority": 75,
+      "status": "review",
+      "epic": "Kanban",
+      "dependencies": [],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Layout: horizontale rows per EPIC, verticale kolommen per status",
+        "EPIC header links met naam en story count per status",
+        "Stories als compacte cards (ID + titel) binnen EPIC/status cel",
+        "Story card klikbaar voor detail modal",
+        "Drag & drop individuele stories tussen status kolommen blijft werken",
+        "EPIC volgorde bepaald door hoogste priority story in EPIC",
+        "Empty state per cel (geen lege ruimte, subtiele indicator)",
+        "Responsive: op mobile EPIC accordion i.p.v. matrix",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
+      "id": "KAN-002",
+      "title": "Collapsible EPIC rows",
+      "description": "Voeg collapse/expand functionaliteit toe aan EPIC rows. Gebruikers kunnen EPICs inklappen om focus te houden op actieve werk.",
+      "priority": 76,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": [
+        "KAN-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Collapse toggle (chevron) op EPIC header",
+        "Collapsed state toont alleen EPIC header met summary (bv. '3 pending, 1 in progress')",
+        "Expand/collapse animatie (smooth transition)",
+        "Collapse state opslaan in localStorage per project",
+        "Keyboard shortcut: Enter/Space op focused EPIC header toggled collapse",
+        "Auto-collapse optie voor EPICs waar alle stories 'done' zijn",
+        "Bulk expand/collapse all button in toolbar",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
+      "id": "KAN-003",
+      "title": "Multi-select stories met floating action bar",
+      "description": "Implementeer multi-select functionaliteit voor stories met een floating action bar voor bulk operaties. Bekend pattern van Gmail/Notion/Linear.",
+      "priority": 77,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": [
+        "KAN-001"
+      ],
+      "recommendedSkills": [
+        "frontend-design",
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Checkbox op elke story card (zichtbaar bij hover of in select mode)",
+        "Cmd/Ctrl+click om individuele stories te togglen",
+        "Shift+click voor range select binnen zelfde kolom",
+        "Floating action bar verschijnt bij 1+ selectie",
+        "Action bar toont: selected count, 'Move to' dropdown, 'Archive' button, 'Deselect all'",
+        "Action bar fixed aan bottom of viewport",
+        "API: stories.bulkUpdateStatus procedure voor meerdere stories tegelijk",
+        "Escape key deselects all",
+        "Select all in EPIC optie via EPIC header context menu",
+        "Geselecteerde stories visueel highlighted",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
+      "id": "KAN-004",
+      "title": "EPIC toolbar met bulk acties",
+      "description": "Voeg inline action buttons toe aan EPIC headers voor snelle bulk operaties. Buttons verschijnen bij hover en tonen relevante acties met counts.",
+      "priority": 78,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": [
+        "KAN-001",
+        "KAN-003"
+      ],
+      "recommendedSkills": [
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "EPIC header toont action buttons bij hover",
+        "Activate button: 'Activate N' voor backlog stories naar pending",
+        "Archive button: 'Archive N' voor done stories naar archived",
+        "Buttons tonen count en zijn disabled als count = 0",
+        "Buttons hebben tooltip met uitleg",
+        "Keyboard accessible: Tab naar buttons, Enter om te activeren",
+        "Confirmation voor destructieve acties (archive)",
+        "Success toast na bulk actie met undo optie (5 sec)",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
+      "id": "KAN-005",
+      "title": "Default story status naar backlog",
+      "description": "Wijzig de default status voor nieuwe stories van 'pending' naar 'backlog'. Dit ondersteunt de workflow waarbij stories eerst in backlog komen en expliciet geactiveerd worden.",
+      "priority": 79,
+      "status": "pending",
+      "epic": "Kanban",
+      "dependencies": [],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "API: addStories zet status op 'backlog' i.p.v. 'pending'",
+        "Brainstorm: gegenereerde stories krijgen status 'backlog'",
+        "Story generator skill output heeft status 'backlog'",
+        "Unit tests aangepast voor nieuwe default",
+        "Bestaande stories behouden hun huidige status (geen migratie)",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
       "id": "UI-031",
       "title": "Favicon met Ralph logo",
       "description": "Vervang de standaard TanStack favicon door het Ralph logo. Genereer meerdere icon formaten voor browser tabs, bookmarks en PWA ondersteuning.",
