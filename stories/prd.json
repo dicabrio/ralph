@@ -159,7 +159,7 @@
       "title": "Collapsible EPIC rows",
       "description": "Voeg collapse/expand functionaliteit toe aan EPIC rows. Gebruikers kunnen EPICs inklappen om focus te houden op actieve werk.",
       "priority": 76,
-      "status": "pending",
+      "status": "review",
       "epic": "Kanban",
       "dependencies": [
         "KAN-001"

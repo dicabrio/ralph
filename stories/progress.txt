@@ -3193,3 +3193,37 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Mobile accordion uses Radix Accordion with type="multiple" for independent expand
 - Status column visibility can be dynamic (failed only when stories exist)
 - EPIC ordering: Math.min(...stories.map(s => s.priority)) for highest priority
+
+## 2026-03-09 - KAN-002
+**Title:** Collapsible EPIC rows
+
+**Implemented:**
+- Added collapse toggle (chevron icon) to EPIC row headers
+- Implemented collapsed state showing summary text (e.g., "3 pending, 1 in progress")
+- Added smooth expand/collapse animation (maxHeight + opacity transition with 200ms duration)
+- Persisted collapse state to localStorage per project (`ralph.kanban-collapsed-epics.{projectId}`)
+- Added keyboard shortcuts (Enter/Space) to toggle collapse on focused EPIC header
+- Added "Hide Done" button to auto-collapse EPICs where all stories are done
+- Added "Expand All" / "Collapse All" bulk toggle button in toolbar
+- EpicRowHeader now uses role="button" with tabIndex and aria-expanded for accessibility
+
+**Files changed:**
+- src/routes/project/$id/kanban.tsx (added useCollapsedEpics hook, updated EpicRowHeader, EpicRow, StatsBar components)
+
+**Learnings:**
+- Used CSS maxHeight + opacity transition for smooth collapse animation (instead of CSS Grid or Accordion)
+- For accurate animation, measure content height with useRef and scrollHeight
+- localStorage persistence pattern: load in useEffect on mount, save in separate useEffect when state changes
+- Pattern: separate isInitialized state to prevent saving default values before load completes
+- getEpicStatusSummary helper generates readable collapsed state summary from storiesByStatus
+
+**Acceptance Criteria Verification:**
+- [x] Collapse toggle (chevron) op EPIC header - ChevronRight/ChevronDown icons
+- [x] Collapsed state toont alleen EPIC header met summary - getEpicStatusSummary()
+- [x] Expand/collapse animatie (smooth transition) - 200ms ease-in-out transition
+- [x] Collapse state opslaan in localStorage per project - useCollapsedEpics hook
+- [x] Keyboard shortcut: Enter/Space op focused EPIC header - onKeyDown handler
+- [x] Auto-collapse optie voor EPICs waar alle stories 'done' zijn - "Hide Done" button
+- [x] Bulk expand/collapse all button in toolbar - "Expand All" / "Collapse All" button
+- [x] Lint passing (pnpm lint) - no errors in kanban.tsx
+- [x] Build slaagt (pnpm build) - builds successfully

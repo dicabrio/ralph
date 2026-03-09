@@ -27,6 +27,9 @@ import {
   Info,
   Archive,
   Eye,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -537,18 +540,62 @@ function DroppableCell({
 interface EpicRowHeaderProps {
   epic: EpicData;
   columns: KanbanColumn[];
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
-function EpicRowHeader({ epic, columns }: EpicRowHeaderProps) {
+function EpicRowHeader({
+  epic,
+  columns,
+  isCollapsed,
+  onToggleCollapse,
+}: EpicRowHeaderProps) {
   // Calculate story counts per status for this EPIC
   const statusCounts = columns.map((col) => ({
     column: col,
     count: epic.storiesByStatus[col.id]?.length || 0,
   }));
 
+  // Handle keyboard interaction
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggleCollapse();
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-t-lg border-b sticky left-0 z-10">
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 bg-muted/50 border-b sticky left-0 z-10 cursor-pointer select-none",
+        "hover:bg-muted/70 transition-colors",
+        isCollapsed ? "rounded-lg" : "rounded-t-lg",
+      )}
+      onClick={onToggleCollapse}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-expanded={!isCollapsed}
+      data-testid={`epic-header-${epic.name}`}
+    >
+      {/* Collapse toggle chevron */}
+      <div className="flex-shrink-0 text-muted-foreground">
+        {isCollapsed ? (
+          <ChevronRight className="w-4 h-4" />
+        ) : (
+          <ChevronDown className="w-4 h-4" />
+        )}
+      </div>
+
       <span className="font-semibold text-sm text-foreground">{epic.name}</span>
+
+      {/* Collapsed summary text */}
+      {isCollapsed && (
+        <span className="text-xs text-muted-foreground ml-2 truncate flex-1">
+          {getEpicStatusSummary(epic, columns)}
+        </span>
+      )}
+
       <div className="flex items-center gap-1.5 ml-auto">
         {statusCounts.map(
           ({ column, count }) =>
@@ -564,7 +611,7 @@ function EpicRowHeader({ epic, columns }: EpicRowHeaderProps) {
               >
                 {count}
               </span>
-            )
+            ),
         )}
         <span className="text-xs text-muted-foreground ml-1">
           ({epic.stories.length})
@@ -585,6 +632,8 @@ interface EpicRowProps {
   runnerStatus: RunnerStatus;
   onPlayClick?: (story: Story) => void;
   onArchiveClick?: (story: Story) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 function EpicRow({
@@ -597,41 +646,74 @@ function EpicRow({
   runnerStatus,
   onPlayClick,
   onArchiveClick,
+  isCollapsed,
+  onToggleCollapse,
 }: EpicRowProps) {
+  // Content ref for measuring height for animation
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(
+    undefined,
+  );
+
+  // Measure content height when stories change
+  useEffect(() => {
+    if (contentRef.current && !isCollapsed) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [epic.storiesByStatus, columns, isCollapsed]);
+
   return (
     <div
       className="group bg-card rounded-lg border shadow-sm overflow-hidden"
       data-testid={`epic-row-${epic.name}`}
     >
-      <EpicRowHeader epic={epic} columns={columns} />
+      <EpicRowHeader
+        epic={epic}
+        columns={columns}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+      />
+
+      {/* Collapsible content with animation */}
       <div
-        className="grid gap-1 p-2"
+        ref={contentRef}
+        className={cn(
+          "overflow-hidden transition-all duration-200 ease-in-out",
+        )}
         style={{
-          gridTemplateColumns: `repeat(${columns.length}, minmax(160px, 1fr))`,
+          maxHeight: isCollapsed ? 0 : contentHeight ?? "none",
+          opacity: isCollapsed ? 0 : 1,
         }}
       >
-        {columns.map((column) => {
-          const cellId = `${epic.name}:${column.id}`;
-          const isOver = overCellId === cellId;
-          const canDrop = canDropActiveStory(cellId);
-          const stories = epic.storiesByStatus[column.id] || [];
+        <div
+          className="grid gap-1 p-2"
+          style={{
+            gridTemplateColumns: `repeat(${columns.length}, minmax(160px, 1fr))`,
+          }}
+        >
+          {columns.map((column) => {
+            const cellId = `${epic.name}:${column.id}`;
+            const isOver = overCellId === cellId;
+            const canDrop = canDropActiveStory(cellId);
+            const stories = epic.storiesByStatus[column.id] || [];
 
-          return (
-            <DroppableCell
-              key={column.id}
-              epicName={epic.name}
-              column={column}
-              stories={stories}
-              allStories={allStories}
-              isOver={isOver}
-              canDrop={canDrop}
-              onStoryClick={onStoryClick}
-              runnerStatus={runnerStatus}
-              onPlayClick={onPlayClick}
-              onArchiveClick={onArchiveClick}
-            />
-          );
-        })}
+            return (
+              <DroppableCell
+                key={column.id}
+                epicName={epic.name}
+                column={column}
+                stories={stories}
+                allStories={allStories}
+                isOver={isOver}
+                canDrop={canDrop}
+                onStoryClick={onStoryClick}
+                runnerStatus={runnerStatus}
+                onPlayClick={onPlayClick}
+                onArchiveClick={onArchiveClick}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -958,9 +1040,25 @@ interface StatsBarProps {
     pending: number;
     progress: number;
   };
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  onAutoCollapseCompleted?: () => void;
+  areAllExpanded?: boolean;
+  areAllCollapsed?: boolean;
+  showCollapseControls?: boolean;
+  hasCompletedEpics?: boolean;
 }
 
-function StatsBar({ stats }: StatsBarProps) {
+function StatsBar({
+  stats,
+  onExpandAll,
+  onCollapseAll,
+  onAutoCollapseCompleted,
+  areAllExpanded,
+  areAllCollapsed,
+  showCollapseControls,
+  hasCompletedEpics,
+}: StatsBarProps) {
   return (
     <div className="flex items-center gap-4 text-sm">
       <div className="flex items-center gap-1.5">
@@ -985,6 +1083,37 @@ function StatsBar({ stats }: StatsBarProps) {
       <span className="text-muted-foreground">
         {stats.progress}% complete ({stats.done}/{stats.total})
       </span>
+
+      {/* Bulk expand/collapse buttons */}
+      {showCollapseControls && (
+        <>
+          <div className="h-4 w-px bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={areAllCollapsed ? onExpandAll : onCollapseAll}
+            title={areAllCollapsed ? "Expand all EPICs" : "Collapse all EPICs"}
+            data-testid="toggle-all-epics"
+          >
+            <ChevronsUpDown className="w-3.5 h-3.5 mr-1" />
+            {areAllCollapsed ? "Expand All" : "Collapse All"}
+          </Button>
+          {hasCompletedEpics && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={onAutoCollapseCompleted}
+              title="Collapse EPICs where all stories are done"
+              data-testid="auto-collapse-done"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              Hide Done
+            </Button>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -1465,6 +1594,121 @@ function useIsMobile() {
   return isMobile;
 }
 
+// Hook to manage collapsed EPIC state with localStorage persistence
+function useCollapsedEpics(projectId: number, epics: EpicData[]) {
+  const storageKey = `ralph.kanban-collapsed-epics.${projectId}`;
+  const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(new Set());
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined" || Number.isNaN(projectId)) return;
+
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setCollapsedEpics(new Set(parsed));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load collapsed state from localStorage", e);
+    }
+    setIsInitialized(true);
+  }, [projectId, storageKey]);
+
+  // Save to localStorage when state changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !isInitialized) return;
+
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(Array.from(collapsedEpics)),
+      );
+    } catch (e) {
+      console.warn("Failed to save collapsed state to localStorage", e);
+    }
+  }, [collapsedEpics, storageKey, isInitialized]);
+
+  const toggleEpic = useCallback((epicName: string) => {
+    setCollapsedEpics((prev) => {
+      const next = new Set(prev);
+      if (next.has(epicName)) {
+        next.delete(epicName);
+      } else {
+        next.add(epicName);
+      }
+      return next;
+    });
+  }, []);
+
+  const isCollapsed = useCallback(
+    (epicName: string) => collapsedEpics.has(epicName),
+    [collapsedEpics],
+  );
+
+  const expandAll = useCallback(() => {
+    setCollapsedEpics(new Set());
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setCollapsedEpics(new Set(epics.map((e) => e.name)));
+  }, [epics]);
+
+  // Auto-collapse EPICs where all stories are done
+  const autoCollapseCompleted = useCallback(() => {
+    setCollapsedEpics((prev) => {
+      const next = new Set(prev);
+      for (const epic of epics) {
+        const allDone = epic.stories.every((s) => s.status === "done");
+        if (allDone && epic.stories.length > 0) {
+          next.add(epic.name);
+        }
+      }
+      return next;
+    });
+  }, [epics]);
+
+  const areAllCollapsed = useMemo(
+    () => epics.length > 0 && epics.every((e) => collapsedEpics.has(e.name)),
+    [epics, collapsedEpics],
+  );
+
+  const areAllExpanded = useMemo(
+    () => epics.length > 0 && !epics.some((e) => collapsedEpics.has(e.name)),
+    [epics, collapsedEpics],
+  );
+
+  return {
+    collapsedEpics,
+    toggleEpic,
+    isCollapsed,
+    expandAll,
+    collapseAll,
+    autoCollapseCompleted,
+    areAllCollapsed,
+    areAllExpanded,
+  };
+}
+
+// Generate status summary text for collapsed EPIC
+function getEpicStatusSummary(epic: EpicData, columns: KanbanColumn[]): string {
+  const parts: string[] = [];
+
+  for (const column of columns) {
+    const count = epic.storiesByStatus[column.id]?.length || 0;
+    if (count > 0) {
+      // Use short status names
+      const shortName = column.id === "in_progress" ? "in progress" : column.id;
+      parts.push(`${count} ${shortName}`);
+    }
+  }
+
+  return parts.join(", ");
+}
+
 function KanbanBoard() {
   const { id } = Route.useParams();
   const projectId = parseInt(id, 10);
@@ -1855,11 +2099,33 @@ function KanbanBoard() {
   // Group stories by EPIC
   const epics = useMemo(() => groupStoriesByEpic(stories), [stories]);
 
+  // Manage collapsed EPIC state
+  const {
+    toggleEpic,
+    isCollapsed,
+    expandAll,
+    collapseAll,
+    autoCollapseCompleted,
+    areAllCollapsed,
+    areAllExpanded,
+  } = useCollapsedEpics(projectId, epics);
+
   // Filter columns: only show 'failed' column if there are failed stories
   const visibleColumns = useMemo(
     () =>
       KANBAN_COLUMNS.filter((col) => col.id !== "failed" || hasFailedStories),
     [hasFailedStories],
+  );
+
+  // Check if any EPIC has all stories done (for auto-collapse button visibility)
+  const hasCompletedEpics = useMemo(
+    () =>
+      epics.some(
+        (epic) =>
+          epic.stories.length > 0 &&
+          epic.stories.every((s) => s.status === "done"),
+      ),
+    [epics],
   );
 
   // Handle runner start/stop
@@ -2182,7 +2448,16 @@ function KanbanBoard() {
           <div className="px-6 py-3">
             {/* Runner controls and stats in same row */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <StatsBar stats={stats} />
+              <StatsBar
+                stats={stats}
+                onExpandAll={expandAll}
+                onCollapseAll={collapseAll}
+                onAutoCollapseCompleted={autoCollapseCompleted}
+                areAllExpanded={areAllExpanded}
+                areAllCollapsed={areAllCollapsed}
+                showCollapseControls={!isMobile && epics.length > 0}
+                hasCompletedEpics={hasCompletedEpics}
+              />
               <KanbanRunnerControls
                 projectId={projectId}
                 runnerStatus={runnerStatus}
@@ -2249,6 +2524,8 @@ function KanbanBoard() {
                       runnerStatus={runnerStatus}
                       onPlayClick={handlePlayStoryClick}
                       onArchiveClick={handleArchiveStoryClick}
+                      isCollapsed={isCollapsed(epic.name)}
+                      onToggleCollapse={() => toggleEpic(epic.name)}
                     />
                   ))
                 )}
