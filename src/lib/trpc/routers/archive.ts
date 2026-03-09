@@ -261,16 +261,11 @@ export const archiveRouter = router({
         })
       }
 
-      // Check if story is already archived
-      const existingArchived = archivedData.archivedStories.find(s => s.id === input.storyId)
-      if (existingArchived) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: `Story "${input.storyId}" is already archived`,
-        })
-      }
+      // Check if story is already archived - if so, update the timestamp instead of throwing
+      const existingArchivedIndex = archivedData.archivedStories.findIndex(s => s.id === input.storyId)
+      const isUpdate = existingArchivedIndex !== -1
 
-      // Create archived version of the story
+      // Create archived version of the story with new timestamp
       const archivedStory = createArchivedStory(story)
 
       // Remove from prd.json
@@ -279,8 +274,13 @@ export const archiveRouter = router({
       // Clean up dependencies: remove archived story ID from all remaining stories
       const cleanedDependencies = cleanupDependencies(prdData, [input.storyId])
 
-      // Add to archived.json
-      archivedData.archivedStories.push(archivedStory)
+      if (isUpdate) {
+        // Update existing archived entry with new timestamp
+        archivedData.archivedStories[existingArchivedIndex] = archivedStory
+      } else {
+        // Add new entry to archived.json
+        archivedData.archivedStories.push(archivedStory)
+      }
 
       // Atomic-ish write: write archived first, then prd
       // If prd write fails after archived write, we may have duplicates
@@ -292,6 +292,7 @@ export const archiveRouter = router({
       return {
         ...archivedStory,
         cleanedDependencies,
+        action: isUpdate ? 'updated' : 'archived' as const,
       }
     }),
 
@@ -313,8 +314,10 @@ export const archiveRouter = router({
       const archivedData = await readArchivedJson(project.path, projectName)
 
       const archivedStories: ArchivedStory[] = []
+      const updatedStories: ArchivedStory[] = []
       const errors: string[] = []
       const indicesToRemove: number[] = []
+      const indicesToUpdate: { storyIndex: number; archivedIndex: number }[] = []
 
       for (const storyId of input.storyIds) {
         const storyIndex = prdData.userStories.findIndex(s => s.id === storyId)
@@ -331,18 +334,21 @@ export const archiveRouter = router({
           continue
         }
 
-        const existingArchived = archivedData.archivedStories.find(s => s.id === storyId)
-        if (existingArchived) {
-          errors.push(`Story "${storyId}" is already archived`)
-          continue
-        }
-
+        const existingArchivedIndex = archivedData.archivedStories.findIndex(s => s.id === storyId)
         const archivedStory = createArchivedStory(story)
-        archivedStories.push(archivedStory)
+
+        if (existingArchivedIndex !== -1) {
+          // Story already in archive - will be updated
+          updatedStories.push(archivedStory)
+          indicesToUpdate.push({ storyIndex, archivedIndex: existingArchivedIndex })
+        } else {
+          // New archive entry
+          archivedStories.push(archivedStory)
+        }
         indicesToRemove.push(storyIndex)
       }
 
-      if (archivedStories.length === 0) {
+      if (archivedStories.length === 0 && updatedStories.length === 0) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: `No stories could be archived: ${errors.join('; ')}`,
@@ -356,10 +362,18 @@ export const archiveRouter = router({
       }
 
       // Clean up dependencies: remove all archived story IDs from remaining stories
-      const archivedIds = archivedStories.map(s => s.id)
-      const cleanedDependencies = cleanupDependencies(prdData, archivedIds)
+      const allArchivedIds = [...archivedStories, ...updatedStories].map(s => s.id)
+      const cleanedDependencies = cleanupDependencies(prdData, allArchivedIds)
 
-      // Add all archived stories
+      // Update existing archived entries
+      for (const { archivedIndex } of indicesToUpdate) {
+        const updatedStory = updatedStories.find(s => s.id === archivedData.archivedStories[archivedIndex].id)
+        if (updatedStory) {
+          archivedData.archivedStories[archivedIndex] = updatedStory
+        }
+      }
+
+      // Add new archived stories
       archivedData.archivedStories.push(...archivedStories)
 
       // Write both files atomically (story removal + dependency cleanup in one prd.json write)
@@ -368,6 +382,7 @@ export const archiveRouter = router({
 
       return {
         archived: archivedStories,
+        updated: updatedStories,
         cleanedDependencies,
         errors: errors.length > 0 ? errors : undefined,
       }

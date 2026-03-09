@@ -304,23 +304,25 @@ describe('archiveRouter', () => {
       })
     })
 
-    it('throws CONFLICT when story is already archived', async () => {
+    it('updates timestamp when story is already archived (instead of throwing)', async () => {
+      const originalArchivedAt = '2024-01-15T10:30:00.000Z'
       vi.mocked(existsSync).mockImplementation((path: PathLike) => {
         if (String(path).includes('prd.json')) return true
         if (String(path).includes('archived.json')) return true
+        if (String(path).includes('stories')) return true
         return false
       })
       vi.mocked(readFile).mockImplementation(async (path) => {
         if (String(path).includes('prd.json')) {
-          // Add ARCHIVED-001 to prd.json for this test
+          // Add ARCHIVED-001 to prd.json for this test (re-archiving scenario)
           return JSON.stringify({
             ...samplePrdJson,
             userStories: [
               ...samplePrdJson.userStories,
               {
                 id: 'ARCHIVED-001',
-                title: 'Story',
-                description: 'Desc',
+                title: 'Updated Story',
+                description: 'Updated Desc',
                 priority: 50,
                 status: 'done' as StoryStatus,
                 epic: 'Test',
@@ -332,20 +334,60 @@ describe('archiveRouter', () => {
           })
         }
         if (String(path).includes('archived.json')) {
-          return JSON.stringify(sampleArchivedJson)
+          return JSON.stringify(sampleArchivedJson) // Contains ARCHIVED-001 with old timestamp
         }
         throw new Error('Unexpected path')
       })
+      vi.mocked(writeFile).mockResolvedValue(undefined)
 
       const caller = createCaller({})
 
-      await expect(caller.archiveStory({
+      const before = new Date()
+      const result = await caller.archiveStory({
         projectId: testProjectId,
         storyId: 'ARCHIVED-001',
-      })).rejects.toMatchObject({
-        code: 'CONFLICT',
-        message: expect.stringContaining('already archived'),
       })
+
+      // Should succeed with 'updated' action
+      expect(result.id).toBe('ARCHIVED-001')
+      expect(result.action).toBe('updated')
+
+      // New timestamp should be after the original
+      const newArchivedAt = new Date(result.archivedAt)
+      const originalDate = new Date(originalArchivedAt)
+      expect(newArchivedAt.getTime()).toBeGreaterThan(originalDate.getTime())
+      expect(newArchivedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+
+      // Verify archived.json was updated (not appended)
+      const archivedWriteCall = vi.mocked(writeFile).mock.calls[0]
+      const archivedData = JSON.parse(archivedWriteCall[1] as string)
+      expect(archivedData.archivedStories).toHaveLength(1) // Still only 1 entry
+      expect(archivedData.archivedStories[0].id).toBe('ARCHIVED-001')
+      expect(archivedData.archivedStories[0].title).toBe('Updated Story') // Updated content
+
+      // Verify story was removed from prd.json
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'ARCHIVED-001')).toBeUndefined()
+    })
+
+    it('returns action: archived for new archive entries', async () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        if (String(path).includes('prd.json')) return true
+        if (String(path).includes('archived.json')) return false
+        if (String(path).includes('stories')) return true
+        return false
+      })
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(samplePrdJson))
+      vi.mocked(writeFile).mockResolvedValue(undefined)
+
+      const caller = createCaller({})
+      const result = await caller.archiveStory({
+        projectId: testProjectId,
+        storyId: 'STORY-002',
+      })
+
+      expect(result.action).toBe('archived')
     })
 
     it('creates archived.json if it does not exist', async () => {
@@ -477,7 +519,7 @@ describe('archiveRouter', () => {
       })
     })
 
-    it('skips already archived stories', async () => {
+    it('updates already archived stories instead of skipping', async () => {
       vi.mocked(existsSync).mockImplementation((path: PathLike) => {
         if (String(path).includes('prd.json')) return true
         if (String(path).includes('archived.json')) return true
@@ -492,8 +534,8 @@ describe('archiveRouter', () => {
               ...samplePrdJson.userStories,
               {
                 id: 'ARCHIVED-001',
-                title: 'Story to archive',
-                description: 'Desc',
+                title: 'Updated Story',
+                description: 'Updated Desc',
                 priority: 50,
                 status: 'done' as StoryStatus,
                 epic: 'Test',
@@ -505,7 +547,7 @@ describe('archiveRouter', () => {
           })
         }
         if (String(path).includes('archived.json')) {
-          return JSON.stringify(sampleArchivedJson)
+          return JSON.stringify(sampleArchivedJson) // Contains ARCHIVED-001
         }
         throw new Error('Unexpected path')
       })
@@ -517,9 +559,24 @@ describe('archiveRouter', () => {
         storyIds: ['STORY-002', 'ARCHIVED-001'],
       })
 
+      // STORY-002 is newly archived, ARCHIVED-001 is updated
       expect(result.archived).toHaveLength(1)
       expect(result.archived[0].id).toBe('STORY-002')
-      expect(result.errors).toContain('Story "ARCHIVED-001" is already archived')
+      expect(result.updated).toHaveLength(1)
+      expect(result.updated[0].id).toBe('ARCHIVED-001')
+      expect(result.updated[0].title).toBe('Updated Story')
+      expect(result.errors).toBeUndefined()
+
+      // Verify archived.json has both entries (one updated, one new)
+      const archivedWriteCall = vi.mocked(writeFile).mock.calls[0]
+      const archivedData = JSON.parse(archivedWriteCall[1] as string)
+      expect(archivedData.archivedStories).toHaveLength(2)
+
+      // Verify prd.json has both stories removed
+      const prdWriteCall = vi.mocked(writeFile).mock.calls[1]
+      const prdData = JSON.parse(prdWriteCall[1] as string)
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'STORY-002')).toBeUndefined()
+      expect(prdData.userStories.find((s: { id: string }) => s.id === 'ARCHIVED-001')).toBeUndefined()
     })
 
     it('throws NOT_FOUND when project does not exist', async () => {

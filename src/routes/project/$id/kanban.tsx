@@ -1527,9 +1527,12 @@ function KanbanBoard() {
       const depCleanupText = result.cleanedDependencies > 0
         ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
         : '';
-      toast.success("Story gearchiveerd", {
-        description: `${result.id} is verplaatst naar het archief${depCleanupText}`,
-      });
+      const isUpdate = result.action === 'updated';
+      const title = isUpdate ? "Story bijgewerkt" : "Story gearchiveerd";
+      const description = isUpdate
+        ? `${result.id} archief timestamp bijgewerkt${depCleanupText}`
+        : `${result.id} is verplaatst naar het archief${depCleanupText}`;
+      toast.success(title, { description });
       setIsArchiveDialogOpen(false);
       setArchiveTarget(null);
     },
@@ -1575,12 +1578,23 @@ function KanbanBoard() {
       });
     },
     onSuccess: (result) => {
-      const count = result.archived.length;
+      const archivedCount = result.archived.length;
+      const updatedCount = result.updated?.length ?? 0;
       const depCleanupText = result.cleanedDependencies > 0
         ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
         : '';
-      toast.success("Stories gearchiveerd", {
-        description: `${count} ${count === 1 ? "story" : "stories"} verplaatst naar het archief${depCleanupText}`,
+
+      // Build description based on what happened
+      const parts: string[] = [];
+      if (archivedCount > 0) {
+        parts.push(`${archivedCount} ${archivedCount === 1 ? "story" : "stories"} gearchiveerd`);
+      }
+      if (updatedCount > 0) {
+        parts.push(`${updatedCount} ${updatedCount === 1 ? "story" : "stories"} bijgewerkt`);
+      }
+
+      toast.success("Stories verwerkt", {
+        description: `${parts.join(", ")}${depCleanupText}`,
       });
       if (result.errors && result.errors.length > 0) {
         toast.warning("Some stories could not be archived", {

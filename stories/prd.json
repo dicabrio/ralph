@@ -112,7 +112,7 @@
       "title": "Archiveer duplicaten opschonen",
       "description": "Pas de archiveer-functionaliteit aan zodat stories die al in archived.json staan opnieuw gearchiveerd kunnen worden. In plaats van een 'already archived' error wordt de bestaande archived entry bijgewerkt met een nieuwe timestamp.",
       "priority": 74,
-      "status": "pending",
+      "status": "review",
       "epic": "Archive",
       "dependencies": [],
       "recommendedSkills": [

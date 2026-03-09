@@ -3139,3 +3139,27 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Flow-based UI is simpler: progress = flows.filter(f => f.checked).length / flows.length
 - AI prompt should explicitly state "3-5 flows" and "4-8 steps per flow" to control output size
 - Keep tRPC API compatible (updateItem still works but is renamed internally to updateFlowChecked)
+
+## 2026-03-09 - ARCH-001
+**Title:** Archiveer duplicaten opschonen
+
+**Implemented:**
+- Modified archiveStory to update existing archived entries instead of throwing CONFLICT error
+- Added `action: "archived" | "updated"` to API response for single archive
+- Modified archiveMultiple to track both newly archived and updated stories
+- Added `updated: ArchivedStory[]` to bulk archive response
+- Updated UI toast messages to display different text based on action (Gearchiveerd vs Bijgewerkt)
+- Updated bulk archive UI to show combined message (e.g., "3 stories gearchiveerd, 2 stories bijgewerkt")
+- Updated unit tests to verify update scenario instead of CONFLICT behavior
+
+**Files changed:**
+- src/lib/trpc/routers/archive.ts (API logic changes)
+- src/lib/trpc/routers/archive.test.ts (updated tests)
+- src/routes/project/$id/kanban.tsx (toast message updates)
+
+**Learnings:**
+- Archive update logic replaces the existing entry at the same index to preserve order
+- Bulk archive tracks both `archived` (new) and `updated` (existing) arrays separately
+- Both archiveStory and archiveMultiple still remove dependencies from remaining stories
+- The `action` field is typed as a const to ensure type safety with literal types
+
