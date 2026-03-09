@@ -2,18 +2,19 @@
  * Test Scenario Generator Service
  *
  * Generates test scenarios when stories transition to review status.
- * Uses OpenAI to create structured test scenarios from acceptance criteria.
+ * Uses OpenAI to create user flow test scenarios from acceptance criteria.
+ *
+ * Flow-based approach: Instead of many individual test items, generates
+ * 3-5 end-to-end user flows that reviewers can walk through.
  */
 import { join } from 'node:path'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import {
   type TestScenario,
-  type TestScenarioSection,
-  type TestScenarioItem,
-  SECTION_IDS,
-  DEFAULT_QUALITY_GATES,
+  type TestFlow,
   testScenarioSchema,
+  parseTestScenario,
 } from '@/lib/schemas/testScenarioSchema'
 import { streamChatCompletion, isOpenAIConfigured } from './openaiService'
 
@@ -70,7 +71,7 @@ function generateSystemPrompt(story: StoryForTestScenario): string {
 
   return `You are a test scenario generator for software development.
 
-Given a user story with acceptance criteria, generate a structured test scenario document.
+Given a user story with acceptance criteria, generate **3-5 user flows** that a reviewer can walk through to verify the implementation is correct.
 
 ## Story Information
 
@@ -81,53 +82,66 @@ Given a user story with acceptance criteria, generate a structured test scenario
 
 ## Acceptance Criteria
 
-${criteria.length > 0 ? criteria.map((c, i) => `${i + 1}. ${c}`).join('\n') : 'No specific criteria provided - generate basic tests for the story.'}
+${criteria.length > 0 ? criteria.map((c, i) => `${i + 1}. ${c}`).join('\n') : 'No specific criteria provided - generate basic test flows for the story.'}
 
 ## Instructions
 
-Generate test scenarios in the following JSON format. Create specific, actionable test items based on the acceptance criteria.
+Generate **3-5 user flows** (not individual test items). Each flow is a complete end-to-end scenario that tests multiple acceptance criteria together.
 
-**Categories:**
-1. **Functional Tests** - Test that each acceptance criterion works correctly
-2. **UI Verification** - Test visual elements, user interactions, and accessibility (only if the story involves UI)
+**Flow types to consider:**
+1. **Happy path** - The main success scenario where everything works as expected
+2. **Error handling** - What happens when things go wrong (validation errors, network issues, etc.)
+3. **Edge cases** - Boundary conditions, empty states, maximum values, etc.
+4. **Alternative paths** - Secondary ways to achieve the same goal
 
-Do NOT include quality gates (build, lint, test) - those are added automatically.
+**Each flow should have:**
+- A clear, descriptive name (e.g., "Happy path: Create new project", "Error: Invalid form submission")
+- 4-8 concrete steps the reviewer should take
+- Steps should be actionable (click, type, verify, wait for, etc.)
 
 ## Response Format
 
 Respond ONLY with a JSON object (no markdown code blocks, no explanation):
 
 {
-  "sections": [
+  "flows": [
     {
-      "id": "functional-tests",
-      "title": "Functional Tests",
-      "items": [
-        { "id": "ft-1", "text": "Description of what to test", "checked": false }
-      ]
+      "id": "flow-1",
+      "name": "Happy path: [description]",
+      "steps": [
+        "Navigate to the [page/feature]",
+        "Click on [button/element]",
+        "Enter [value] in [field]",
+        "Verify [expected result]"
+      ],
+      "checked": false
     },
     {
-      "id": "ui-verification",
-      "title": "UI Verification",
-      "items": [
-        { "id": "ui-1", "text": "Description of UI element to verify", "checked": false }
-      ]
+      "id": "flow-2",
+      "name": "Error handling: [description]",
+      "steps": [
+        "Navigate to the [page/feature]",
+        "Submit without filling required fields",
+        "Verify error message appears",
+        "Verify form state is preserved"
+      ],
+      "checked": false
     }
   ]
 }
 
 Important:
-- Each item ID must be unique within the scenario
-- Use descriptive, specific test descriptions
-- Include both positive and negative test cases where applicable
-- If the story has no UI components, omit the ui-verification section entirely
-- Base functional tests directly on the acceptance criteria`
+- Generate 3-5 flows maximum (prefer quality over quantity)
+- Each flow should have 4-8 steps maximum
+- Steps should be concrete and actionable
+- Cover the most important acceptance criteria across the flows
+- Do NOT generate separate flows for "pnpm test", "pnpm lint", "pnpm build" - focus on user-facing functionality`
 }
 
 /**
- * Parse the AI response into test scenario sections
+ * Parse the AI response into test flows
  */
-function parseTestScenariosFromResponse(content: string): TestScenarioSection[] {
+function parseFlowsFromResponse(content: string): TestFlow[] {
   try {
     // Try to find JSON in the response (with or without code blocks)
     let jsonContent = content.trim()
@@ -140,42 +154,35 @@ function parseTestScenariosFromResponse(content: string): TestScenarioSection[] 
 
     const parsed = JSON.parse(jsonContent)
 
-    if (!parsed.sections || !Array.isArray(parsed.sections)) {
-      console.log('[TestScenarioGenerator] Invalid response format: missing sections array')
+    if (!parsed.flows || !Array.isArray(parsed.flows)) {
+      console.log('[TestScenarioGenerator] Invalid response format: missing flows array')
       return []
     }
 
-    // Validate and normalize each section
-    const sections: TestScenarioSection[] = []
+    // Validate and normalize each flow
+    const flows: TestFlow[] = []
 
-    for (const section of parsed.sections) {
-      if (!section.id || !section.title || !Array.isArray(section.items)) {
+    for (const flow of parsed.flows) {
+      if (!flow.id || !flow.name || !Array.isArray(flow.steps)) {
         continue
       }
 
-      const items: TestScenarioItem[] = section.items
-        .filter((item: unknown): item is Record<string, unknown> =>
-          typeof item === 'object' &&
-          item !== null &&
-          typeof (item as Record<string, unknown>).id === 'string' &&
-          typeof (item as Record<string, unknown>).text === 'string'
-        )
-        .map((item: Record<string, unknown>) => ({
-          id: String(item.id),
-          text: String(item.text),
-          checked: item.checked === true,
-        }))
+      // Filter and convert steps to strings
+      const steps: string[] = flow.steps
+        .filter((step: unknown): step is string => typeof step === 'string' && step.trim().length > 0)
+        .map((step: string) => step.trim())
 
-      if (items.length > 0) {
-        sections.push({
-          id: String(section.id),
-          title: String(section.title),
-          items,
+      if (steps.length > 0) {
+        flows.push({
+          id: String(flow.id),
+          name: String(flow.name),
+          steps,
+          checked: flow.checked === true,
         })
       }
     }
 
-    return sections
+    return flows
   } catch (error) {
     console.error('[TestScenarioGenerator] Failed to parse AI response:', error)
     return []
@@ -187,7 +194,7 @@ function parseTestScenariosFromResponse(content: string): TestScenarioSection[] 
  */
 function generateMarkdown(scenario: TestScenario): string {
   const lines: string[] = [
-    `# Test Scenarios: ${scenario.storyId}`,
+    `# Test Flows: ${scenario.storyId}`,
     '',
     `## Story: ${scenario.title}`,
     '',
@@ -197,14 +204,14 @@ function generateMarkdown(scenario: TestScenario): string {
     '',
   ]
 
-  for (const section of scenario.sections) {
-    lines.push(`## ${section.title}`)
+  for (const flow of scenario.flows) {
+    const checkbox = flow.checked ? '[x]' : '[ ]'
+    lines.push(`## ${checkbox} ${flow.name}`)
     lines.push('')
 
-    for (const item of section.items) {
-      const checkbox = item.checked ? '[x]' : '[ ]'
-      lines.push(`- ${checkbox} ${item.text}`)
-    }
+    flow.steps.forEach((step, index) => {
+      lines.push(`${index + 1}. ${step}`)
+    })
 
     lines.push('')
   }
@@ -214,27 +221,54 @@ function generateMarkdown(scenario: TestScenario): string {
 
 /**
  * Create a fallback test scenario when AI generation fails
+ * Groups acceptance criteria into logical flows
  */
-function createFallbackScenario(story: StoryForTestScenario): TestScenarioSection[] {
-  const sections: TestScenarioSection[] = []
+function createFallbackFlows(story: StoryForTestScenario): TestFlow[] {
   const criteria = story.acceptanceCriteria || []
 
-  // Generate functional tests from acceptance criteria
-  const functionalItems: TestScenarioItem[] = criteria.map((criterion, index) => ({
-    id: `ft-${index + 1}`,
-    text: `Verify: ${criterion}`,
-    checked: false,
-  }))
+  if (criteria.length === 0) {
+    return [{
+      id: 'flow-1',
+      name: 'Happy path: Basic functionality',
+      steps: [
+        'Navigate to the relevant page/feature',
+        `Verify ${story.title} is implemented`,
+        'Check for expected behavior',
+      ],
+      checked: false,
+    }]
+  }
 
-  if (functionalItems.length > 0) {
-    sections.push({
-      id: SECTION_IDS.FUNCTIONAL,
-      title: 'Functional Tests',
-      items: functionalItems,
+  // Group criteria into a single verification flow
+  // Each criterion becomes a step
+  const verificationSteps = criteria.slice(0, 8).map(criterion =>
+    criterion.startsWith('Verify') || criterion.startsWith('Check')
+      ? criterion
+      : `Verify: ${criterion}`
+  )
+
+  const flows: TestFlow[] = [{
+    id: 'flow-1',
+    name: 'Happy path: Verify acceptance criteria',
+    steps: verificationSteps,
+    checked: false,
+  }]
+
+  // If there are more than 8 criteria, add a second flow
+  if (criteria.length > 8) {
+    flows.push({
+      id: 'flow-2',
+      name: 'Additional verification',
+      steps: criteria.slice(8, 16).map(criterion =>
+        criterion.startsWith('Verify') || criterion.startsWith('Check')
+          ? criterion
+          : `Verify: ${criterion}`
+      ),
+      checked: false,
     })
   }
 
-  return sections
+  return flows
 }
 
 /**
@@ -248,12 +282,12 @@ export async function generateTestScenarios(
   story: StoryForTestScenario,
   projectPath: string,
 ): Promise<TestScenario> {
-  console.log(`[TestScenarioGenerator] Generating test scenarios for ${story.id}`)
+  console.log(`[TestScenarioGenerator] Generating test flows for ${story.id}`)
 
   // Ensure directory exists
   await ensureTestScenariosDir(projectPath)
 
-  let sections: TestScenarioSection[] = []
+  let flows: TestFlow[] = []
 
   // Try to generate with AI if configured
   if (isOpenAIConfigured()) {
@@ -264,7 +298,7 @@ export async function generateTestScenarios(
       await new Promise<void>((resolve, reject) => {
         streamChatCompletion(
           prompt,
-          'Generate test scenarios for this story.',
+          'Generate user flows for testing this story.',
           {
             onChunk: (chunk) => {
               aiResponse += chunk
@@ -279,8 +313,8 @@ export async function generateTestScenarios(
         )
       })
 
-      sections = parseTestScenariosFromResponse(aiResponse)
-      console.log(`[TestScenarioGenerator] AI generated ${sections.length} sections`)
+      flows = parseFlowsFromResponse(aiResponse)
+      console.log(`[TestScenarioGenerator] AI generated ${flows.length} flows`)
     } catch (error) {
       console.error('[TestScenarioGenerator] AI generation failed:', error)
     }
@@ -289,17 +323,10 @@ export async function generateTestScenarios(
   }
 
   // Use fallback if AI generation failed or returned empty
-  if (sections.length === 0) {
-    sections = createFallbackScenario(story)
-    console.log('[TestScenarioGenerator] Using fallback scenario')
+  if (flows.length === 0) {
+    flows = createFallbackFlows(story)
+    console.log('[TestScenarioGenerator] Using fallback flows')
   }
-
-  // Always add quality gates section
-  sections.push({
-    id: SECTION_IDS.QUALITY,
-    title: 'Quality Gates',
-    items: DEFAULT_QUALITY_GATES.map(item => ({ ...item })),
-  })
 
   // Create the complete test scenario
   const scenario: TestScenario = {
@@ -307,7 +334,7 @@ export async function generateTestScenarios(
     title: story.title,
     description: story.description || story.title,
     generatedAt: new Date().toISOString(),
-    sections,
+    flows,
   }
 
   // Validate the scenario
@@ -320,13 +347,14 @@ export async function generateTestScenarios(
   await writeFile(jsonPath, `${JSON.stringify(validated, null, 2)}\n`, 'utf-8')
   await writeFile(mdPath, generateMarkdown(validated), 'utf-8')
 
-  console.log(`[TestScenarioGenerator] Saved test scenarios to ${jsonPath} and ${mdPath}`)
+  console.log(`[TestScenarioGenerator] Saved test flows to ${jsonPath} and ${mdPath}`)
 
   return validated
 }
 
 /**
  * Read existing test scenario for a story
+ * Handles both v1 (sections) and v2 (flows) formats automatically
  *
  * @param projectPath - Path to the project
  * @param storyId - The story ID
@@ -345,7 +373,8 @@ export async function readTestScenario(
   try {
     const content = await readFile(jsonPath, 'utf-8')
     const data = JSON.parse(content)
-    return testScenarioSchema.parse(data)
+    // parseTestScenario handles both v1 (sections) and v2 (flows) formats
+    return parseTestScenario(data)
   } catch (error) {
     console.error(`[TestScenarioGenerator] Failed to read test scenario for ${storyId}:`, error)
     return null
@@ -353,18 +382,18 @@ export async function readTestScenario(
 }
 
 /**
- * Update a test item's checked status
+ * Update a flow's checked status
  *
  * @param projectPath - Path to the project
  * @param storyId - The story ID
- * @param itemId - The item ID to update
+ * @param flowId - The flow ID to update
  * @param checked - New checked status
  * @returns The updated test scenario
  */
-export async function updateTestItem(
+export async function updateFlowChecked(
   projectPath: string,
   storyId: string,
-  itemId: string,
+  flowId: string,
   checked: boolean,
 ): Promise<TestScenario> {
   const scenario = await readTestScenario(projectPath, storyId)
@@ -373,20 +402,13 @@ export async function updateTestItem(
     throw new Error(`Test scenario not found for story ${storyId}`)
   }
 
-  // Find and update the item
-  let found = false
-  for (const section of scenario.sections) {
-    const item = section.items.find(i => i.id === itemId)
-    if (item) {
-      item.checked = checked
-      found = true
-      break
-    }
+  // Find and update the flow
+  const flow = scenario.flows.find(f => f.id === flowId)
+  if (!flow) {
+    throw new Error(`Flow ${flowId} not found in scenario for story ${storyId}`)
   }
 
-  if (!found) {
-    throw new Error(`Test item ${itemId} not found in scenario for story ${storyId}`)
-  }
+  flow.checked = checked
 
   // Write both files
   const jsonPath = getTestScenarioJsonPath(projectPath, storyId)
@@ -396,4 +418,18 @@ export async function updateTestItem(
   await writeFile(mdPath, generateMarkdown(scenario), 'utf-8')
 
   return scenario
+}
+
+/**
+ * @deprecated Use updateFlowChecked instead
+ * Kept for backwards compatibility with existing code
+ */
+export async function updateTestItem(
+  projectPath: string,
+  storyId: string,
+  itemId: string,
+  checked: boolean,
+): Promise<TestScenario> {
+  // itemId is now a flowId in the new schema
+  return updateFlowChecked(projectPath, storyId, itemId, checked)
 }

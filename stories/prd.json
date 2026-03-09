@@ -79,6 +79,58 @@
       ]
     },
     {
+      "id": "TEST-002",
+      "title": "Test scenarios vereenvoudigen naar user flows",
+      "description": "Pas de test scenario generator aan om user flows te genereren in plaats van gedetailleerde losse test items. Momenteel genereert het systeem 40+ individuele checkboxes per story, wat review onoverzichtelijk maakt. In plaats daarvan genereren we 3-5 end-to-end flows die de reviewer kan doorlopen. Als de flow werkt, is de implementatie correct.",
+      "priority": 73,
+      "status": "review",
+      "epic": "Testing",
+      "dependencies": [],
+      "recommendedSkills": [
+        "backend-development:api-design-principles",
+        "frontend-design"
+      ],
+      "acceptanceCriteria": [
+        "Schema: vervang sections[].items[] structuur door flows[] met name en steps[]",
+        "Schema: verwijder SECTION_IDS en DEFAULT_QUALITY_GATES (staan al in acceptance criteria)",
+        "Generator prompt: vraag om 3-5 user flows in plaats van losse test items",
+        "Generator prompt: flows beschrijven een happy path of error scenario",
+        "Generator prompt: elke flow heeft 4-8 stappen max",
+        "Generator: output format wijzigen naar { flows: [{ name, steps, checked }] }",
+        "UI: FlowCard component met genummerde stappen",
+        "UI: hele flow afvinken met één checkbox (niet per stap)",
+        "UI: flow titel en stappen zijn zichtbaar zonder expanderen",
+        "Markdown: genereer flows als genummerde lijsten",
+        "Bestaande test scenarios blijven werken (backwards compatible parsing)",
+        "Unit tests voor nieuwe flow parsing",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
+      "id": "ARCH-001",
+      "title": "Archiveer duplicaten opschonen",
+      "description": "Pas de archiveer-functionaliteit aan zodat stories die al in archived.json staan opnieuw gearchiveerd kunnen worden. In plaats van een 'already archived' error wordt de bestaande archived entry bijgewerkt met een nieuwe timestamp.",
+      "priority": 74,
+      "status": "pending",
+      "epic": "Archive",
+      "dependencies": [],
+      "recommendedSkills": [
+        "backend-development:api-design-principles"
+      ],
+      "acceptanceCriteria": [
+        "Story in prd.json (done) + niet in archived.json: verplaats naar archived.json (bestaand gedrag)",
+        "Story in prd.json (done) + al in archived.json: update archivedAt timestamp, verwijder uit prd.json",
+        "Archived.json entries worden nooit verwijderd",
+        "API response bevat action: 'archived' | 'updated'",
+        "UI: toast past aan op actie (Gearchiveerd / Bijgewerkt)",
+        "archiveMultiple: zelfde logica voor bulk operaties",
+        "Unit tests voor update scenario",
+        "Lint passing (pnpm lint)",
+        "Build slaagt (pnpm build)"
+      ]
+    },
+    {
       "id": "UI-031",
       "title": "Favicon met Ralph logo",
       "description": "Vervang de standaard TanStack favicon door het Ralph logo. Genereer meerdere icon formaten voor browser tabs, bookmarks en PWA ondersteuning.",
@@ -501,177 +553,6 @@
         "Base: test scenario generation trigger",
         "Shared types: RunnerState, LogEntry, PrdStory geëxporteerd",
         "Unit tests voor BaseLoopService shared methods",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-012",
-      "title": "Refactor bestaande LoopServices naar BaseLoopService",
-      "description": "Migreer ClaudeLoopService, GeminiLoopService en CodexLoopService naar de nieuwe BaseLoopService. Elke service implementeert alleen provider-specifieke logica.",
-      "priority": 103,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "RUNNER-011"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "ClaudeLoopService extends BaseLoopService",
-        "Claude: providerName = 'claude'",
-        "Claude: isAvailable() checkt 'claude --version'",
-        "Claude: isConfigured() checkt ~/.claude.json",
-        "Claude: buildSpawnConfig() retourneert claude CLI args",
-        "GeminiLoopService extends BaseLoopService",
-        "Gemini: providerName = 'gemini'",
-        "Gemini: override parseOutput() voor stream-json parsing",
-        "Gemini: buildSpawnConfig() retourneert gemini CLI args",
-        "CodexLoopService extends BaseLoopService",
-        "Codex: providerName = 'codex'",
-        "Codex: isConfigured() checkt OPENAI_API_KEY of ~/.codex/auth.json",
-        "Codex: buildSpawnConfig() retourneert codex CLI args",
-        "Alle bestaande tests blijven passing",
-        "Runner router werkt ongewijzigd met gerefactorde services",
-        "E2E test: start/stop met elke provider",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-013",
-      "title": "ralph.config.json project configuratie",
-      "description": "Implementeer per-project configuratie via stories/ralph.config.json. Hiermee kunnen gebruikers de runner provider en model per project instellen.",
-      "priority": 104,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "RUNNER-012"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Schema: RalphConfig type met runner configuratie",
-        "Schema: runner.provider ('claude' | 'ollama' | 'gemini' | 'codex')",
-        "Schema: runner.model (string, optioneel)",
-        "Schema: runner.baseUrl (string, optioneel voor Ollama)",
-        "Service: src/lib/services/ralphConfig.ts",
-        "Service: readRalphConfig(projectPath): RalphConfig | null",
-        "Service: writeRalphConfig(projectPath, config): void",
-        "Service: getEffectiveProvider(projectPath): provider met fallback naar 'claude'",
-        "Zod schema voor config validatie",
-        "Graceful fallback als config niet bestaat",
-        "tRPC: projects.getRalphConfig(projectId) procedure",
-        "tRPC: projects.updateRalphConfig(projectId, config) procedure",
-        "Unit tests voor config reading/writing",
-        "Unit tests voor Zod validatie",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-014",
-      "title": "OllamaLoopService implementatie",
-      "description": "Implementeer Ollama als runner provider die de Claude CLI gebruikt met aangepaste environment variables. Maakt het mogelijk om lokale modellen te gebruiken voor story executie.",
-      "priority": 105,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "RUNNER-013"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Service: src/lib/services/ollamaLoopService.ts extends BaseLoopService",
-        "Service: providerName = 'ollama'",
-        "Service: isAvailable() checkt 'ollama list' command",
-        "Service: isConfigured() retourneert true (geen API key nodig)",
-        "Service: buildSpawnConfig() retourneert claude CLI met Ollama env",
-        "Env: ANTHROPIC_AUTH_TOKEN='ollama'",
-        "Env: ANTHROPIC_API_KEY=''",
-        "Env: ANTHROPIC_BASE_URL uit config of default 'http://localhost:11434'",
-        "Args: --model uit ralph.config.json",
-        "Config: model naam verplicht in ralph.config.json voor Ollama",
-        "Error: duidelijke foutmelding als Ollama niet draait",
-        "Error: duidelijke foutmelding als model niet beschikbaar",
-        "Router: runnerProviderSchema uitbreiden met 'ollama'",
-        "Router: getService() update voor ollama provider",
-        "Unit tests voor OllamaLoopService",
-        "Unit tests voor environment variable setup",
-        "E2E test: start runner met Ollama provider (mocked)",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-015",
-      "title": "Ollama model discovery service",
-      "description": "Service om beschikbare Ollama modellen te detecteren. Parsed de output van 'ollama list' en biedt een API endpoint voor de UI.",
-      "priority": 106,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "RUNNER-014"
-      ],
-      "recommendedSkills": [
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "Service: src/lib/services/ollamaDiscovery.ts",
-        "Service: isOllamaRunning(): Promise<boolean>",
-        "Service: getAvailableModels(): Promise<OllamaModel[]>",
-        "Service: OllamaModel type met name, size, modifiedAt",
-        "Service: parse 'ollama list' output (NAME, SIZE, MODIFIED columns)",
-        "Service: cache modellen voor 60 seconden (avoid repeated calls)",
-        "Service: graceful error handling als Ollama niet draait",
-        "tRPC: ollama.isAvailable() query",
-        "tRPC: ollama.getModels() query",
-        "tRPC: ollama router toevoegen aan appRouter",
-        "API: retourneer lege array als Ollama niet beschikbaar",
-        "Unit tests voor output parsing",
-        "Unit tests voor caching",
-        "Lint passing (pnpm lint)",
-        "Build slaagt (pnpm build)",
-        "Code review completed"
-      ]
-    },
-    {
-      "id": "RUNNER-016",
-      "title": "UI voor model en provider selectie",
-      "description": "Voeg UI toe voor het configureren van de runner provider en model per project. Toont beschikbare Ollama modellen en slaat configuratie op in ralph.config.json.",
-      "priority": 107,
-      "status": "done",
-      "epic": "Runner",
-      "dependencies": [
-        "RUNNER-015",
-        "RUNNER-013"
-      ],
-      "recommendedSkills": [
-        "frontend-design",
-        "backend-development:api-design-principles"
-      ],
-      "acceptanceCriteria": [
-        "UI: Runner Config sectie op project settings pagina",
-        "UI: Provider dropdown (Claude, Ollama, Gemini, Codex)",
-        "UI: Model input/dropdown (afhankelijk van provider)",
-        "UI: Bij Ollama: dropdown met beschikbare modellen van discovery",
-        "UI: Bij Ollama: refresh button om modellen opnieuw te laden",
-        "UI: Bij Ollama: warning als Ollama niet draait",
-        "UI: Bij Claude: optioneel model override (sonnet, opus, haiku)",
-        "UI: Save button slaat op naar ralph.config.json",
-        "UI: Success toast bij opslaan",
-        "UI: Loading state tijdens model discovery",
-        "Kanban header: toon actieve provider/model badge",
-        "Runner controls: gebruik configured provider ipv hardcoded",
-        "Unit tests voor provider selector component",
-        "E2E test: configureer Ollama provider en model",
         "Lint passing (pnpm lint)",
         "Build slaagt (pnpm build)",
         "Code review completed"

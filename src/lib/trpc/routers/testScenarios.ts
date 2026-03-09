@@ -12,7 +12,7 @@ import { db } from '@/db'
 import { projects } from '@/db/schema'
 import {
   readTestScenario,
-  updateTestItem,
+  updateFlowChecked,
   generateTestScenarios,
   getTestScenarioJsonPath,
 } from '@/lib/services/testScenarioGenerator'
@@ -76,23 +76,23 @@ export const testScenariosRouter = router({
     }),
 
   /**
-   * Update a test item's checked status
+   * Update a flow's checked status
    */
   updateItem: publicProcedure
     .input(z.object({
       projectId: z.number().int().positive(),
       storyId: z.string().min(1),
-      itemId: z.string().min(1),
+      itemId: z.string().min(1), // kept as itemId for backwards compatibility
       checked: z.boolean(),
     }))
     .mutation(async ({ input }) => {
       const project = await getProjectById(input.projectId)
 
       try {
-        const scenario = await updateTestItem(
+        const scenario = await updateFlowChecked(
           project.path,
           input.storyId,
-          input.itemId,
+          input.itemId, // this is now the flowId
           input.checked,
         )
         return scenario

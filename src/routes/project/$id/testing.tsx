@@ -33,122 +33,27 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { TestChecklistModal } from "@/components/TestChecklistModal";
+import { FlowCard } from "@/components/FlowCard";
 import type { Story, StoryStatus } from "@/components/StoryCard";
-import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
+import type { TestScenario } from "@/lib/schemas/testScenarioSchema";
 
 export const Route = createFileRoute("/project/$id/testing")({
   component: TestingBoard,
 });
 
-// Progress calculation helpers
-function calculateSectionProgress(section: TestScenarioSection) {
-  const total = section.items.length;
-  const checked = section.items.filter((item) => item.checked).length;
-  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
-}
-
+// Progress calculation helpers for flows
 function calculateTotalProgress(scenario: TestScenario | null | undefined) {
   if (!scenario) return { checked: 0, total: 0, percentage: 0 };
-  const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
-  const checked = scenario.sections.reduce(
-    (acc, section) => acc + section.items.filter((item) => item.checked).length,
-    0
-  );
+  const total = scenario.flows.length;
+  const checked = scenario.flows.filter((flow) => flow.checked).length;
   return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
 }
 
 function isAllChecked(scenario: TestScenario | null | undefined) {
   if (!scenario) return false;
-  return scenario.sections.every((section) =>
-    section.items.every((item) => item.checked)
-  );
-}
-
-// ChecklistSection component for collapsible sections
-interface ChecklistSectionProps {
-  section: TestScenarioSection;
-  projectId: number;
-  storyId: string;
-  onItemToggle: (itemId: string, checked: boolean) => void;
-  isUpdating: string | null;
-}
-
-function ChecklistSection({
-  section,
-  onItemToggle,
-  isUpdating,
-}: ChecklistSectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
-  const progress = calculateSectionProgress(section);
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-muted/50 transition-colors"
-          data-testid={`section-trigger-${section.id}`}
-        >
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
-            <span>{section.title}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {progress.checked}/{progress.total}
-            </span>
-            <Progress
-              value={progress.percentage}
-              className="w-16 h-1.5"
-              data-testid={`section-progress-${section.id}`}
-            />
-          </div>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pl-6 space-y-1">
-        {section.items.map((item) => (
-          <div
-            key={item.id}
-            className={cn(
-              "flex items-start gap-3 px-3 py-2 rounded-md cursor-pointer hover:bg-muted/30 transition-colors",
-              item.checked && "text-muted-foreground",
-              isUpdating === item.id && "opacity-60"
-            )}
-            data-testid={`checklist-item-${item.id}`}
-          >
-            <Checkbox
-              id={`checkbox-input-${item.id}`}
-              checked={item.checked}
-              onCheckedChange={(checked) => {
-                if (typeof checked === "boolean") {
-                  onItemToggle(item.id, checked);
-                }
-              }}
-              disabled={isUpdating === item.id}
-              className="mt-0.5"
-              data-testid={`checkbox-${item.id}`}
-            />
-            <label
-              htmlFor={`checkbox-input-${item.id}`}
-              className={cn(
-                "text-sm leading-relaxed cursor-pointer flex-1",
-                item.checked && "line-through"
-              )}
-            >
-              {item.text}
-            </label>
-          </div>
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
-  );
+  return scenario.flows.every((flow) => flow.checked);
 }
 
 // TestStoryCard component for stories in review
@@ -191,10 +96,10 @@ function TestStoryCard({
     { staleTime: 60000 }
   );
 
-  // Update item mutation with optimistic updates
-  const updateItem = trpc.testScenarios.updateItem.useMutation({
-    onMutate: async ({ itemId, checked }) => {
-      setUpdatingItemId(itemId);
+  // Update flow mutation with optimistic updates
+  const updateFlow = trpc.testScenarios.updateItem.useMutation({
+    onMutate: async ({ itemId: flowId, checked }) => {
+      setUpdatingItemId(flowId);
       // Cancel any outgoing refetches
       await utils.testScenarios.getByStoryId.cancel({ projectId, storyId: story.id });
 
@@ -208,12 +113,9 @@ function TestStoryCard({
       if (previousScenario) {
         utils.testScenarios.getByStoryId.setData({ projectId, storyId: story.id }, {
           ...previousScenario,
-          sections: previousScenario.sections.map((section) => ({
-            ...section,
-            items: section.items.map((item) =>
-              item.id === itemId ? { ...item, checked } : item
-            ),
-          })),
+          flows: previousScenario.flows.map((flow) =>
+            flow.id === flowId ? { ...flow, checked } : flow
+          ),
         });
       }
 
@@ -227,7 +129,7 @@ function TestStoryCard({
           context.previousScenario
         );
       }
-      toast.error("Failed to update test item");
+      toast.error("Failed to update flow");
     },
     onSettled: () => {
       setUpdatingItemId(null);
@@ -236,11 +138,11 @@ function TestStoryCard({
     },
   });
 
-  const handleItemToggle = useCallback(
-    (itemId: string, checked: boolean) => {
-      updateItem.mutate({ projectId, storyId: story.id, itemId, checked });
+  const handleFlowToggle = useCallback(
+    (flowId: string, checked: boolean) => {
+      updateFlow.mutate({ projectId, storyId: story.id, itemId: flowId, checked });
     },
-    [projectId, story.id, updateItem]
+    [projectId, story.id, updateFlow]
   );
 
   const progress = calculateTotalProgress(scenario);
@@ -380,7 +282,7 @@ function TestStoryCard({
           {story.epic}
         </p>
 
-        {/* Test scenario checklist */}
+        {/* Test scenario flows */}
         {scenario ? (
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <CollapsibleTrigger asChild>
@@ -395,7 +297,7 @@ function TestStoryCard({
                   <ChevronRight className="w-3.5 h-3.5" />
                 )}
                 <ClipboardCheck className="w-3.5 h-3.5" />
-                <span>{isExpanded ? "Hide" : "Show"} Test Checklist</span>
+                <span>{isExpanded ? "Hide" : "Show"} Test Flows</span>
                 <Progress
                   value={progress.percentage}
                   className="w-20 h-1.5 ml-auto"
@@ -403,17 +305,14 @@ function TestStoryCard({
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-2">
-              <div className="border rounded-md bg-muted/20 divide-y">
-                {scenario.sections.map((section) => (
-                  <div key={section.id} className="p-2">
-                    <ChecklistSection
-                      section={section}
-                      projectId={projectId}
-                      storyId={story.id}
-                      onItemToggle={handleItemToggle}
-                      isUpdating={updatingItemId}
-                    />
-                  </div>
+              <div className="space-y-2">
+                {scenario.flows.map((flow) => (
+                  <FlowCard
+                    key={flow.id}
+                    flow={flow}
+                    onToggle={handleFlowToggle}
+                    isUpdating={updatingItemId === flow.id}
+                  />
                 ))}
               </div>
               {/* Link to markdown documentation */}

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TestChecklistModal } from "./TestChecklistModal";
 import type { Story, StoryStatus } from "@/components/StoryCard";
-import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
+import type { TestScenario } from "@/lib/schemas/testScenarioSchema";
 
 // Helper to create a story with optional overrides
 function createStory(overrides: Partial<Story> = {}): Story {
@@ -20,30 +20,43 @@ function createStory(overrides: Partial<Story> = {}): Story {
   };
 }
 
-// Helper to create a test scenario
+// Helper to create a test scenario with flows (v2 format)
 function createTestScenario(overrides: Partial<TestScenario> = {}): TestScenario {
   return {
     storyId: "TEST-001",
     title: "Test Story",
     description: "Test description",
     generatedAt: new Date().toISOString(),
-    sections: [
+    flows: [
       {
-        id: "functional-tests",
-        title: "Functional Tests",
-        items: [
-          { id: "ft-1", text: "Test item 1", checked: false },
-          { id: "ft-2", text: "Test item 2", checked: true },
+        id: "flow-1",
+        name: "Happy path: Basic functionality",
+        steps: [
+          "Navigate to the page",
+          "Click the button",
+          "Verify success message",
         ],
+        checked: false,
       },
       {
-        id: "quality-gates",
-        title: "Quality Gates",
-        items: [
-          { id: "qg-test", text: "pnpm test passes", checked: false },
-          { id: "qg-lint", text: "pnpm lint passes", checked: false },
-          { id: "qg-build", text: "pnpm build succeeds", checked: false },
+        id: "flow-2",
+        name: "Error handling: Invalid input",
+        steps: [
+          "Navigate to the page",
+          "Enter invalid data",
+          "Verify error message",
         ],
+        checked: true,
+      },
+      {
+        id: "flow-3",
+        name: "Edge case: Empty state",
+        steps: [
+          "Navigate to the page",
+          "Clear all data",
+          "Verify empty state",
+        ],
+        checked: false,
       },
     ],
     ...overrides,
@@ -188,6 +201,45 @@ describe("TestChecklistModal Component", () => {
       );
 
       expect(screen.getByTestId("modal-total-progress")).toBeInTheDocument();
+    });
+
+    it("should render flow cards", () => {
+      const story = createStory();
+
+      render(
+        <TestChecklistModal
+          isOpen={true}
+          onClose={mockOnClose}
+          story={story}
+          projectId={1}
+          onAccept={mockOnAccept}
+          onReject={mockOnReject}
+        />
+      );
+
+      // Should render the flow cards
+      expect(screen.getByTestId("flow-card-flow-1")).toBeInTheDocument();
+      expect(screen.getByTestId("flow-card-flow-2")).toBeInTheDocument();
+      expect(screen.getByTestId("flow-card-flow-3")).toBeInTheDocument();
+    });
+
+    it("should display flow names", () => {
+      const story = createStory();
+
+      render(
+        <TestChecklistModal
+          isOpen={true}
+          onClose={mockOnClose}
+          story={story}
+          projectId={1}
+          onAccept={mockOnAccept}
+          onReject={mockOnReject}
+        />
+      );
+
+      expect(screen.getByText("Happy path: Basic functionality")).toBeInTheDocument();
+      expect(screen.getByText("Error handling: Invalid input")).toBeInTheDocument();
+      expect(screen.getByText("Edge case: Empty state")).toBeInTheDocument();
     });
   });
 
@@ -345,42 +397,25 @@ describe("TestChecklistModal Component", () => {
 describe("TestChecklistModal Logic", () => {
   describe("progress calculation", () => {
     // Progress calculation helper (same logic as in the component)
-    function calculateSectionProgress(section: TestScenarioSection) {
-      const total = section.items.length;
-      const checked = section.items.filter((item) => item.checked).length;
-      return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
-    }
-
     function calculateTotalProgress(scenario: TestScenario | null | undefined) {
       if (!scenario) return { checked: 0, total: 0, percentage: 0 };
-      const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
-      const checked = scenario.sections.reduce(
-        (acc, section) => acc + section.items.filter((item) => item.checked).length,
-        0
-      );
+      const total = scenario.flows.length;
+      const checked = scenario.flows.filter((flow) => flow.checked).length;
       return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
     }
 
     function isAllChecked(scenario: TestScenario | null | undefined) {
       if (!scenario) return false;
-      return scenario.sections.every((section) =>
-        section.items.every((item) => item.checked)
-      );
+      return scenario.flows.every((flow) => flow.checked);
     }
 
     it("should calculate percentage correctly", () => {
       const scenario = createTestScenario({
-        sections: [
-          {
-            id: "test",
-            title: "Test",
-            items: [
-              { id: "1", text: "Item 1", checked: true },
-              { id: "2", text: "Item 2", checked: true },
-              { id: "3", text: "Item 3", checked: false },
-              { id: "4", text: "Item 4", checked: true },
-            ],
-          },
+        flows: [
+          { id: "flow-1", name: "Flow 1", steps: ["Step 1"], checked: true },
+          { id: "flow-2", name: "Flow 2", steps: ["Step 1"], checked: true },
+          { id: "flow-3", name: "Flow 3", steps: ["Step 1"], checked: false },
+          { id: "flow-4", name: "Flow 4", steps: ["Step 1"], checked: true },
         ],
       });
 
@@ -388,55 +423,40 @@ describe("TestChecklistModal Logic", () => {
       expect(progress.percentage).toBe(75);
     });
 
-    it("should return true when all items are checked", () => {
+    it("should return true when all flows are checked", () => {
       const scenario = createTestScenario({
-        sections: [
-          {
-            id: "test",
-            title: "Test",
-            items: [
-              { id: "1", text: "Item 1", checked: true },
-              { id: "2", text: "Item 2", checked: true },
-            ],
-          },
+        flows: [
+          { id: "flow-1", name: "Flow 1", steps: ["Step 1"], checked: true },
+          { id: "flow-2", name: "Flow 2", steps: ["Step 1"], checked: true },
         ],
       });
 
       expect(isAllChecked(scenario)).toBe(true);
     });
 
-    it("should return false when some items are unchecked", () => {
+    it("should return false when some flows are unchecked", () => {
       const scenario = createTestScenario({
-        sections: [
-          {
-            id: "test",
-            title: "Test",
-            items: [
-              { id: "1", text: "Item 1", checked: true },
-              { id: "2", text: "Item 2", checked: false },
-            ],
-          },
+        flows: [
+          { id: "flow-1", name: "Flow 1", steps: ["Step 1"], checked: true },
+          { id: "flow-2", name: "Flow 2", steps: ["Step 1"], checked: false },
         ],
       });
 
       expect(isAllChecked(scenario)).toBe(false);
     });
 
-    it("should calculate section progress correctly", () => {
-      const section: TestScenarioSection = {
-        id: "test",
-        title: "Test",
-        items: [
-          { id: "1", text: "Item 1", checked: true },
-          { id: "2", text: "Item 2", checked: false },
-          { id: "3", text: "Item 3", checked: true },
-        ],
-      };
+    it("should handle empty flows array", () => {
+      const scenario = createTestScenario({ flows: [] });
+      const progress = calculateTotalProgress(scenario);
+      expect(progress.total).toBe(0);
+      expect(progress.percentage).toBe(0);
+    });
 
-      const progress = calculateSectionProgress(section);
-      expect(progress.checked).toBe(2);
-      expect(progress.total).toBe(3);
-      expect(progress.percentage).toBeCloseTo(66.67, 1);
+    it("should handle null scenario", () => {
+      const progress = calculateTotalProgress(null);
+      expect(progress.checked).toBe(0);
+      expect(progress.total).toBe(0);
+      expect(progress.percentage).toBe(0);
     });
   });
 
@@ -445,12 +465,6 @@ describe("TestChecklistModal Logic", () => {
       const percentage = 37.5;
       const displayPercentage = Math.round(percentage);
       expect(displayPercentage).toBe(38);
-    });
-
-    it("should handle empty scenario sections", () => {
-      const scenario = createTestScenario({ sections: [] });
-      const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
-      expect(total).toBe(0);
     });
   });
 });

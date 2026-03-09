@@ -3103,3 +3103,39 @@ The React routes (~8600 lines, 0% coverage) represent approximately 40% of the c
 - Use separate hasAppliedConfig state to track if config was already loaded to avoid overriding user selection
 - tRPC refetchInterval can be conditional based on state (e.g., only refetch Ollama availability when Ollama is selected)
 - The configured provider badge only shows when runner is idle to avoid confusion with active provider badge
+
+## 2026-03-09 - TEST-002
+**Title:** Test scenarios vereenvoudigen naar user flows
+
+**Implemented:**
+- Replaced sections-based test scenarios (v1) with flows-based format (v2)
+- Schema: TestScenario now uses flows[] instead of sections[].items[]
+- Each flow has: id, name, steps[] (numbered), checked boolean
+- Generator: Updated prompt to request 3-5 end-to-end user flows with 4-8 steps each
+- Parsing: New parseFlowsFromResponse() function for AI response handling
+- Backwards compatibility: parseTestScenario() auto-converts v1 format to v2
+- UI: New FlowCard component displays flow name, numbered steps, completion status
+- TestChecklistModal updated to render FlowCard instead of ModalChecklistSection
+- Testing board (testing.tsx) updated with new flow-based progress calculation
+- Markdown generation: Flows render as ## [x] Flow Name with numbered lists
+- Updated all tests to use new flows structure
+
+**Files changed:**
+- src/lib/schemas/testScenarioSchema.ts (new flows schema, legacy types, converter)
+- src/lib/services/testScenarioGenerator.ts (flows prompt, parsing, generation)
+- src/lib/services/testScenarioGenerator.test.ts (updated to test flows)
+- src/lib/trpc/routers/testScenarios.ts (updateFlowChecked)
+- src/lib/trpc/routers/testScenarios.test.ts (updated to test flows)
+- src/components/FlowCard.tsx (new - flow display component)
+- src/components/TestChecklistModal.tsx (uses FlowCard)
+- src/components/TestChecklistModal.test.tsx (updated for flows)
+- src/routes/project/$id/testing.tsx (flows-based progress, FlowCard)
+- src/routes/project/$id/-testing.test.tsx (updated for flows)
+- stories/prd.json (status updated to review)
+
+**Learnings:**
+- Backwards compatibility can be handled by trying v2 parsing first, then falling back to v1 conversion
+- convertLegacyToFlows: sections become flows, items become steps, flow.checked = all items checked
+- Flow-based UI is simpler: progress = flows.filter(f => f.checked).length / flows.length
+- AI prompt should explicitly state "3-5 flows" and "4-8 steps per flow" to control output size
+- Keep tRPC API compatible (updateItem still works but is renamed internally to updateFlowChecked)

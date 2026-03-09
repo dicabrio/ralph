@@ -3,8 +3,6 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  ChevronDown,
-  ChevronRight,
   ClipboardCheck,
   FileText,
   ExternalLink,
@@ -24,123 +22,22 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { FlowCard } from "@/components/FlowCard";
 import type { Story } from "@/components/StoryCard";
-import type { TestScenario, TestScenarioSection } from "@/lib/schemas/testScenarioSchema";
+import type { TestScenario } from "@/lib/schemas/testScenarioSchema";
 
-// Progress calculation helpers
-function calculateSectionProgress(section: TestScenarioSection) {
-  const total = section.items.length;
-  const checked = section.items.filter((item) => item.checked).length;
-  return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
-}
-
+// Progress calculation helpers for flows
 function calculateTotalProgress(scenario: TestScenario | null | undefined) {
   if (!scenario) return { checked: 0, total: 0, percentage: 0 };
-  const total = scenario.sections.reduce((acc, section) => acc + section.items.length, 0);
-  const checked = scenario.sections.reduce(
-    (acc, section) => acc + section.items.filter((item) => item.checked).length,
-    0
-  );
+  const total = scenario.flows.length;
+  const checked = scenario.flows.filter((flow) => flow.checked).length;
   return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
 }
 
 function isAllChecked(scenario: TestScenario | null | undefined) {
   if (!scenario) return false;
-  return scenario.sections.every((section) =>
-    section.items.every((item) => item.checked)
-  );
-}
-
-// ChecklistSection component for collapsible sections
-interface ModalChecklistSectionProps {
-  section: TestScenarioSection;
-  onItemToggle: (itemId: string, checked: boolean) => void;
-  isUpdating: string | null;
-}
-
-function ModalChecklistSection({
-  section,
-  onItemToggle,
-  isUpdating,
-}: ModalChecklistSectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
-  const progress = calculateSectionProgress(section);
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-left rounded-lg hover:bg-muted/50 transition-colors bg-muted/30"
-          data-testid={`modal-section-trigger-${section.id}`}
-        >
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
-            <span className="font-semibold">{section.title}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground font-medium">
-              {progress.checked}/{progress.total}
-            </span>
-            <Progress
-              value={progress.percentage}
-              className="w-20 h-2"
-              data-testid={`modal-section-progress-${section.id}`}
-            />
-          </div>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pl-4 space-y-1">
-        {section.items.map((item) => (
-          <div
-            key={item.id}
-            className={cn(
-              "flex items-start gap-3 px-4 py-3 rounded-md cursor-pointer hover:bg-muted/30 transition-colors",
-              item.checked && "text-muted-foreground",
-              isUpdating === item.id && "opacity-60"
-            )}
-            data-testid={`modal-checklist-item-${item.id}`}
-          >
-            <Checkbox
-              id={`modal-checkbox-input-${item.id}`}
-              checked={item.checked}
-              onCheckedChange={(checked) => {
-                if (typeof checked === "boolean") {
-                  onItemToggle(item.id, checked);
-                }
-              }}
-              disabled={isUpdating === item.id}
-              className="mt-0.5"
-              data-testid={`modal-checkbox-${item.id}`}
-            />
-            <label
-              htmlFor={`modal-checkbox-input-${item.id}`}
-              className={cn(
-                "text-sm leading-relaxed cursor-pointer flex-1",
-                item.checked && "line-through"
-              )}
-            >
-              {item.text}
-            </label>
-            {isUpdating === item.id && (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            )}
-          </div>
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
-  );
+  return scenario.flows.every((flow) => flow.checked);
 }
 
 export interface TestChecklistModalProps {
@@ -199,13 +96,13 @@ export function TestChecklistModal({
     }
   }, []);
 
-  // Update item mutation with optimistic updates
-  const updateItem = trpc.testScenarios.updateItem.useMutation({
-    onMutate: async ({ itemId, checked }) => {
+  // Update flow mutation with optimistic updates
+  const updateFlow = trpc.testScenarios.updateItem.useMutation({
+    onMutate: async ({ itemId: flowId, checked }) => {
       if (!story) return;
 
       saveScrollPosition();
-      setUpdatingItemId(itemId);
+      setUpdatingItemId(flowId);
 
       // Cancel any outgoing refetches
       await utils.testScenarios.getByStoryId.cancel({ projectId, storyId: story.id });
@@ -220,12 +117,9 @@ export function TestChecklistModal({
       if (previousScenario) {
         utils.testScenarios.getByStoryId.setData({ projectId, storyId: story.id }, {
           ...previousScenario,
-          sections: previousScenario.sections.map((section) => ({
-            ...section,
-            items: section.items.map((item) =>
-              item.id === itemId ? { ...item, checked } : item
-            ),
-          })),
+          flows: previousScenario.flows.map((flow) =>
+            flow.id === flowId ? { ...flow, checked } : flow
+          ),
         });
       }
 
@@ -241,7 +135,7 @@ export function TestChecklistModal({
           context.previousScenario
         );
       }
-      toast.error("Failed to update test item");
+      toast.error("Failed to update flow");
     },
     onSettled: () => {
       if (!story) return;
@@ -256,12 +150,12 @@ export function TestChecklistModal({
     },
   });
 
-  const handleItemToggle = useCallback(
-    (itemId: string, checked: boolean) => {
+  const handleFlowToggle = useCallback(
+    (flowId: string, checked: boolean) => {
       if (!story) return;
-      updateItem.mutate({ projectId, storyId: story.id, itemId, checked });
+      updateFlow.mutate({ projectId, storyId: story.id, itemId: flowId, checked });
     },
-    [projectId, story, updateItem]
+    [projectId, story, updateFlow]
   );
 
   const handleAccept = useCallback(() => {
@@ -345,12 +239,12 @@ export function TestChecklistModal({
               </div>
             ) : scenario ? (
               <>
-                {scenario.sections.map((section) => (
-                  <ModalChecklistSection
-                    key={section.id}
-                    section={section}
-                    onItemToggle={handleItemToggle}
-                    isUpdating={updatingItemId}
+                {scenario.flows.map((flow) => (
+                  <FlowCard
+                    key={flow.id}
+                    flow={flow}
+                    onToggle={handleFlowToggle}
+                    isUpdating={updatingItemId === flow.id}
                   />
                 ))}
 

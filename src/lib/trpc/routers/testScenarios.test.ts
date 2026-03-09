@@ -51,36 +51,42 @@ import type { TestScenario } from '@/lib/schemas/testScenarioSchema'
 
 const createCaller = createCallerFactory(testScenariosRouter)
 
-// Sample test scenario for tests
+// Sample test scenario with flows (v2 format)
 const sampleTestScenario: TestScenario = {
   storyId: 'STORY-001',
   title: 'Test Story',
   description: 'A test story description',
   generatedAt: '2024-01-15T10:00:00.000Z',
-  sections: [
+  flows: [
     {
-      id: 'functional-tests',
-      title: 'Functional Tests',
-      items: [
-        { id: 'ft-1', text: 'Verify feature works correctly', checked: false },
-        { id: 'ft-2', text: 'Verify error handling', checked: true },
+      id: 'flow-1',
+      name: 'Happy path: Basic functionality',
+      steps: [
+        'Navigate to the feature page',
+        'Click the main button',
+        'Verify success message appears',
       ],
+      checked: false,
     },
     {
-      id: 'ui-verification',
-      title: 'UI Verification',
-      items: [
-        { id: 'ui-1', text: 'Button is visible', checked: false },
+      id: 'flow-2',
+      name: 'Error handling: Invalid input',
+      steps: [
+        'Navigate to the feature page',
+        'Submit invalid data',
+        'Verify error message appears',
       ],
+      checked: true,
     },
     {
-      id: 'quality-gates',
-      title: 'Quality Gates',
-      items: [
-        { id: 'qg-test', text: 'pnpm test passes', checked: false },
-        { id: 'qg-lint', text: 'pnpm lint passes', checked: false },
-        { id: 'qg-build', text: 'pnpm build succeeds', checked: false },
+      id: 'flow-3',
+      name: 'Edge case: Empty state',
+      steps: [
+        'Navigate to the feature page',
+        'Clear all data',
+        'Verify empty state message',
       ],
+      checked: false,
     },
   ],
 }
@@ -248,7 +254,7 @@ describe('testScenariosRouter', () => {
   })
 
   describe('updateItem', () => {
-    it('should update item checked status to true', async () => {
+    it('should update flow checked status to true', async () => {
       // Mock file exists
       vi.mocked(existsSync).mockImplementation((path: unknown) => {
         const pathStr = String(path)
@@ -270,22 +276,19 @@ describe('testScenariosRouter', () => {
       const result = await caller.updateItem({
         projectId: testProjectId,
         storyId: 'STORY-001',
-        itemId: 'ft-1',
+        itemId: 'flow-1', // flowId is passed as itemId for backwards compatibility
         checked: true,
       })
 
-      // Verify the item was updated
-      const updatedItem = result.sections
-        .find(s => s.id === 'functional-tests')
-        ?.items.find(i => i.id === 'ft-1')
-
-      expect(updatedItem?.checked).toBe(true)
+      // Verify the flow was updated
+      const updatedFlow = result.flows.find(f => f.id === 'flow-1')
+      expect(updatedFlow?.checked).toBe(true)
 
       // Verify writeFile was called
       expect(writeFile).toHaveBeenCalledTimes(2) // JSON and MD files
     })
 
-    it('should throw NOT_FOUND for non-existent item', async () => {
+    it('should throw NOT_FOUND for non-existent flow', async () => {
       vi.mocked(existsSync).mockImplementation((path: unknown) => {
         const pathStr = String(path)
         if (pathStr.includes('test-scenarios/STORY-001.json')) {
@@ -306,7 +309,7 @@ describe('testScenariosRouter', () => {
         caller.updateItem({
           projectId: testProjectId,
           storyId: 'STORY-001',
-          itemId: 'nonexistent-item',
+          itemId: 'nonexistent-flow',
           checked: true,
         })
       ).rejects.toThrow(TRPCError)
@@ -345,13 +348,16 @@ describe('testScenariosRouter', () => {
       expect(result.storyId).toBe('STORY-001')
       expect(result.title).toBe('Test Story')
 
-      // Should have sections
-      expect(result.sections.length).toBeGreaterThan(0)
+      // Should have flows (not sections)
+      expect(result.flows).toBeDefined()
+      expect(result.flows.length).toBeGreaterThan(0)
 
-      // Should always have quality gates
-      const qualityGates = result.sections.find(s => s.id === 'quality-gates')
-      expect(qualityGates).toBeDefined()
-      expect(qualityGates?.items.length).toBe(3)
+      // Each flow should have an id, name, steps, and checked property
+      const firstFlow = result.flows[0]
+      expect(firstFlow.id).toBeDefined()
+      expect(firstFlow.name).toBeDefined()
+      expect(firstFlow.steps).toBeInstanceOf(Array)
+      expect(typeof firstFlow.checked).toBe('boolean')
     })
 
     it('should throw NOT_FOUND when story does not exist', async () => {
