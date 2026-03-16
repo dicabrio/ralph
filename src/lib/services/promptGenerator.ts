@@ -128,14 +128,18 @@ function getBaseAgentInstructions(): string {
 6. **Mark as in_progress**: Immediately set \`status: "in_progress"\` in prd.json
 7. Note the \`recommendedSkills\` for that story
 8. **Implement that ONE story only**
-9. Run typecheck and tests
-10. Update relevant documentation with learnings
-11. Commit: \`feat([scope]): [ID] - [Title]\`
-12. **Set final status** in prd.json:
+9. **Verify against docs**: Re-read ALL implementation guides from prd.json \`implementationGuides\`.
+   For each acceptance criterion that references a document, open that document and verify the implementation matches the specification.
+   This is a BLOCKING step — do not proceed to tests until every doc-referenced criterion is verified.
+   If implementation deviates from docs, fix it before continuing.
+10. Run typecheck and tests
+11. Update relevant documentation with learnings
+12. Commit: \`feat([scope]): [ID] - [Title]\`
+13. **Set final status** in prd.json:
     - Success -> \`status: "done"\`
     - Failure -> \`status: "failed"\`
-13. Append learnings to progress.txt
-14. **STOP - Do not continue to the next story**
+14. Append learnings to progress.txt
+15. **STOP - Do not continue to the next story**
 
 ## Story Status Lifecycle
 

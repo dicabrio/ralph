@@ -30,14 +30,18 @@ The story to implement is provided above this section with all details (ID, titl
 3. Check you're on the correct branch (\`branchName\` from prd.json)
 4. **Mark as in_progress**: Immediately set the story's \`status: "in_progress"\` in prd.json
 5. **Implement the assigned story** following the acceptance criteria
-6. Run typecheck and tests
-7. Update relevant documentation with learnings
-8. Commit: \`feat([scope]): [ID] - [Title]\`
-9. **Set final status** in prd.json:
+6. **Verify against docs**: Re-read ALL implementation guides from prd.json \`implementationGuides\`.
+   For each acceptance criterion that references a document, open that document and verify the implementation matches the specification.
+   This is a BLOCKING step — do not proceed to tests until every doc-referenced criterion is verified.
+   If implementation deviates from docs, fix it before continuing.
+7. Run typecheck and tests
+8. Update relevant documentation with learnings
+9. Commit: \`feat([scope]): [ID] - [Title]\`
+10. **Set final status** in prd.json:
     - Success -> \`status: "review"\` (for human verification)
     - Failure -> \`status: "failed"\`
-10. Append learnings to progress.txt
-11. **STOP - Do not continue to the next story**
+11. Append learnings to progress.txt
+12. **STOP - Do not continue to the next story**
 
 ## Story Status Lifecycle
 
