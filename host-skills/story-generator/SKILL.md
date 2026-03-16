@@ -199,3 +199,27 @@ Elke story doorloopt deze stappen voor completion:
 - **Geen vage criteria**: Niet "werkt goed" of "ziet er mooi uit"
 - **Geen mega-stories**: Als het meer dan 10 criteria heeft, split het op
 - **Geen orphans**: Elke story heeft dependencies of is een foundation story
+
+## Verwijzingen naar implementatiedocs
+
+Als er `implementationGuides` bestaan in prd.json, MOETEN acceptance criteria verwijzen naar het relevante document en sectie. Dit zorgt ervoor dat de agent bij verificatie exact weet wat er gecontroleerd moet worden.
+
+### Voorbeeld:
+```json
+"acceptanceCriteria": [
+  "Backend: POST /api/watchlist conform docs/api-design.md sectie 3.2",
+  "Frontend: Watchlist pagina conform docs/ui-spec.md wireframe 4",
+  "Database: Schema conform docs/data-model.md entity Watchlist",
+  "Unit tests geschreven en passing",
+  "E2e tests voor add/remove watchlist flow",
+  "Lint passing (pnpm lint)",
+  "Build slaagt (pnpm build)",
+  "Code review completed"
+]
+```
+
+### Regels:
+- Verwijs naar **document path + sectie/onderdeel** (niet alleen het document)
+- Elk functioneel criterium dat gedekt wordt door een doc MOET de referentie bevatten
+- Quality gate criteria (tests, lint, build) hoeven geen doc-referentie
+- Als er geen relevante implementatiedoc is voor een criterium, is een referentie niet nodig

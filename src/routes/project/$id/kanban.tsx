@@ -27,16 +27,17 @@ import {
   Info,
   Archive,
   Eye,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
-  StoryCard,
   type Story,
   type StoryStatus,
 } from "@/components/StoryCard";
@@ -44,6 +45,12 @@ import { StoryDetailModal } from "@/components/StoryDetailModal";
 import { RunnerLogModal } from "@/components/RunnerLogModal";
 import { useWebSocket } from "@/lib/websocket/client";
 import type { RalphConfig } from "@/lib/schemas/ralphConfigSchema";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Parse runner errors into user-friendly messages
 function getRunnerErrorMessage(error: unknown): string {
@@ -174,20 +181,6 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
   },
 ];
 
-// Check if a story has all dependencies met
-function hasAllDependenciesMet(story: Story, allStories: Story[]): boolean {
-  return story.dependencies.every((depId) => {
-    const depStory = allStories.find((s) => s.id === depId);
-    return depStory && depStory.status === "done";
-  });
-}
-
-// Filter stories for a column
-function getStoriesForColumn(stories: Story[], column: KanbanColumn): Story[] {
-  // Simple status matching - status determines column directly
-  return stories.filter((story) => story.status === column.status);
-}
-
 // Get which column a story belongs to
 function getColumnForStory(story: Story, _allStories: Story[]): string {
   // Simple status to column mapping
@@ -274,8 +267,58 @@ function computeProjectStats(stories: Story[]) {
   return { total, done, failed, inProgress, pending, progress };
 }
 
-// Draggable Story Card component
-interface DraggableStoryCardProps {
+// EPIC data structure for matrix layout
+interface EpicData {
+  name: string;
+  stories: Story[];
+  highestPriority: number;
+  storiesByStatus: Record<string, Story[]>;
+}
+
+// Group stories by EPIC and compute stats
+function groupStoriesByEpic(stories: Story[]): EpicData[] {
+  const epicMap = new Map<string, Story[]>();
+
+  for (const story of stories) {
+    const epic = story.epic || "Uncategorized";
+    if (!epicMap.has(epic)) {
+      epicMap.set(epic, []);
+    }
+    epicMap.get(epic)!.push(story);
+  }
+
+  const epics: EpicData[] = [];
+  for (const [name, epicStories] of epicMap) {
+    const storiesByStatus: Record<string, Story[]> = {};
+
+    for (const column of KANBAN_COLUMNS) {
+      storiesByStatus[column.id] = epicStories.filter(
+        (s) => getColumnForStory(s, epicStories) === column.id
+      );
+    }
+
+    // Find highest priority (lowest number = highest priority)
+    const highestPriority = Math.min(...epicStories.map((s) => s.priority));
+
+    epics.push({
+      name,
+      stories: epicStories,
+      highestPriority,
+      storiesByStatus,
+    });
+  }
+
+  // Sort EPICs by highest priority story (ascending, so lowest priority number first)
+  epics.sort((a, b) => a.highestPriority - b.highestPriority);
+
+  return epics;
+}
+
+// Stories that can show the play button
+const PLAYABLE_STATUSES: StoryStatus[] = ["pending", "failed", "backlog"];
+
+// Compact Story Card for matrix layout
+interface CompactStoryCardProps {
   story: Story;
   allStories: Story[];
   isDraggable: boolean;
@@ -285,10 +328,7 @@ interface DraggableStoryCardProps {
   onArchiveClick?: (story: Story) => void;
 }
 
-// Stories that can show the play button
-const PLAYABLE_STATUSES: StoryStatus[] = ["pending", "failed", "backlog"];
-
-function DraggableStoryCard({
+function CompactStoryCard({
   story,
   allStories,
   isDraggable,
@@ -296,7 +336,7 @@ function DraggableStoryCard({
   runnerStatus,
   onPlayClick,
   onArchiveClick,
-}: DraggableStoryCardProps) {
+}: CompactStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: story.id,
@@ -321,88 +361,95 @@ function DraggableStoryCard({
   const canShowArchiveButton = story.status === "done";
 
   const handlePlayClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the card's onClick
+    e.stopPropagation();
     onPlayClick?.(story);
   };
 
   const handleArchiveClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the card's onClick
+    e.stopPropagation();
     onArchiveClick?.(story);
   };
+
+  const isFailed = story.status === "failed";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-stretch group",
-        isDragging && "opacity-50 z-50",
+        "group relative flex items-center gap-1.5 px-2 py-1.5 rounded-md border bg-card text-card-foreground shadow-sm",
+        "hover:shadow-md hover:border-primary/30 transition-all cursor-pointer",
+        isDragging && "opacity-50 z-50 shadow-lg",
+        isFailed && "border-destructive/30 bg-destructive/5",
       )}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onClick) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      data-testid={`compact-story-${story.id}`}
     >
+      {/* Drag handle */}
       {isDraggable && (
         <div
           {...listeners}
           {...attributes}
           className={cn(
-            "flex-shrink-0 w-6 flex items-center justify-center rounded-l-lg",
-            "cursor-grab active:cursor-grabbing",
-            "text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
-            "border-y border-l bg-muted/30",
+            "flex-shrink-0 cursor-grab active:cursor-grabbing",
+            "text-muted-foreground hover:text-foreground transition-colors",
           )}
           data-testid="drag-handle"
           aria-label="Drag to reorder"
+          onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical className="w-4 h-4" />
+          <GripVertical className="w-3 h-3" />
         </div>
       )}
-      <div className="flex-1 min-w-0 relative">
-        <StoryCard
-          story={story}
-          onClick={onClick}
-          hasDragHandle={isDraggable}
-        />
-        {/* Play button overlay */}
+
+      {/* Story ID */}
+      <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
+        {story.id}
+      </span>
+
+      {/* Story title */}
+      <span className="text-xs font-medium truncate flex-1 min-w-0">
+        {story.title}
+      </span>
+
+      {/* Action buttons (visible on hover) */}
+      <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {canShowPlayButton && (
           <button
             type="button"
             onClick={handlePlayClick}
             className={cn(
-              "absolute bottom-2 right-2",
-              "w-7 h-7 rounded-full",
-              "flex items-center justify-center",
-              "bg-emerald-500 text-white",
-              "hover:bg-emerald-600 active:bg-emerald-700",
-              "shadow-md hover:shadow-lg",
-              "opacity-0 group-hover:opacity-100",
-              "transition-all duration-150",
-              "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
+              "w-5 h-5 rounded-full flex items-center justify-center",
+              "bg-emerald-500 text-white hover:bg-emerald-600",
+              "shadow-sm",
             )}
             data-testid={`play-story-${story.id}`}
             aria-label={`Run story ${story.id}`}
           >
-            <Play className="w-3.5 h-3.5 ml-0.5" />
+            <Play className="w-2.5 h-2.5 ml-0.5" />
           </button>
         )}
-        {/* Archive button overlay (for done stories) */}
         {canShowArchiveButton && (
           <button
             type="button"
             onClick={handleArchiveClick}
             className={cn(
-              "absolute bottom-2 right-2",
-              "w-7 h-7 rounded-full",
-              "flex items-center justify-center",
-              "bg-slate-500 text-white",
-              "hover:bg-slate-600 active:bg-slate-700",
-              "shadow-md hover:shadow-lg",
-              "opacity-0 group-hover:opacity-100",
-              "transition-all duration-150",
-              "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2",
+              "w-5 h-5 rounded-full flex items-center justify-center",
+              "bg-slate-500 text-white hover:bg-slate-600",
+              "shadow-sm",
             )}
             data-testid={`archive-story-${story.id}`}
             aria-label={`Archive story ${story.id}`}
           >
-            <Archive className="w-3.5 h-3.5" />
+            <Archive className="w-2.5 h-2.5" />
           </button>
         )}
       </div>
@@ -410,8 +457,9 @@ function DraggableStoryCard({
   );
 }
 
-// Droppable Column component
-interface DroppableColumnProps {
+// Droppable Cell for EPIC/Status intersection in matrix
+interface DroppableCellProps {
+  epicName: string;
   column: KanbanColumn;
   stories: Story[];
   allStories: Story[];
@@ -421,10 +469,10 @@ interface DroppableColumnProps {
   runnerStatus: RunnerStatus;
   onPlayClick?: (story: Story) => void;
   onArchiveClick?: (story: Story) => void;
-  onBulkArchiveClick?: () => void;
 }
 
-function DroppableColumn({
+function DroppableCell({
+  epicName,
   column,
   stories,
   allStories,
@@ -434,123 +482,372 @@ function DroppableColumn({
   runnerStatus,
   onPlayClick,
   onArchiveClick,
-  onBulkArchiveClick,
-}: DroppableColumnProps) {
+}: DroppableCellProps) {
+  const cellId = `${epicName}:${column.id}`;
   const { setNodeRef } = useDroppable({
-    id: column.id,
+    id: cellId,
     disabled: !column.isDroppable,
-    data: { column },
+    data: { column, epicName },
   });
-
-  // Show bulk archive button only for done column with stories
-  const showBulkArchive = column.id === "done" && stories.length > 0;
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col flex-1 min-w-50 bg-muted/30 rounded-lg border overflow-hidden transition-all",
-        isOver && canDrop && "ring-2 ring-primary border-primary/50",
-        isOver && !canDrop && "ring-2 ring-destructive border-destructive/50",
+        "min-h-[60px] p-1.5 rounded-md border border-transparent transition-all",
+        isOver && canDrop && "bg-primary/10 border-primary/30",
+        isOver && !canDrop && "bg-destructive/10 border-destructive/30",
+        !isOver && "hover:bg-muted/30",
       )}
-      data-testid={`kanban-column-${column.id}`}
+      data-testid={`cell-${epicName}-${column.id}`}
     >
-      <ColumnHeader
-        column={column}
-        count={stories.length}
-        showBulkArchive={showBulkArchive}
-        onBulkArchiveClick={onBulkArchiveClick}
-      />
-      <ScrollArea
-        className={cn(
-          "flex-1 max-h-[calc(100vh-300px)] transition-colors",
-          isOver && canDrop && "bg-primary/5",
-          isOver && !canDrop && "bg-destructive/5",
-        )}
-      >
-        <div className="p-2 space-y-2">
-          {stories.length === 0 ? (
-            <p
-              className={cn(
-                "text-xs text-muted-foreground text-center py-4",
-                isOver && canDrop && "text-primary",
-              )}
-            >
-              {isOver && canDrop ? "Drop here" : "No stories"}
-            </p>
+      {stories.length === 0 ? (
+        <div
+          className={cn(
+            "h-full min-h-[44px] flex items-center justify-center",
+            "text-[10px] text-muted-foreground/50",
+          )}
+        >
+          {isOver && canDrop ? (
+            <span className="text-primary">Drop here</span>
           ) : (
-            stories
-              .sort((a, b) => a.priority - b.priority)
-              .map((story, index) => (
-                <DraggableStoryCard
-                  key={`${story.id}-${index}`}
-                  story={story}
-                  allStories={allStories}
-                  isDraggable={column.isDraggable}
-                  onClick={onStoryClick ? () => onStoryClick(story) : undefined}
-                  runnerStatus={runnerStatus}
-                  onPlayClick={onPlayClick}
-                  onArchiveClick={onArchiveClick}
-                />
-              ))
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity">-</span>
           )}
         </div>
-      </ScrollArea>
+      ) : (
+        <div className="space-y-1">
+          {stories
+            .sort((a, b) => a.priority - b.priority)
+            .map((story) => (
+              <CompactStoryCard
+                key={story.id}
+                story={story}
+                allStories={allStories}
+                isDraggable={column.isDraggable}
+                onClick={onStoryClick ? () => onStoryClick(story) : undefined}
+                runnerStatus={runnerStatus}
+                onPlayClick={onPlayClick}
+                onArchiveClick={onArchiveClick}
+              />
+            ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// Column header component
-interface ColumnHeaderProps {
-  column: KanbanColumn;
-  count: number;
-  showBulkArchive?: boolean;
-  onBulkArchiveClick?: () => void;
+// EPIC Row Header component
+interface EpicRowHeaderProps {
+  epic: EpicData;
+  columns: KanbanColumn[];
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
-function ColumnHeader({
-  column,
-  count,
-  showBulkArchive,
-  onBulkArchiveClick,
-}: ColumnHeaderProps) {
+function EpicRowHeader({
+  epic,
+  columns,
+  isCollapsed,
+  onToggleCollapse,
+}: EpicRowHeaderProps) {
+  // Calculate story counts per status for this EPIC
+  const statusCounts = columns.map((col) => ({
+    column: col,
+    count: epic.storiesByStatus[col.id]?.length || 0,
+  }));
+
+  // Handle keyboard interaction
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggleCollapse();
+    }
+  };
+
   return (
-    <div className={cn("flex items-center gap-2 px-3 py-2", column.bgColor)}>
-      <span className={column.headerColor}>{column.icon}</span>
-      <span className={cn("text-sm font-semibold", column.headerColor)}>
-        {column.title}
-      </span>
-      {column.isLocked && (
-        <Lock
-          className={cn("w-3.5 h-3.5", column.headerColor)}
-          data-testid="column-lock-icon"
-          aria-label="Column locked - only runner can modify"
-        />
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 bg-muted/50 border-b sticky left-0 z-10 cursor-pointer select-none",
+        "hover:bg-muted/70 transition-colors",
+        isCollapsed ? "rounded-lg" : "rounded-t-lg",
       )}
-      {showBulkArchive && (
-        <button
-          type="button"
-          onClick={onBulkArchiveClick}
-          className={cn(
-            "ml-1 p-1 rounded",
-            "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-            "transition-colors",
-          )}
-          data-testid="bulk-archive-button"
-          aria-label="Archive all completed stories"
-        >
-          <Archive className="w-3.5 h-3.5" />
-        </button>
-      )}
-      <span
-        className={cn(
-          "ml-auto text-xs font-medium px-2 py-0.5 rounded-full",
-          column.bgColor,
-          column.headerColor,
+      onClick={onToggleCollapse}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-expanded={!isCollapsed}
+      data-testid={`epic-header-${epic.name}`}
+    >
+      {/* Collapse toggle chevron */}
+      <div className="flex-shrink-0 text-muted-foreground">
+        {isCollapsed ? (
+          <ChevronRight className="w-4 h-4" />
+        ) : (
+          <ChevronDown className="w-4 h-4" />
         )}
+      </div>
+
+      <span className="font-semibold text-sm text-foreground">{epic.name}</span>
+
+      {/* Collapsed summary text */}
+      {isCollapsed && (
+        <span className="text-xs text-muted-foreground ml-2 truncate flex-1">
+          {getEpicStatusSummary(epic, columns)}
+        </span>
+      )}
+
+      <div className="flex items-center gap-1.5 ml-auto">
+        {statusCounts.map(
+          ({ column, count }) =>
+            count > 0 && (
+              <span
+                key={column.id}
+                className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                  column.bgColor,
+                  column.headerColor,
+                )}
+                title={`${column.title}: ${count}`}
+              >
+                {count}
+              </span>
+            ),
+        )}
+        <span className="text-xs text-muted-foreground ml-1">
+          ({epic.stories.length})
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// EPIC Row component for matrix layout
+interface EpicRowProps {
+  epic: EpicData;
+  columns: KanbanColumn[];
+  allStories: Story[];
+  overCellId: string | null;
+  canDropActiveStory: (cellId: string) => boolean;
+  onStoryClick?: (story: Story) => void;
+  runnerStatus: RunnerStatus;
+  onPlayClick?: (story: Story) => void;
+  onArchiveClick?: (story: Story) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+function EpicRow({
+  epic,
+  columns,
+  allStories,
+  overCellId,
+  canDropActiveStory,
+  onStoryClick,
+  runnerStatus,
+  onPlayClick,
+  onArchiveClick,
+  isCollapsed,
+  onToggleCollapse,
+}: EpicRowProps) {
+  // Content ref for measuring height for animation
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(
+    undefined,
+  );
+
+  // Measure content height when stories change
+  useEffect(() => {
+    if (contentRef.current && !isCollapsed) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [epic.storiesByStatus, columns, isCollapsed]);
+
+  return (
+    <div
+      className="group bg-card rounded-lg border shadow-sm overflow-hidden"
+      data-testid={`epic-row-${epic.name}`}
+    >
+      <EpicRowHeader
+        epic={epic}
+        columns={columns}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+      />
+
+      {/* Collapsible content with animation */}
+      <div
+        ref={contentRef}
+        className={cn(
+          "overflow-hidden transition-all duration-200 ease-in-out",
+        )}
+        style={{
+          maxHeight: isCollapsed ? 0 : contentHeight ?? "none",
+          opacity: isCollapsed ? 0 : 1,
+        }}
       >
-        {count}
-      </span>
+        <div
+          className="grid gap-1 p-2"
+          style={{
+            gridTemplateColumns: `repeat(${columns.length}, minmax(160px, 1fr))`,
+          }}
+        >
+          {columns.map((column) => {
+            const cellId = `${epic.name}:${column.id}`;
+            const isOver = overCellId === cellId;
+            const canDrop = canDropActiveStory(cellId);
+            const stories = epic.storiesByStatus[column.id] || [];
+
+            return (
+              <DroppableCell
+                key={column.id}
+                epicName={epic.name}
+                column={column}
+                stories={stories}
+                allStories={allStories}
+                isOver={isOver}
+                canDrop={canDrop}
+                onStoryClick={onStoryClick}
+                runnerStatus={runnerStatus}
+                onPlayClick={onPlayClick}
+                onArchiveClick={onArchiveClick}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Mobile EPIC Accordion component
+interface MobileEpicAccordionProps {
+  epics: EpicData[];
+  columns: KanbanColumn[];
+  allStories: Story[];
+  overCellId: string | null;
+  canDropActiveStory: (cellId: string) => boolean;
+  onStoryClick?: (story: Story) => void;
+  runnerStatus: RunnerStatus;
+  onPlayClick?: (story: Story) => void;
+  onArchiveClick?: (story: Story) => void;
+}
+
+function MobileEpicAccordion({
+  epics,
+  columns,
+  allStories,
+  overCellId,
+  canDropActiveStory,
+  onStoryClick,
+  runnerStatus,
+  onPlayClick,
+  onArchiveClick,
+}: MobileEpicAccordionProps) {
+  // Default open the first EPIC
+  const [openItems, setOpenItems] = useState<string[]>(
+    epics.length > 0 ? [epics[0].name] : []
+  );
+
+  return (
+    <Accordion
+      type="multiple"
+      value={openItems}
+      onValueChange={setOpenItems}
+      className="space-y-2"
+    >
+      {epics.map((epic) => (
+        <AccordionItem
+          key={epic.name}
+          value={epic.name}
+          className="border rounded-lg bg-card overflow-hidden"
+        >
+          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{epic.name}</span>
+              <Badge variant="secondary" className="text-xs">
+                {epic.stories.length} stories
+              </Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-2 pb-2">
+            <div className="space-y-3">
+              {columns.map((column) => {
+                const stories = epic.storiesByStatus[column.id] || [];
+                if (stories.length === 0) return null;
+
+                const cellId = `${epic.name}:${column.id}`;
+                const isOver = overCellId === cellId;
+                const canDrop = canDropActiveStory(cellId);
+
+                return (
+                  <div key={column.id}>
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 text-xs font-medium",
+                        column.headerColor,
+                      )}
+                    >
+                      {column.icon}
+                      {column.title}
+                      <span className="ml-auto">{stories.length}</span>
+                    </div>
+                    <DroppableCell
+                      epicName={epic.name}
+                      column={column}
+                      stories={stories}
+                      allStories={allStories}
+                      isOver={isOver}
+                      canDrop={canDrop}
+                      onStoryClick={onStoryClick}
+                      runnerStatus={runnerStatus}
+                      onPlayClick={onPlayClick}
+                      onArchiveClick={onArchiveClick}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+}
+
+// Column Header for matrix view
+interface MatrixColumnHeaderProps {
+  columns: KanbanColumn[];
+  hasFailedStories: boolean;
+}
+
+function MatrixColumnHeader({ columns, hasFailedStories }: MatrixColumnHeaderProps) {
+  const visibleColumns = columns.filter(
+    (col) => col.id !== "failed" || hasFailedStories
+  );
+
+  return (
+    <div
+      className="grid gap-1 px-2 py-2 bg-muted/30 border-b sticky top-0 z-20"
+      style={{
+        gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(160px, 1fr))`,
+      }}
+    >
+      {visibleColumns.map((column) => (
+        <div
+          key={column.id}
+          className={cn(
+            "flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold",
+            column.bgColor,
+            column.headerColor,
+          )}
+        >
+          {column.icon}
+          <span>{column.title}</span>
+          {column.isLocked && (
+            <Lock className="w-3 h-3 ml-0.5" aria-label="Locked" />
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -743,9 +1040,25 @@ interface StatsBarProps {
     pending: number;
     progress: number;
   };
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  onAutoCollapseCompleted?: () => void;
+  areAllExpanded?: boolean;
+  areAllCollapsed?: boolean;
+  showCollapseControls?: boolean;
+  hasCompletedEpics?: boolean;
 }
 
-function StatsBar({ stats }: StatsBarProps) {
+function StatsBar({
+  stats,
+  onExpandAll,
+  onCollapseAll,
+  onAutoCollapseCompleted,
+  areAllExpanded,
+  areAllCollapsed,
+  showCollapseControls,
+  hasCompletedEpics,
+}: StatsBarProps) {
   return (
     <div className="flex items-center gap-4 text-sm">
       <div className="flex items-center gap-1.5">
@@ -770,6 +1083,37 @@ function StatsBar({ stats }: StatsBarProps) {
       <span className="text-muted-foreground">
         {stats.progress}% complete ({stats.done}/{stats.total})
       </span>
+
+      {/* Bulk expand/collapse buttons */}
+      {showCollapseControls && (
+        <>
+          <div className="h-4 w-px bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={areAllCollapsed ? onExpandAll : onCollapseAll}
+            title={areAllCollapsed ? "Expand all EPICs" : "Collapse all EPICs"}
+            data-testid="toggle-all-epics"
+          >
+            <ChevronsUpDown className="w-3.5 h-3.5 mr-1" />
+            {areAllCollapsed ? "Expand All" : "Collapse All"}
+          </Button>
+          {hasCompletedEpics && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={onAutoCollapseCompleted}
+              title="Collapse EPICs where all stories are done"
+              data-testid="auto-collapse-done"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              Hide Done
+            </Button>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -781,8 +1125,13 @@ interface DragOverlayContentProps {
 
 function DragOverlayContent({ story }: DragOverlayContentProps) {
   return (
-    <div className="w-[280px] opacity-90 rotate-3 shadow-2xl">
-      <StoryCard story={story} />
+    <div className="opacity-90 rotate-2 shadow-2xl">
+      <div className="px-3 py-2 rounded-md border bg-card text-card-foreground">
+        <span className="text-[10px] font-mono text-muted-foreground">
+          {story.id}
+        </span>
+        <span className="text-xs font-medium ml-2">{story.title}</span>
+      </div>
     </div>
   );
 }
@@ -1228,6 +1577,138 @@ interface PendingDrop {
   unmetDependencies: Story[];
 }
 
+// Hook to detect mobile viewport
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
+// Hook to manage collapsed EPIC state with localStorage persistence
+function useCollapsedEpics(projectId: number, epics: EpicData[]) {
+  const storageKey = `ralph.kanban-collapsed-epics.${projectId}`;
+  const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(new Set());
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined" || Number.isNaN(projectId)) return;
+
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setCollapsedEpics(new Set(parsed));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load collapsed state from localStorage", e);
+    }
+    setIsInitialized(true);
+  }, [projectId, storageKey]);
+
+  // Save to localStorage when state changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !isInitialized) return;
+
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(Array.from(collapsedEpics)),
+      );
+    } catch (e) {
+      console.warn("Failed to save collapsed state to localStorage", e);
+    }
+  }, [collapsedEpics, storageKey, isInitialized]);
+
+  const toggleEpic = useCallback((epicName: string) => {
+    setCollapsedEpics((prev) => {
+      const next = new Set(prev);
+      if (next.has(epicName)) {
+        next.delete(epicName);
+      } else {
+        next.add(epicName);
+      }
+      return next;
+    });
+  }, []);
+
+  const isCollapsed = useCallback(
+    (epicName: string) => collapsedEpics.has(epicName),
+    [collapsedEpics],
+  );
+
+  const expandAll = useCallback(() => {
+    setCollapsedEpics(new Set());
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setCollapsedEpics(new Set(epics.map((e) => e.name)));
+  }, [epics]);
+
+  // Auto-collapse EPICs where all stories are done
+  const autoCollapseCompleted = useCallback(() => {
+    setCollapsedEpics((prev) => {
+      const next = new Set(prev);
+      for (const epic of epics) {
+        const allDone = epic.stories.every((s) => s.status === "done");
+        if (allDone && epic.stories.length > 0) {
+          next.add(epic.name);
+        }
+      }
+      return next;
+    });
+  }, [epics]);
+
+  const areAllCollapsed = useMemo(
+    () => epics.length > 0 && epics.every((e) => collapsedEpics.has(e.name)),
+    [epics, collapsedEpics],
+  );
+
+  const areAllExpanded = useMemo(
+    () => epics.length > 0 && !epics.some((e) => collapsedEpics.has(e.name)),
+    [epics, collapsedEpics],
+  );
+
+  return {
+    collapsedEpics,
+    toggleEpic,
+    isCollapsed,
+    expandAll,
+    collapseAll,
+    autoCollapseCompleted,
+    areAllCollapsed,
+    areAllExpanded,
+  };
+}
+
+// Generate status summary text for collapsed EPIC
+function getEpicStatusSummary(epic: EpicData, columns: KanbanColumn[]): string {
+  const parts: string[] = [];
+
+  for (const column of columns) {
+    const count = epic.storiesByStatus[column.id]?.length || 0;
+    if (count > 0) {
+      // Use short status names
+      const shortName = column.id === "in_progress" ? "in progress" : column.id;
+      parts.push(`${count} ${shortName}`);
+    }
+  }
+
+  return parts.join(", ");
+}
+
 function KanbanBoard() {
   const { id } = Route.useParams();
   const projectId = parseInt(id, 10);
@@ -1235,6 +1716,7 @@ function KanbanBoard() {
   const [runnerProvider, setRunnerProvider] =
     useState<RunnerProvider>("claude");
   const [hasAppliedConfig, setHasAppliedConfig] = useState(false);
+  const isMobile = useIsMobile();
 
   // Fetch ralph.config.json for configured provider/model
   const { data: ralphConfig } = trpc.projects.getRalphConfig.useQuery(
@@ -1272,7 +1754,7 @@ function KanbanBoard() {
 
   // Drag state
   const [activeStory, setActiveStory] = useState<Story | null>(null);
-  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const [overCellId, setOverCellId] = useState<string | null>(null);
 
   // Confirmation dialog state
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
@@ -1609,10 +2091,42 @@ function KanbanBoard() {
     },
   });
 
-  // Compute stats
+  // Compute stats and grouped EPICs
   const stats = computeProjectStats(stories);
   const runnerStatus: RunnerStatus = runnerState?.status ?? "idle";
   const hasFailedStories = stories.some((s) => s.status === "failed");
+
+  // Group stories by EPIC
+  const epics = useMemo(() => groupStoriesByEpic(stories), [stories]);
+
+  // Manage collapsed EPIC state
+  const {
+    toggleEpic,
+    isCollapsed,
+    expandAll,
+    collapseAll,
+    autoCollapseCompleted,
+    areAllCollapsed,
+    areAllExpanded,
+  } = useCollapsedEpics(projectId, epics);
+
+  // Filter columns: only show 'failed' column if there are failed stories
+  const visibleColumns = useMemo(
+    () =>
+      KANBAN_COLUMNS.filter((col) => col.id !== "failed" || hasFailedStories),
+    [hasFailedStories],
+  );
+
+  // Check if any EPIC has all stories done (for auto-collapse button visibility)
+  const hasCompletedEpics = useMemo(
+    () =>
+      epics.some(
+        (epic) =>
+          epic.stories.length > 0 &&
+          epic.stories.every((s) => s.status === "done"),
+      ),
+    [epics],
+  );
 
   // Handle runner start/stop
   const handleStartRunner = () => {
@@ -1644,13 +2158,6 @@ function KanbanBoard() {
       );
     }
   };
-
-  // Filter columns: only show 'failed' column if there are failed stories
-  const visibleColumns = useMemo(
-    () =>
-      KANBAN_COLUMNS.filter((col) => col.id !== "failed" || hasFailedStories),
-    [hasFailedStories],
-  );
 
   // Handle story click - opens log modal for in-progress, detail modal for others
   const handleStoryClick = useCallback((story: Story) => {
@@ -1723,11 +2230,6 @@ function KanbanBoard() {
     setArchiveTarget(null);
   }, []);
 
-  // Handle bulk archive button click
-  const handleBulkArchiveClick = useCallback(() => {
-    setIsBulkArchiveDialogOpen(true);
-  }, []);
-
   // Get done stories for bulk archive
   const doneStories = useMemo(
     () => stories.filter((s) => s.status === "done"),
@@ -1748,7 +2250,7 @@ function KanbanBoard() {
     setIsBulkArchiveDialogOpen(false);
   }, []);
 
-  // Drag handlers
+  // Drag handlers - adapted for matrix layout
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       const story = stories.find((s) => s.id === event.active.id);
@@ -1761,7 +2263,12 @@ function KanbanBoard() {
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { over } = event;
-    setOverColumnId(over?.id as string | null);
+    if (over) {
+      // For matrix layout, over.id is "epicName:columnId"
+      setOverCellId(over.id as string);
+    } else {
+      setOverCellId(null);
+    }
   }, []);
 
   // Execute a status change
@@ -1793,14 +2300,17 @@ function KanbanBoard() {
       const { active, over } = event;
 
       setActiveStory(null);
-      setOverColumnId(null);
+      setOverCellId(null);
 
       if (!over || !active) return;
 
       const story = stories.find((s) => s.id === active.id);
       if (!story) return;
 
-      const targetColumnId = over.id as string;
+      // Parse cellId to extract columnId (format: "epicName:columnId")
+      const cellId = over.id as string;
+      const parts = cellId.split(":");
+      const targetColumnId = parts[parts.length - 1];
       const sourceColumnId = getColumnForStory(story, stories);
 
       // If dropped on the same column, do nothing
@@ -1846,10 +2356,13 @@ function KanbanBoard() {
     setPendingDrop(null);
   }, []);
 
-  // Calculate if current drag can drop in a column
+  // Calculate if current drag can drop in a cell
   const canDropActiveStory = useCallback(
-    (columnId: string): boolean => {
+    (cellId: string): boolean => {
       if (!activeStory) return false;
+      // Parse cellId to get columnId (format: "epicName:columnId")
+      const parts = cellId.split(":");
+      const columnId = parts[parts.length - 1];
       return canDropInColumn(activeStory, columnId, stories);
     },
     [activeStory, stories],
@@ -1934,8 +2447,17 @@ function KanbanBoard() {
         <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="px-6 py-3">
             {/* Runner controls and stats in same row */}
-            <div className="flex items-center justify-between gap-4">
-              <StatsBar stats={stats} />
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <StatsBar
+                stats={stats}
+                onExpandAll={expandAll}
+                onCollapseAll={collapseAll}
+                onAutoCollapseCompleted={autoCollapseCompleted}
+                areAllExpanded={areAllExpanded}
+                areAllCollapsed={areAllCollapsed}
+                showCollapseControls={!isMobile && epics.length > 0}
+                hasCompletedEpics={hasCompletedEpics}
+              />
               <KanbanRunnerControls
                 projectId={projectId}
                 runnerStatus={runnerStatus}
@@ -1956,30 +2478,60 @@ function KanbanBoard() {
           </div>
         </div>
 
-        {/* Kanban columns */}
-        <div className="flex-1 overflow-x-auto" data-testid="kanban-board">
-          <div className="flex gap-4 p-6 h-full min-w-0">
-            {visibleColumns.map((column) => {
-              const columnStories = getStoriesForColumn(stories, column);
-              const isOver = overColumnId === column.id;
-              const canDrop = canDropActiveStory(column.id);
-              return (
-                <DroppableColumn
-                  key={column.id}
-                  column={column}
-                  stories={columnStories}
-                  allStories={stories}
-                  isOver={isOver}
-                  canDrop={canDrop}
-                  onStoryClick={handleStoryClick}
-                  runnerStatus={runnerStatus}
-                  onPlayClick={handlePlayStoryClick}
-                  onArchiveClick={handleArchiveStoryClick}
-                  onBulkArchiveClick={handleBulkArchiveClick}
-                />
-              );
-            })}
-          </div>
+        {/* Kanban Matrix or Mobile Accordion */}
+        <div className="flex-1 overflow-auto" data-testid="kanban-board">
+          {isMobile ? (
+            /* Mobile: EPIC accordion view */
+            <div className="p-4">
+              <MobileEpicAccordion
+                epics={epics}
+                columns={visibleColumns}
+                allStories={stories}
+                overCellId={overCellId}
+                canDropActiveStory={canDropActiveStory}
+                onStoryClick={handleStoryClick}
+                runnerStatus={runnerStatus}
+                onPlayClick={handlePlayStoryClick}
+                onArchiveClick={handleArchiveStoryClick}
+              />
+            </div>
+          ) : (
+            /* Desktop: Matrix layout */
+            <div className="min-w-max">
+              {/* Column headers */}
+              <MatrixColumnHeader
+                columns={visibleColumns}
+                hasFailedStories={hasFailedStories}
+              />
+
+              {/* EPIC rows */}
+              <div className="p-4 space-y-3">
+                {epics.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>Geen stories gevonden</p>
+                    <p className="text-sm mt-1">Voeg stories toe via Brainstorm of bewerk prd.json</p>
+                  </div>
+                ) : (
+                  epics.map((epic) => (
+                    <EpicRow
+                      key={epic.name}
+                      epic={epic}
+                      columns={visibleColumns}
+                      allStories={stories}
+                      overCellId={overCellId}
+                      canDropActiveStory={canDropActiveStory}
+                      onStoryClick={handleStoryClick}
+                      runnerStatus={runnerStatus}
+                      onPlayClick={handlePlayStoryClick}
+                      onArchiveClick={handleArchiveStoryClick}
+                      isCollapsed={isCollapsed(epic.name)}
+                      onToggleCollapse={() => toggleEpic(epic.name)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
