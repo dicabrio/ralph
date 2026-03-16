@@ -966,7 +966,7 @@ function RunSingleStoryDialog({
         </div>
 
         {/* Dependency status */}
-        {story.dependencies.length > 0 && (
+        {(story.dependencies?.length ?? 0) > 0 && (
           <div className="mb-4">
             <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
               {hasUnmetDeps ? (

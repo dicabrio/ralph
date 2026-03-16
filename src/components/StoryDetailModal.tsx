@@ -101,7 +101,7 @@ export function StoryDetailModal({
   // Get dependency stories with their status
   const getDependencyStories = useCallback(() => {
     if (!story) return []
-    return story.dependencies.map((depId) => {
+    return (story.dependencies ?? []).map((depId) => {
       const depStory = allStories.find((s) => s.id === depId)
       return {
         id: depId,
@@ -119,7 +119,7 @@ export function StoryDetailModal({
     const trimmedSkill = newSkillInput.trim()
 
     // Don't add if already exists
-    if (story.recommendedSkills.includes(trimmedSkill)) {
+    if (story.recommendedSkills?.includes(trimmedSkill)) {
       setNewSkillInput('')
       setIsAddingSkill(false)
       return
@@ -238,7 +238,7 @@ export function StoryDetailModal({
             <h3 className="text-sm font-semibold text-foreground mb-2">
               Acceptance Criteria
             </h3>
-            {story.acceptanceCriteria.length > 0 ? (
+            {story.acceptanceCriteria?.length > 0 ? (
               <ul className="space-y-2">
                 {story.acceptanceCriteria.map((criterion, index) => (
                   <li
@@ -307,7 +307,7 @@ export function StoryDetailModal({
             </h3>
             <div className="space-y-3">
               {/* Current skills */}
-              {story.recommendedSkills.length > 0 ? (
+              {story.recommendedSkills?.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {story.recommendedSkills.map((skill) => (
                     <span

@@ -44,9 +44,9 @@ export function StoryPreviewCard({
 }: StoryPreviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const hasCriteria = story.acceptanceCriteria.length > 0
-  const hasSkills = story.recommendedSkills.length > 0
-  const hasDependencies = story.dependencies.length > 0
+  const hasCriteria = (story.acceptanceCriteria?.length ?? 0) > 0
+  const hasSkills = (story.recommendedSkills?.length ?? 0) > 0
+  const hasDependencies = (story.dependencies?.length ?? 0) > 0
 
   // Don't render discarded stories
   if (isDiscarded) {

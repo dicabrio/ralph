@@ -161,21 +161,21 @@ export function generateStoryPrompt(
   sections.push('')
 
   // Acceptance Criteria
-  if (story.acceptanceCriteria.length > 0) {
+  if ((story.acceptanceCriteria?.length ?? 0) > 0) {
     sections.push('## Acceptance Criteria')
     sections.push('')
-    story.acceptanceCriteria.forEach((criterion, index) => {
+    story.acceptanceCriteria?.forEach((criterion, index) => {
       sections.push(`${index + 1}. ${criterion}`)
     })
     sections.push('')
   }
 
   // Recommended Skills
-  if (story.recommendedSkills.length > 0) {
+  if ((story.recommendedSkills?.length ?? 0) > 0) {
     sections.push('## Recommended Skills')
     sections.push('')
     sections.push('Invoke these skills for domain expertise:')
-    story.recommendedSkills.forEach((skill) => {
+    story.recommendedSkills?.forEach((skill) => {
       sections.push(`- ${skill}`)
     })
     sections.push('')

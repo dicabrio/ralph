@@ -37,9 +37,9 @@ export const storySchema = z.object({
   priority: z.number().int(), // Allow negative priorities for deprioritized items
   status: lenientStatusSchema,
   epic: z.string(),
-  dependencies: z.array(z.string()),
-  recommendedSkills: z.array(z.string()),
-  acceptanceCriteria: z.array(z.string()),
+  dependencies: z.array(z.string()).default([]),
+  recommendedSkills: z.array(z.string()).default([]),
+  acceptanceCriteria: z.array(z.string()).default([]),
 })
 
 export type Story = z.infer<typeof storySchema>

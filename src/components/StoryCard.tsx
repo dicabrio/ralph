@@ -33,7 +33,7 @@ export interface StoryCardProps {
 }
 
 export function StoryCard({ story, onClick, hasDragHandle }: StoryCardProps) {
-  const hasDependencies = story.dependencies.length > 0
+  const hasDependencies = (story.dependencies?.length ?? 0) > 0
   const isFailed = story.status === 'failed'
 
   return (

@@ -148,10 +148,10 @@ function ArchivedStoryCard({ story, onClick }: ArchivedStoryCardProps) {
               {formatRelativeTime(story.archivedAt)}
             </span>
           </div>
-          {story.acceptanceCriteria.length > 0 && (
+          {(story.acceptanceCriteria?.length ?? 0) > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <ClipboardCheck className="w-3.5 h-3.5" />
-              <span>{story.acceptanceCriteria.length} criteria</span>
+              <span>{story.acceptanceCriteria?.length ?? 0} criteria</span>
             </div>
           )}
         </div>
@@ -220,7 +220,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Acceptance Criteria
               </h3>
-              {story.acceptanceCriteria.length > 0 ? (
+              {(story.acceptanceCriteria?.length ?? 0) > 0 ? (
                 <ul className="space-y-2">
                   {story.acceptanceCriteria.map((criterion) => (
                     <li
@@ -244,7 +244,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Dependencies
               </h3>
-              {story.dependencies.length > 0 ? (
+              {(story.dependencies?.length ?? 0) > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {story.dependencies.map((depId) => (
                     <span
@@ -267,7 +267,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Recommended Skills
               </h3>
-              {story.recommendedSkills.length > 0 ? (
+              {(story.recommendedSkills?.length ?? 0) > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {story.recommendedSkills.map((skill) => (
                     <span

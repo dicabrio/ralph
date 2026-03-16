@@ -45,14 +45,14 @@ export const Route = createFileRoute("/project/$id/testing")({
 
 // Progress calculation helpers for flows
 function calculateTotalProgress(scenario: TestScenario | null | undefined) {
-  if (!scenario) return { checked: 0, total: 0, percentage: 0 };
+  if (!scenario || !scenario.flows) return { checked: 0, total: 0, percentage: 0 };
   const total = scenario.flows.length;
   const checked = scenario.flows.filter((flow) => flow.checked).length;
   return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
 }
 
 function isAllChecked(scenario: TestScenario | null | undefined) {
-  if (!scenario) return false;
+  if (!scenario || !scenario.flows) return false;
   return scenario.flows.every((flow) => flow.checked);
 }
 
@@ -283,7 +283,7 @@ function TestStoryCard({
         </p>
 
         {/* Test scenario flows */}
-        {scenario ? (
+        {scenario && scenario.flows ? (
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <CollapsibleTrigger asChild>
               <button
@@ -545,7 +545,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Acceptance Criteria
               </h3>
-              {story.acceptanceCriteria.length > 0 ? (
+              {story.acceptanceCriteria?.length > 0 ? (
                 <ul className="space-y-2">
                   {story.acceptanceCriteria.map((criterion) => (
                     <li
@@ -569,7 +569,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Dependencies
               </h3>
-              {story.dependencies.length > 0 ? (
+              {story.dependencies?.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {story.dependencies.map((depId) => (
                     <span
@@ -592,7 +592,7 @@ function StoryDetailModal({ isOpen, onClose, story }: StoryDetailModalProps) {
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Recommended Skills
               </h3>
-              {story.recommendedSkills.length > 0 ? (
+              {story.recommendedSkills?.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {story.recommendedSkills.map((skill) => (
                     <span

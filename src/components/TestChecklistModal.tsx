@@ -30,14 +30,14 @@ import type { TestScenario } from "@/lib/schemas/testScenarioSchema";
 // Progress calculation helpers for flows
 function calculateTotalProgress(scenario: TestScenario | null | undefined) {
   if (!scenario) return { checked: 0, total: 0, percentage: 0 };
-  const total = scenario.flows.length;
-  const checked = scenario.flows.filter((flow) => flow.checked).length;
+  const total = scenario.flows?.length;
+  const checked = scenario.flows?.filter((flow) => flow.checked).length;
   return { checked, total, percentage: total > 0 ? (checked / total) * 100 : 0 };
 }
 
 function isAllChecked(scenario: TestScenario | null | undefined) {
   if (!scenario) return false;
-  return scenario.flows.every((flow) => flow.checked);
+  return scenario.flows?.every((flow) => flow.checked);
 }
 
 export interface TestChecklistModalProps {
@@ -239,7 +239,7 @@ export function TestChecklistModal({
               </div>
             ) : scenario ? (
               <>
-                {scenario.flows.map((flow) => (
+                {scenario.flows?.map((flow) => (
                   <FlowCard
                     key={flow.id}
                     flow={flow}
