@@ -190,7 +190,7 @@ export function TestChecklistModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isProcessing && onClose()}>
       <DialogContent
-        className="sm:max-w-2xl md:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="sm:max-w-2xl md:max-w-3xl max-h-[90vh] !flex !flex-col overflow-hidden"
         data-testid="test-checklist-modal"
       >
         <DialogHeader className="flex-shrink-0 pb-4 border-b border-border">
@@ -230,7 +230,7 @@ export function TestChecklistModal({
         </DialogHeader>
 
         {/* Scrollable content area */}
-        <ScrollArea className="flex-1 py-4" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 min-h-0 py-4" ref={scrollAreaRef}>
           <div className="space-y-4 pr-4">
             {isLoadingScenario && !scenario ? (
               <div className="flex flex-col items-center justify-center py-12" data-testid="modal-loading">
