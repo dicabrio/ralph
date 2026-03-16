@@ -692,7 +692,7 @@ function EpicRow({
         <div
           className="grid gap-1 p-2 max-h-[400px] overflow-y-auto"
           style={{
-            gridTemplateColumns: `repeat(${columns.length}, minmax(160px, 1fr))`,
+            gridTemplateColumns: `repeat(${columns.length}, 1fr)`,
           }}
         >
           {columns.map((column) => {
@@ -833,7 +833,7 @@ function MatrixColumnHeader({ columns, hasFailedStories }: MatrixColumnHeaderPro
     <div
       className="grid gap-1 px-2 py-2 bg-muted/30 border-b sticky top-0 z-20"
       style={{
-        gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(160px, 1fr))`,
+        gridTemplateColumns: `repeat(${visibleColumns.length}, 1fr)`,
       }}
     >
       {visibleColumns.map((column) => (
