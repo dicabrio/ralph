@@ -13,7 +13,6 @@ import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -82,17 +81,15 @@ export function TestChecklistModal({
 
   // Save scroll position before update
   const saveScrollPosition = useCallback(() => {
-    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (scrollArea) {
-      scrollPositionRef.current = scrollArea.scrollTop;
+    if (scrollAreaRef.current) {
+      scrollPositionRef.current = scrollAreaRef.current.scrollTop;
     }
   }, []);
 
   // Restore scroll position after update
   const restoreScrollPosition = useCallback(() => {
-    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (scrollArea) {
-      scrollArea.scrollTop = scrollPositionRef.current;
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollPositionRef.current;
     }
   }, []);
 
@@ -230,8 +227,8 @@ export function TestChecklistModal({
         </DialogHeader>
 
         {/* Scrollable content area */}
-        <ScrollArea className="flex-1 min-h-0 py-4" ref={scrollAreaRef}>
-          <div className="space-y-4 pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto py-4" ref={scrollAreaRef}>
+          <div className="space-y-4 pr-2">
             {isLoadingScenario && !scenario ? (
               <div className="flex flex-col items-center justify-center py-12" data-testid="modal-loading">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
@@ -276,7 +273,7 @@ export function TestChecklistModal({
               </div>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="flex-shrink-0 pt-4 border-t border-border gap-2 sm:gap-2">
           {/* Close button */}
