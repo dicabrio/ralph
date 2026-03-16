@@ -2483,7 +2483,7 @@ function KanbanBoard() {
         </div>
 
         {/* Kanban Matrix or Mobile Accordion */}
-        <div className="flex-1 overflow-auto" data-testid="kanban-board">
+        <div className="flex-1" data-testid="kanban-board">
           {isMobile ? (
             /* Mobile: EPIC accordion view */
             <div className="p-4">
@@ -2501,7 +2501,7 @@ function KanbanBoard() {
             </div>
           ) : (
             /* Desktop: Matrix layout */
-            <div className="min-w-max">
+            <div>
               {/* Column headers */}
               <MatrixColumnHeader
                 columns={visibleColumns}
