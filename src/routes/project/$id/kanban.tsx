@@ -377,7 +377,7 @@ function CompactStoryCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative flex items-center gap-1.5 px-2 py-1.5 rounded-md border bg-card text-card-foreground shadow-sm",
+        "group relative flex flex-col gap-1 px-2.5 py-2 rounded-md border bg-card text-card-foreground shadow-sm",
         "hover:shadow-md hover:border-primary/30 transition-all cursor-pointer",
         isDragging && "opacity-50 z-50 shadow-lg",
         isFailed && "border-destructive/30 bg-destructive/5",
@@ -393,65 +393,68 @@ function CompactStoryCard({
       tabIndex={0}
       data-testid={`compact-story-${story.id}`}
     >
-      {/* Drag handle */}
-      {isDraggable && (
-        <div
-          {...listeners}
-          {...attributes}
-          className={cn(
-            "flex-shrink-0 cursor-grab active:cursor-grabbing",
-            "text-muted-foreground hover:text-foreground transition-colors",
-          )}
-          data-testid="drag-handle"
-          aria-label="Drag to reorder"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="w-3 h-3" />
-        </div>
-      )}
-
       {/* Story ID */}
-      <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
+      <span className="text-[10px] font-mono text-muted-foreground">
         {story.id}
       </span>
 
-      {/* Story title */}
-      <span className="text-xs font-medium truncate flex-1 min-w-0">
-        {story.title}
-      </span>
+      {/* Title row with drag handle and actions */}
+      <div className="flex items-center gap-1.5">
+        {/* Drag handle */}
+        {isDraggable && (
+          <div
+            {...listeners}
+            {...attributes}
+            className={cn(
+              "flex-shrink-0 cursor-grab active:cursor-grabbing",
+              "text-muted-foreground hover:text-foreground transition-colors",
+            )}
+            data-testid="drag-handle"
+            aria-label="Drag to reorder"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="w-3 h-3" />
+          </div>
+        )}
 
-      {/* Action buttons (visible on hover) */}
-      <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {canShowPlayButton && (
-          <button
-            type="button"
-            onClick={handlePlayClick}
-            className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center",
-              "bg-emerald-500 text-white hover:bg-emerald-600",
-              "shadow-sm",
-            )}
-            data-testid={`play-story-${story.id}`}
-            aria-label={`Run story ${story.id}`}
-          >
-            <Play className="w-2.5 h-2.5 ml-0.5" />
-          </button>
-        )}
-        {canShowArchiveButton && (
-          <button
-            type="button"
-            onClick={handleArchiveClick}
-            className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center",
-              "bg-slate-500 text-white hover:bg-slate-600",
-              "shadow-sm",
-            )}
-            data-testid={`archive-story-${story.id}`}
-            aria-label={`Archive story ${story.id}`}
-          >
-            <Archive className="w-2.5 h-2.5" />
-          </button>
-        )}
+        {/* Story title */}
+        <span className="text-xs font-medium truncate flex-1 min-w-0">
+          {story.title}
+        </span>
+
+        {/* Action buttons (visible on hover) */}
+        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {canShowPlayButton && (
+            <button
+              type="button"
+              onClick={handlePlayClick}
+              className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center",
+                "bg-emerald-500 text-white hover:bg-emerald-600",
+                "shadow-sm",
+              )}
+              data-testid={`play-story-${story.id}`}
+              aria-label={`Run story ${story.id}`}
+            >
+              <Play className="w-2.5 h-2.5 ml-0.5" />
+            </button>
+          )}
+          {canShowArchiveButton && (
+            <button
+              type="button"
+              onClick={handleArchiveClick}
+              className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center",
+                "bg-slate-500 text-white hover:bg-slate-600",
+                "shadow-sm",
+              )}
+              data-testid={`archive-story-${story.id}`}
+              aria-label={`Archive story ${story.id}`}
+            >
+              <Archive className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -494,10 +497,11 @@ function DroppableCell({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-[60px] p-1.5 rounded-md border border-transparent transition-all",
+        "min-h-[60px] p-2 rounded-md border transition-all",
+        "bg-muted/20 border-border/40",
         isOver && canDrop && "bg-primary/10 border-primary/30",
         isOver && !canDrop && "bg-destructive/10 border-destructive/30",
-        !isOver && "hover:bg-muted/30",
+        !isOver && "hover:bg-muted/40",
       )}
       data-testid={`cell-${epicName}-${column.id}`}
     >
@@ -515,7 +519,7 @@ function DroppableCell({
           )}
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {stories
             .sort((a, b) => a.priority - b.priority)
             .map((story) => (
@@ -686,7 +690,7 @@ function EpicRow({
         }}
       >
         <div
-          className="grid gap-1 p-2"
+          className="grid gap-1 p-2 max-h-[400px] overflow-y-auto"
           style={{
             gridTemplateColumns: `repeat(${columns.length}, minmax(160px, 1fr))`,
           }}
