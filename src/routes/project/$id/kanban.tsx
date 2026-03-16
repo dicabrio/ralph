@@ -37,10 +37,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  type Story,
-  type StoryStatus,
-} from "@/components/StoryCard";
+import { type Story, type StoryStatus } from "@/components/StoryCard";
 import { StoryDetailModal } from "@/components/StoryDetailModal";
 import { RunnerLogModal } from "@/components/RunnerLogModal";
 import { useWebSocket } from "@/lib/websocket/client";
@@ -293,7 +290,7 @@ function groupStoriesByEpic(stories: Story[]): EpicData[] {
 
     for (const column of KANBAN_COLUMNS) {
       storiesByStatus[column.id] = epicStories.filter(
-        (s) => getColumnForStory(s, epicStories) === column.id
+        (s) => getColumnForStory(s, epicStories) === column.id,
       );
     }
 
@@ -406,7 +403,7 @@ function CompactStoryCard({
             {...listeners}
             {...attributes}
             className={cn(
-              "flex-shrink-0 cursor-grab active:cursor-grabbing",
+              "shrink-0 cursor-grab active:cursor-grabbing",
               "text-muted-foreground hover:text-foreground transition-colors",
             )}
             data-testid="drag-handle"
@@ -423,7 +420,7 @@ function CompactStoryCard({
         </span>
 
         {/* Action buttons (visible on hover) */}
-        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {canShowPlayButton && (
             <button
               type="button"
@@ -508,14 +505,16 @@ function DroppableCell({
       {stories.length === 0 ? (
         <div
           className={cn(
-            "h-full min-h-[44px] flex items-center justify-center",
+            "h-full min-h-11 flex items-center justify-center",
             "text-[10px] text-muted-foreground/50",
           )}
         >
           {isOver && canDrop ? (
             <span className="text-primary">Drop here</span>
           ) : (
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity">-</span>
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+              -
+            </span>
           )}
         </div>
       ) : (
@@ -583,7 +582,7 @@ function EpicRowHeader({
       data-testid={`epic-header-${epic.name}`}
     >
       {/* Collapse toggle chevron */}
-      <div className="flex-shrink-0 text-muted-foreground">
+      <div className="shrink-0 text-muted-foreground">
         {isCollapsed ? (
           <ChevronRight className="w-4 h-4" />
         ) : (
@@ -685,15 +684,21 @@ function EpicRow({
           "overflow-hidden transition-all duration-200 ease-in-out",
         )}
         style={{
-          maxHeight: isCollapsed ? 0 : contentHeight ?? "none",
+          maxHeight: isCollapsed ? 0 : (contentHeight ?? "none"),
           opacity: isCollapsed ? 0 : 1,
         }}
       >
         <div
-          className="grid gap-1 p-2 max-h-[400px] overflow-y-auto"
-          style={{
-            gridTemplateColumns: `repeat(${columns.length}, 1fr)`,
-          }}
+          className={cn(
+            "grid gap-1 p-2 max-h-100 overflow-y-auto",
+            columns.length === 5 && "grid-cols-5",
+            columns.length === 6 && "grid-cols-6",
+          )}
+          style={
+            {
+              // gridTemplateColumns: `repeat(${columns.length}, 1fr)`,
+            }
+          }
         >
           {columns.map((column) => {
             const cellId = `${epic.name}:${column.id}`;
@@ -749,7 +754,7 @@ function MobileEpicAccordion({
 }: MobileEpicAccordionProps) {
   // Default open the first EPIC
   const [openItems, setOpenItems] = useState<string[]>(
-    epics.length > 0 ? [epics[0].name] : []
+    epics.length > 0 ? [epics[0].name] : [],
   );
 
   return (
@@ -824,9 +829,12 @@ interface MatrixColumnHeaderProps {
   hasFailedStories: boolean;
 }
 
-function MatrixColumnHeader({ columns, hasFailedStories }: MatrixColumnHeaderProps) {
+function MatrixColumnHeader({
+  columns,
+  hasFailedStories,
+}: MatrixColumnHeaderProps) {
   const visibleColumns = columns.filter(
-    (col) => col.id !== "failed" || hasFailedStories
+    (col) => col.id !== "failed" || hasFailedStories,
   );
 
   return (
@@ -1058,7 +1066,6 @@ function StatsBar({
   onExpandAll,
   onCollapseAll,
   onAutoCollapseCompleted,
-  areAllExpanded,
   areAllCollapsed,
   showCollapseControls,
   hasCompletedEpics,
@@ -1180,7 +1187,7 @@ function DependencyConfirmDialog({
       {/* Dialog content */}
       <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
         <div className="flex items-start gap-4 mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
           </div>
           <div>
@@ -1285,7 +1292,7 @@ function RunSingleStoryDialog({
       {/* Dialog content */}
       <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
         <div className="flex items-start gap-4 mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
             <Play className="w-5 h-5 text-emerald-500" />
           </div>
           <div>
@@ -1365,7 +1372,7 @@ function RunSingleStoryDialog({
         {/* Warning for unmet dependencies */}
         {hasUnmetDeps && (
           <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
               Some dependencies are not complete. The runner will still attempt
               to run this story.
@@ -1434,7 +1441,7 @@ function ArchiveConfirmDialog({
       {/* Dialog content */}
       <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
         <div className="flex items-start gap-4 mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
             <Archive className="w-5 h-5 text-slate-500" />
           </div>
           <div>
@@ -1527,7 +1534,7 @@ function BulkArchiveConfirmDialog({
       {/* Dialog content */}
       <div className="relative bg-card border rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
         <div className="flex items-start gap-4 mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
             <Archive className="w-5 h-5 text-slate-500" />
           </div>
           <div>
@@ -1729,14 +1736,21 @@ function KanbanBoard() {
   );
 
   // Extract configured provider/model for display
-  const configuredProvider = ralphConfig?.runner?.provider as RunnerProvider | undefined;
+  const configuredProvider = ralphConfig?.runner?.provider as
+    | RunnerProvider
+    | undefined;
   const configuredModel = ralphConfig?.runner?.model;
 
   // Apply configured provider as default (once, when config loads)
   useEffect(() => {
     if (ralphConfig && !hasAppliedConfig) {
       const provider = ralphConfig.runner?.provider;
-      if (provider === "claude" || provider === "codex" || provider === "gemini" || provider === "ollama") {
+      if (
+        provider === "claude" ||
+        provider === "codex" ||
+        provider === "gemini" ||
+        provider === "ollama"
+      ) {
         setRunnerProvider(provider);
         setHasAppliedConfig(true);
       }
@@ -1751,7 +1765,12 @@ function KanbanBoard() {
     const stored = window.localStorage.getItem(
       `ralph.runner-provider.${projectId}`,
     );
-    if (stored === "claude" || stored === "codex" || stored === "gemini" || stored === "ollama") {
+    if (
+      stored === "claude" ||
+      stored === "codex" ||
+      stored === "gemini" ||
+      stored === "ollama"
+    ) {
       setRunnerProvider(stored);
     }
   }, [projectId, hasAppliedConfig]);
@@ -1771,9 +1790,8 @@ function KanbanBoard() {
   const [logModalStory, setLogModalStory] = useState<Story | null>(null);
 
   // Run single story dialog state
-  const [runSingleStoryTarget, setRunSingleStoryTarget] = useState<Story | null>(
-    null,
-  );
+  const [runSingleStoryTarget, setRunSingleStoryTarget] =
+    useState<Story | null>(null);
   const [isRunSingleStoryDialogOpen, setIsRunSingleStoryDialogOpen] =
     useState(false);
 
@@ -2010,10 +2028,11 @@ function KanbanBoard() {
       });
     },
     onSuccess: (result) => {
-      const depCleanupText = result.cleanedDependencies > 0
-        ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
-        : '';
-      const isUpdate = result.action === 'updated';
+      const depCleanupText =
+        result.cleanedDependencies > 0
+          ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? "dependency" : "dependencies"} opgeschoond`
+          : "";
+      const isUpdate = result.action === "updated";
       const title = isUpdate ? "Story bijgewerkt" : "Story gearchiveerd";
       const description = isUpdate
         ? `${result.id} archief timestamp bijgewerkt${depCleanupText}`
@@ -2066,17 +2085,22 @@ function KanbanBoard() {
     onSuccess: (result) => {
       const archivedCount = result.archived.length;
       const updatedCount = result.updated?.length ?? 0;
-      const depCleanupText = result.cleanedDependencies > 0
-        ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? 'dependency' : 'dependencies'} opgeschoond`
-        : '';
+      const depCleanupText =
+        result.cleanedDependencies > 0
+          ? `, ${result.cleanedDependencies} ${result.cleanedDependencies === 1 ? "dependency" : "dependencies"} opgeschoond`
+          : "";
 
       // Build description based on what happened
       const parts: string[] = [];
       if (archivedCount > 0) {
-        parts.push(`${archivedCount} ${archivedCount === 1 ? "story" : "stories"} gearchiveerd`);
+        parts.push(
+          `${archivedCount} ${archivedCount === 1 ? "story" : "stories"} gearchiveerd`,
+        );
       }
       if (updatedCount > 0) {
-        parts.push(`${updatedCount} ${updatedCount === 1 ? "story" : "stories"} bijgewerkt`);
+        parts.push(
+          `${updatedCount} ${updatedCount === 1 ? "story" : "stories"} bijgewerkt`,
+        );
       }
 
       toast.success("Stories verwerkt", {
@@ -2149,7 +2173,9 @@ function KanbanBoard() {
       runner: {
         provider,
         ...(ralphConfig?.runner?.model && { model: ralphConfig.runner.model }),
-        ...(ralphConfig?.runner?.baseUrl && { baseUrl: ralphConfig.runner.baseUrl }),
+        ...(ralphConfig?.runner?.baseUrl && {
+          baseUrl: ralphConfig.runner.baseUrl,
+        }),
       },
     };
     updateRalphConfig.mutate({ projectId, config: newConfig });
@@ -2448,7 +2474,7 @@ function KanbanBoard() {
     >
       <div className="flex flex-col h-full">
         {/* Toolbar with runner controls and stats */}
-        <div className="flex-shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="shrink-0 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="px-6 py-3">
             {/* Runner controls and stats in same row */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -2513,7 +2539,9 @@ function KanbanBoard() {
                 {epics.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <p>Geen stories gevonden</p>
-                    <p className="text-sm mt-1">Voeg stories toe via Brainstorm of bewerk prd.json</p>
+                    <p className="text-sm mt-1">
+                      Voeg stories toe via Brainstorm of bewerk prd.json
+                    </p>
                   </div>
                 ) : (
                   epics.map((epic) => (
